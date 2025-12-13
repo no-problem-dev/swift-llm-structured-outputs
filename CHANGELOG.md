@@ -7,6 +7,25 @@
 
 ## [未リリース]
 
+## [1.0.6] - 2025-12-13
+
+### 修正
+
+- Anthropic構造化出力APIの修正
+  - ベータヘッダーを `structured-outputs-2025-11-13` に変更
+  - `output_format` 構造を `schema` 直接指定に変更
+  - `AnthropicJSONSchemaWrapper` を廃止
+
+### 追加
+
+- `JSONSchema.sanitizedForAnthropic()` メソッド
+  - Anthropic APIでサポートされていない制約を自動的に除去
+  - `maxItems`: 完全に除去
+  - `minItems`: 0と1以外の値を除去
+  - `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`: 除去
+  - `minLength`, `maxLength`: 除去
+  - 再帰的にネストされたスキーマもサニタイズ
+
 ## [1.0.5] - 2025-12-13
 
 ### 変更
@@ -84,7 +103,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.5...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.6...HEAD
+[1.0.6]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.0...v1.0.4
 [1.0.0]: https://github.com/no-problem-dev/swift-llm-structured-outputs/releases/tag/v1.0.0
