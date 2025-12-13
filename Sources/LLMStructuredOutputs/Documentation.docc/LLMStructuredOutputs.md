@@ -1,74 +1,74 @@
 # ``LLMStructuredOutputs``
 
-Type-safe structured output generation for Swift LLM clients.
+Swift LLM クライアント向けの型安全な構造化出力生成ライブラリ。
 
-## Overview
+## 概要
 
-LLMStructuredOutputs is a Swift library that enables type-safe structured output generation from Large Language Models. Using Swift macros, you can define your output types with full validation constraints, and the library will automatically generate JSON Schema and handle responses from multiple LLM providers.
+LLMStructuredOutputs は、大規模言語モデルから型安全な構造化出力を生成できる Swift ライブラリです。Swift マクロを使用して、完全なバリデーション制約付きの出力型を定義でき、ライブラリが自動的に JSON Schema を生成し、複数の LLM プロバイダーからのレスポンスを処理します。
 
-### Key Features
+### 主な機能
 
-- **Type-safe structured outputs** using Swift macros
-- **Multi-provider support**: Claude (Anthropic), GPT (OpenAI), and Gemini (Google)
-- **Conversation management** for multi-turn interactions
-- **Full Swift Concurrency support** with async/await
-- **Zero dependencies** beyond swift-syntax
+- **型安全な構造化出力** - Swift マクロを使用
+- **マルチプロバイダー対応** - Claude (Anthropic)、GPT (OpenAI)、Gemini (Google)
+- **会話管理** - マルチターンのやり取りに対応
+- **完全な Swift Concurrency サポート** - async/await 対応
+- **ゼロ依存** - swift-syntax のみ使用
 
-## Quick Start
+## クイックスタート
 
-Define your output type:
+出力型を定義:
 
 ```swift
-@Structured("User information")
+@Structured("ユーザー情報")
 struct UserInfo {
-    @StructuredField("Name")
+    @StructuredField("名前")
     var name: String
 
-    @StructuredField("Age", .minimum(0))
+    @StructuredField("年齢", .minimum(0))
     var age: Int
 }
 ```
 
-Generate structured output:
+構造化出力を生成:
 
 ```swift
 let client = AnthropicClient(apiKey: "sk-ant-...")
 let user: UserInfo = try await client.generate(
-    prompt: "John is 30 years old",
+    prompt: "山田太郎さんは30歳です",
     model: .sonnet
 )
 ```
 
 ## Topics
 
-### Essentials
+### 基本
 
 - <doc:GettingStarted>
 - <doc:Providers>
 - <doc:Conversations>
 
-### Macros
+### マクロ
 
 - ``Structured(_:)``
 - ``StructuredField(_:_:)``
 - ``StructuredEnum(_:)``
 - ``StructuredCase(_:)``
 
-### Clients
+### クライアント
 
 - ``AnthropicClient``
 - ``OpenAIClient``
 - ``GeminiClient``
 - ``StructuredLLMClient``
 
-### Models
+### モデル
 
 - ``ClaudeModel``
 - ``GPTModel``
 - ``GeminiModel``
 - ``LLMModel``
 
-### Conversation
+### 会話
 
 - ``Conversation``
 - ``ChatResponse``
@@ -76,12 +76,12 @@ let user: UserInfo = try await client.generate(
 - ``TokenUsage``
 - ``StopReason``
 
-### Schema
+### スキーマ
 
 - ``JSONSchema``
 - ``FieldConstraint``
 - ``StructuredProtocol``
 
-### Errors
+### エラー
 
 - ``LLMError``

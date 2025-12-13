@@ -1,28 +1,28 @@
-# Providers
+# プロバイダー
 
-Learn about the supported LLM providers and their models.
+対応している LLM プロバイダーとモデルについて学びます。
 
-## Overview
+## 概要
 
-LLMStructuredOutputs supports three major LLM providers, each with their own client class and model options.
+LLMStructuredOutputs は、3 つの主要な LLM プロバイダーをサポートしており、それぞれに専用のクライアントクラスとモデルオプションがあります。
 
 ## Anthropic Claude
 
-### Client Setup
+### クライアントのセットアップ
 
 ```swift
 let client = AnthropicClient(apiKey: "sk-ant-...")
 ```
 
-### Model Options
+### モデルオプション
 
-Use ``ClaudeModel`` for model selection:
+``ClaudeModel`` を使用してモデルを選択:
 
-| Alias | Description |
-|-------|-------------|
-| `.sonnet` | Claude Sonnet - balanced performance |
-| `.opus` | Claude Opus - highest capability |
-| `.haiku` | Claude Haiku - fastest |
+| エイリアス | 説明 |
+|-----------|------|
+| `.sonnet` | Claude Sonnet - バランスの取れた性能 |
+| `.opus` | Claude Opus - 最高性能 |
+| `.haiku` | Claude Haiku - 最速 |
 
 ```swift
 let result: MyType = try await client.generate(
@@ -31,9 +31,9 @@ let result: MyType = try await client.generate(
 )
 ```
 
-### Fixed Versions
+### 固定バージョン
 
-For production stability, use fixed versions:
+本番環境の安定性のために、固定バージョンを使用:
 
 ```swift
 model: .sonnet_20250514
@@ -43,23 +43,23 @@ model: .haiku_20250307
 
 ## OpenAI GPT
 
-### Client Setup
+### クライアントのセットアップ
 
 ```swift
 let client = OpenAIClient(apiKey: "sk-...")
 ```
 
-### Model Options
+### モデルオプション
 
-Use ``GPTModel`` for model selection:
+``GPTModel`` を使用してモデルを選択:
 
-| Alias | Description |
-|-------|-------------|
-| `.gpt4o` | GPT-4o - most capable |
-| `.gpt4oMini` | GPT-4o Mini - faster |
-| `.o1` | o1 - reasoning model |
-| `.o1Mini` | o1 Mini - compact reasoning |
-| `.o3Mini` | o3 Mini - latest reasoning |
+| エイリアス | 説明 |
+|-----------|------|
+| `.gpt4o` | GPT-4o - 最も高性能 |
+| `.gpt4oMini` | GPT-4o Mini - 高速 |
+| `.o1` | o1 - 推論モデル |
+| `.o1Mini` | o1 Mini - コンパクト推論 |
+| `.o3Mini` | o3 Mini - 最新の推論 |
 
 ```swift
 let result: MyType = try await client.generate(
@@ -70,24 +70,24 @@ let result: MyType = try await client.generate(
 
 ## Google Gemini
 
-### Client Setup
+### クライアントのセットアップ
 
 ```swift
 let client = GeminiClient(apiKey: "...")
 ```
 
-### Model Options
+### モデルオプション
 
-Use ``GeminiModel`` for model selection:
+``GeminiModel`` を使用してモデルを選択:
 
-| Alias | Description |
-|-------|-------------|
-| `.pro25` | Gemini 2.5 Pro - most capable |
-| `.flash25` | Gemini 2.5 Flash - fast |
-| `.flash25Lite` | Gemini 2.5 Flash Lite - lightweight |
-| `.flash20` | Gemini 2.0 Flash - stable |
-| `.pro15` | Gemini 1.5 Pro - previous gen |
-| `.flash15` | Gemini 1.5 Flash - previous gen |
+| エイリアス | 説明 |
+|-----------|------|
+| `.pro25` | Gemini 2.5 Pro - 最も高性能 |
+| `.flash25` | Gemini 2.5 Flash - 高速 |
+| `.flash25Lite` | Gemini 2.5 Flash Lite - 軽量 |
+| `.flash20` | Gemini 2.0 Flash - 安定版 |
+| `.pro15` | Gemini 1.5 Pro - 前世代 |
+| `.flash15` | Gemini 1.5 Flash - 前世代 |
 
 ```swift
 let result: MyType = try await client.generate(
@@ -96,44 +96,44 @@ let result: MyType = try await client.generate(
 )
 ```
 
-## Common Parameters
+## 共通パラメーター
 
-All providers support these parameters:
+すべてのプロバイダーで以下のパラメーターをサポート:
 
 ```swift
 let result: MyType = try await client.generate(
-    prompt: "Your prompt",
+    prompt: "プロンプト",
     model: .sonnet,
-    systemPrompt: "You are a helpful assistant",
+    systemPrompt: "あなたは親切なアシスタントです",
     temperature: 0.7,
     maxTokens: 1000
 )
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `prompt` | `String` | User input |
-| `model` | Provider-specific | Model selection |
-| `systemPrompt` | `String?` | System instructions |
-| `temperature` | `Double?` | Randomness (0.0-1.0) |
-| `maxTokens` | `Int?` | Max response tokens |
+| パラメーター | 型 | 説明 |
+|------------|-----|------|
+| `prompt` | `String` | ユーザー入力 |
+| `model` | プロバイダー固有 | モデル選択 |
+| `systemPrompt` | `String?` | システム指示 |
+| `temperature` | `Double?` | ランダム性 (0.0-1.0) |
+| `maxTokens` | `Int?` | 最大レスポンストークン |
 
-## Type Safety
+## 型安全性
 
-The library enforces type safety at compile time:
+ライブラリはコンパイル時に型安全性を強制:
 
 ```swift
-// ✅ Correct - ClaudeModel with AnthropicClient
+// ✅ 正しい - ClaudeModel と AnthropicClient
 let anthropic = AnthropicClient(apiKey: "...")
 try await anthropic.generate(prompt: "...", model: .sonnet)
 
-// ❌ Won't compile - GPTModel with AnthropicClient
+// ❌ コンパイルエラー - GPTModel と AnthropicClient
 try await anthropic.generate(prompt: "...", model: .gpt4o)
 ```
 
-## Custom Models
+## カスタムモデル
 
-All providers support custom model IDs:
+すべてのプロバイダーでカスタムモデル ID をサポート:
 
 ```swift
 // Anthropic
