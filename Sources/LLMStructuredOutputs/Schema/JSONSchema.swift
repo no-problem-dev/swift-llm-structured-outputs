@@ -315,3 +315,51 @@ extension JSONSchema {
 public enum JSONSchemaError: Error, Sendable {
     case encodingFailed
 }
+
+// MARK: - Provider-Specific Sanitization
+
+extension JSONSchema {
+    /// Anthropic API用にスキーマをサニタイズ
+    ///
+    /// Anthropic APIはJSON Schemaの一部の制約をサポートしていません：
+    /// - `maxItems`: 未サポート
+    /// - `minItems`: 0と1以外の値は未サポート
+    /// - `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`: 未サポート
+    /// - `minLength`, `maxLength`: 未サポート
+    ///
+    /// このメソッドはサポートされていない制約を除去したスキーマを返します。
+    public func sanitizedForAnthropic() -> JSONSchema {
+        // サニタイズされたminItems（0または1のみ許可）
+        let sanitizedMinItems: Int? = if let minItems, minItems <= 1 {
+            minItems
+        } else {
+            nil
+        }
+
+        // プロパティを再帰的にサニタイズ
+        let sanitizedProperties = properties?.mapValues { $0.sanitizedForAnthropic() }
+
+        // itemsを再帰的にサニタイズ
+        let sanitizedItems = items?.value.sanitizedForAnthropic()
+
+        return JSONSchema(
+            type: type,
+            description: description,
+            properties: sanitizedProperties,
+            required: required,
+            items: sanitizedItems,
+            additionalProperties: additionalProperties,
+            minItems: sanitizedMinItems,
+            maxItems: nil,  // Anthropicは maxItems をサポートしない
+            minimum: nil,   // Anthropicは minimum をサポートしない
+            maximum: nil,   // Anthropicは maximum をサポートしない
+            exclusiveMinimum: nil,
+            exclusiveMaximum: nil,
+            minLength: nil, // Anthropicは minLength をサポートしない
+            maxLength: nil, // Anthropicは maxLength をサポートしない
+            pattern: pattern,
+            enum: `enum`,
+            format: format
+        )
+    }
+}
