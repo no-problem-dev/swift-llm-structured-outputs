@@ -110,3 +110,5 @@
 [1.0.0]: https://github.com/no-problem-dev/swift-llm-structured-outputs/releases/tag/v1.0.0
 
 <!-- Auto-generated on 2025-12-13T09:37:38Z by release workflow -->
+
+<!-- Auto-generated on 2025-12-13T10:51:06Z by release workflow -->
