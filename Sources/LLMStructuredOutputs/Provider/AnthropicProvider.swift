@@ -20,7 +20,7 @@ internal struct AnthropicProvider: LLMProvider {
     private static let apiVersion = "2023-06-01"
 
     /// 構造化出力のベータヘッダー
-    private static let structuredOutputsBeta = "output-128k-2025-02-19"
+    private static let structuredOutputsBeta = "structured-outputs-2025-11-13"
 
     /// デフォルトエンドポイント
     private static let defaultEndpoint = URL(string: "https://api.anthropic.com/v1/messages")!
@@ -89,15 +89,12 @@ internal struct AnthropicProvider: LLMProvider {
             )
         }
 
-        // 構造化出力の設定
+        // 構造化出力の設定（Anthropic APIでサポートされていない制約を除去）
         var outputFormat: AnthropicOutputFormat?
         if let schema = request.responseSchema {
             outputFormat = AnthropicOutputFormat(
                 type: "json_schema",
-                jsonSchema: AnthropicJSONSchemaWrapper(
-                    name: "response",
-                    schema: schema
-                )
+                schema: schema.sanitizedForAnthropic()
             )
         }
 
@@ -239,17 +236,6 @@ private struct AnthropicMessage: Encodable {
 /// Anthropic 出力フォーマット設定
 private struct AnthropicOutputFormat: Encodable {
     let type: String
-    let jsonSchema: AnthropicJSONSchemaWrapper
-
-    enum CodingKeys: String, CodingKey {
-        case type
-        case jsonSchema = "json_schema"
-    }
-}
-
-/// JSON Schema ラッパー
-private struct AnthropicJSONSchemaWrapper: Encodable {
-    let name: String
     let schema: JSONSchema
 }
 
