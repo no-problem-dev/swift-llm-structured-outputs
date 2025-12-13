@@ -7,6 +7,15 @@
 
 ## [未リリース]
 
+## [1.0.7] - 2025-12-13
+
+### 修正
+
+- Linux環境でのビルド対応
+  - Provider/Client全ファイルに `FoundationNetworking` のインポートを追加
+  - LinuxではURLRequest, URLResponse, HTTPURLResponseが `FoundationNetworking` モジュールにあるため必要
+  - `#if canImport(FoundationNetworking)` による条件付きインポート
+
 ## [1.0.6] - 2025-12-13
 
 ### 修正
@@ -103,7 +112,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.6...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.7...HEAD
+[1.0.7]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.6...v1.0.7
 [1.0.6]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.0...v1.0.4
