@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] - 2025-12-13
+
+### Fixed
+- Release workflow trigger fix (CHANGELOG version alignment)
+
 ## [1.0.0] - 2025-12-13
 
 ### Added
@@ -55,5 +60,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation with DocC
 - GitHub Actions for auto-release and documentation generation
 
-[Unreleased]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.4...HEAD
+[1.0.4]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.0...v1.0.4
 [1.0.0]: https://github.com/no-problem-dev/swift-llm-structured-outputs/releases/tag/v1.0.0
