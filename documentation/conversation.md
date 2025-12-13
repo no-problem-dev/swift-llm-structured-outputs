@@ -1,10 +1,10 @@
-# Conversation
+# 会話
 
-The `Conversation` class provides a convenient way to manage multi-turn conversations with LLMs while maintaining type-safe structured outputs.
+`Conversation` クラスは、型安全な構造化出力を維持しながら、LLM とのマルチターン会話を管理する便利な方法を提供します。
 
-## Basic Usage
+## 基本的な使い方
 
-### Creating a Conversation
+### 会話の作成
 
 ```swift
 import LLMStructuredOutputs
@@ -14,78 +14,78 @@ let client = AnthropicClient(apiKey: "sk-ant-...")
 var conversation = Conversation(
     client: client,
     model: .sonnet,
-    systemPrompt: "You are a helpful cooking assistant"
+    systemPrompt: "あなたは親切な料理アシスタントです"
 )
 ```
 
-### Sending Messages
+### メッセージの送信
 
-Use the `send` method to send messages and receive structured responses:
+`send` メソッドを使用してメッセージを送信し、構造化されたレスポンスを受け取ります:
 
 ```swift
-@Structured("Recipe information")
+@Structured("レシピ情報")
 struct Recipe {
-    @StructuredField("Recipe name")
+    @StructuredField("レシピ名")
     var name: String
 
-    @StructuredField("List of ingredients")
+    @StructuredField("材料リスト")
     var ingredients: [String]
 
-    @StructuredField("Cooking instructions")
+    @StructuredField("調理手順")
     var instructions: [String]
 }
 
-// First message
-let recipe: Recipe = try await conversation.send("How do I make pasta carbonara?")
-print(recipe.name)  // "Pasta Carbonara"
+// 最初のメッセージ
+let recipe: Recipe = try await conversation.send("カルボナーラの作り方を教えて")
+print(recipe.name)  // "カルボナーラ"
 
-// Follow-up question (context is maintained)
-@Structured("Cooking tips")
+// フォローアップの質問（コンテキストが維持される）
+@Structured("料理のコツ")
 struct CookingTips {
-    @StructuredField("List of tips")
+    @StructuredField("コツのリスト")
     var tips: [String]
 }
 
-let tips: CookingTips = try await conversation.send("Any tips for a beginner?")
+let tips: CookingTips = try await conversation.send("初心者向けのコツは？")
 ```
 
-## Conversation State
+## 会話の状態
 
-### Tracking Messages
+### メッセージの追跡
 
 ```swift
-// Get all messages in the conversation
+// 会話内のすべてのメッセージを取得
 let messages = conversation.messages
 
-// Get the number of turns (user-assistant pairs)
+// ターン数（ユーザー・アシスタントのペア）を取得
 let turns = conversation.turnCount
 ```
 
-### Token Usage
+### トークン使用量
 
 ```swift
-// Track total token usage across all turns
+// すべてのターンの合計トークン使用量を追跡
 let totalUsage = conversation.totalUsage
-print("Input tokens: \(totalUsage.inputTokens)")
-print("Output tokens: \(totalUsage.outputTokens)")
-print("Total tokens: \(totalUsage.totalTokens)")
+print("入力トークン: \(totalUsage.inputTokens)")
+print("出力トークン: \(totalUsage.outputTokens)")
+print("合計トークン: \(totalUsage.totalTokens)")
 ```
 
-### Clearing Conversation
+### 会話のクリア
 
 ```swift
-// Reset the conversation to start fresh
+// 会話をリセットして最初からやり直す
 conversation.clear()
 ```
 
-## Starting with Existing Messages
+## 既存のメッセージで開始
 
-You can initialize a conversation with existing message history:
+既存のメッセージ履歴で会話を初期化できます:
 
 ```swift
 let existingMessages: [LLMMessage] = [
-    .user("What's the capital of France?"),
-    .assistant("{\"name\": \"Paris\", \"country\": \"France\"}")
+    .user("フランスの首都は？"),
+    .assistant("{\"name\": \"パリ\", \"country\": \"フランス\"}")
 ]
 
 var conversation = Conversation(
@@ -95,9 +95,9 @@ var conversation = Conversation(
 )
 ```
 
-## Using Different Output Types
+## 異なる出力型の使用
 
-Each message in a conversation can return a different structured type:
+会話内の各メッセージは異なる構造化型を返すことができます:
 
 ```swift
 @Structured
@@ -118,76 +118,76 @@ struct WeatherInfo {
     var condition: String
 }
 
-// Same conversation, different response types
-let city: CityInfo = try await conversation.send("What's the capital of Japan?")
-let population: PopulationInfo = try await conversation.send("What's its population?")
-let weather: WeatherInfo = try await conversation.send("What's the weather like there?")
+// 同じ会話で、異なるレスポンス型
+let city: CityInfo = try await conversation.send("日本の首都は？")
+let population: PopulationInfo = try await conversation.send("その都市の人口は？")
+let weather: WeatherInfo = try await conversation.send("今の天気は？")
 ```
 
-## Low-Level Chat API
+## 低レベル Chat API
 
-For more control, you can use the `chat` methods directly on the client:
+より細かい制御が必要な場合は、クライアントの `chat` メソッドを直接使用できます:
 
 ```swift
 var messages: [LLMMessage] = []
 
-// First turn
-messages.append(.user("What is 2 + 2?"))
+// 最初のターン
+messages.append(.user("2 + 2 は？"))
 let response1: ChatResponse<MathAnswer> = try await client.chat(
     messages: messages,
     model: .sonnet
 )
 messages.append(response1.assistantMessage)
 
-// Second turn
-messages.append(.user("Now multiply that by 3"))
+// 2番目のターン
+messages.append(.user("それを3倍して"))
 let response2: ChatResponse<MathAnswer> = try await client.chat(
     messages: messages,
     model: .sonnet
 )
 ```
 
-### ChatResponse Properties
+### ChatResponse のプロパティ
 
 ```swift
 let response: ChatResponse<MyType> = try await client.chat(...)
 
-// The structured result
+// 構造化された結果
 let result = response.result
 
-// The assistant's raw message (for adding to history)
+// アシスタントの生メッセージ（履歴に追加用）
 let assistantMessage = response.assistantMessage
 
-// Token usage for this turn
+// このターンのトークン使用量
 let usage = response.usage
 
-// Why the response ended
+// レスポンスが終了した理由
 let stopReason = response.stopReason
 
-// The model that was used
+// 使用されたモデル
 let model = response.model
 
-// Raw text before parsing
+// パース前の生テキスト
 let rawText = response.rawText
 ```
 
-## Configuration Options
+## 設定オプション
 
 ### Temperature
 
-Control response randomness:
+レスポンスのランダム性を制御:
 
 ```swift
 var conversation = Conversation(
     client: client,
     model: .sonnet,
-    temperature: 0.7  // 0.0 = deterministic, 1.0 = creative
+    temperature: 0.7  // 0.0 = 確定的、1.0 = 創造的
 )
 ```
 
-### Max Tokens
+### 最大トークン
 
-Limit response length:
+レスポンスの長さを制限:
 
 ```swift
 var conversation = Conversation(
@@ -197,33 +197,33 @@ var conversation = Conversation(
 )
 ```
 
-## Type Safety
+## 型安全性
 
-The `Conversation` class is generic over the client type, ensuring model compatibility:
+`Conversation` クラスはクライアント型に対してジェネリックであり、モデルの互換性を保証します:
 
 ```swift
-// Using Anthropic client - only ClaudeModel allowed
+// Anthropic クライアントを使用 - ClaudeModel のみ許可
 var anthropicConv = Conversation(
     client: AnthropicClient(apiKey: "..."),
     model: .sonnet  // ✅ ClaudeModel
 )
 
-// Using OpenAI client - only GPTModel allowed
+// OpenAI クライアントを使用 - GPTModel のみ許可
 var openaiConv = Conversation(
     client: OpenAIClient(apiKey: "..."),
     model: .gpt4o  // ✅ GPTModel
 )
 
-// Using Gemini client - only GeminiModel allowed
+// Gemini クライアントを使用 - GeminiModel のみ許可
 var geminiConv = Conversation(
     client: GeminiClient(apiKey: "..."),
     model: .flash25  // ✅ GeminiModel
 )
 ```
 
-## Concurrency
+## 並行処理
 
-`Conversation` is `Sendable` and can be safely used across async contexts:
+`Conversation` は `Sendable` であり、非同期コンテキスト間で安全に使用できます:
 
 ```swift
 let conversation = Conversation(
@@ -231,23 +231,23 @@ let conversation = Conversation(
     model: .sonnet
 )
 
-// Safe to use in concurrent contexts
+// 並行コンテキストで安全に使用
 Task {
     var conv = conversation
-    let result: MyType = try await conv.send("Hello")
+    let result: MyType = try await conv.send("こんにちは")
 }
 ```
 
-## Best Practices
+## ベストプラクティス
 
-1. **Reuse conversations** for related questions to maintain context
-2. **Clear conversations** when starting a new topic
-3. **Monitor token usage** for cost management
-4. **Use appropriate models** based on task complexity
-5. **Handle errors** gracefully with do-catch blocks
+1. **関連する質問には会話を再利用** - コンテキストを維持
+2. **新しいトピックでは会話をクリア** - 不要なコンテキストを削除
+3. **トークン使用量を監視** - コスト管理のため
+4. **タスクの複雑さに応じたモデルを使用** - 適切なモデル選択
+5. **エラーを適切に処理** - do-catch ブロックで
 
-## Next Steps
+## 次のステップ
 
-- Check the [Providers](providers.md) guide for provider-specific details
-- See [Getting Started](getting-started.md) for basic setup
-- Browse the [API Reference](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) for complete documentation
+- [プロバイダー](providers.md) ガイドでプロバイダー固有の詳細を確認
+- [はじめに](getting-started.md) で基本的なセットアップを確認
+- [API リファレンス](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) で完全なドキュメントを閲覧

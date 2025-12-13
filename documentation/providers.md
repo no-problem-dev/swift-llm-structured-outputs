@@ -1,48 +1,48 @@
-# Providers
+# プロバイダー
 
-swift-llm-structured-outputs supports multiple LLM providers through a unified interface.
+swift-llm-structured-outputs は、統一されたインターフェースで複数の LLM プロバイダーをサポートしています。
 
-## Supported Providers
+## 対応プロバイダー
 
-| Provider | Client Class | Model Enum |
-|----------|-------------|------------|
+| プロバイダー | クライアントクラス | モデル列挙型 |
+|-------------|------------------|-------------|
 | Anthropic | `AnthropicClient` | `ClaudeModel` |
 | OpenAI | `OpenAIClient` | `GPTModel` |
 | Google | `GeminiClient` | `GeminiModel` |
 
 ## Anthropic Claude
 
-### Setup
+### セットアップ
 
 ```swift
 let client = AnthropicClient(apiKey: "sk-ant-...")
 ```
 
-### Available Models
+### 利用可能なモデル
 
-| Alias | Model ID | Description |
-|-------|----------|-------------|
-| `.sonnet` | claude-sonnet-4-20250514 | Best balance of speed and quality |
-| `.opus` | claude-opus-4-20250514 | Most capable model |
-| `.haiku` | claude-haiku-3-20250307 | Fastest model |
+| エイリアス | モデル ID | 説明 |
+|-----------|----------|------|
+| `.sonnet` | claude-sonnet-4-20250514 | 速度と品質のバランスが最適 |
+| `.opus` | claude-opus-4-20250514 | 最も高性能なモデル |
+| `.haiku` | claude-haiku-3-20250307 | 最速のモデル |
 
-### Using Fixed Versions
+### 固定バージョンの使用
 
 ```swift
-// Use a specific version
+// 特定のバージョンを使用
 let result: MyType = try await client.generate(
     prompt: "...",
     model: .sonnet_20250514
 )
 
-// Use preview versions
+// プレビューバージョンを使用
 let result: MyType = try await client.generate(
     prompt: "...",
     model: .sonnet_preview(version: "2025-01-15")
 )
 ```
 
-### Custom Models
+### カスタムモデル
 
 ```swift
 let result: MyType = try await client.generate(
@@ -53,23 +53,23 @@ let result: MyType = try await client.generate(
 
 ## OpenAI GPT
 
-### Setup
+### セットアップ
 
 ```swift
 let client = OpenAIClient(apiKey: "sk-...")
 ```
 
-### Available Models
+### 利用可能なモデル
 
-| Alias | Model ID | Description |
-|-------|----------|-------------|
-| `.gpt4o` | gpt-4o | Most capable GPT model |
-| `.gpt4oMini` | gpt-4o-mini | Faster, more economical |
-| `.o1` | o1 | Reasoning model |
-| `.o1Mini` | o1-mini | Faster reasoning model |
-| `.o3Mini` | o3-mini | Latest compact reasoning |
+| エイリアス | モデル ID | 説明 |
+|-----------|----------|------|
+| `.gpt4o` | gpt-4o | 最も高性能な GPT モデル |
+| `.gpt4oMini` | gpt-4o-mini | より高速で経済的 |
+| `.o1` | o1 | 推論モデル |
+| `.o1Mini` | o1-mini | 高速な推論モデル |
+| `.o3Mini` | o3-mini | 最新のコンパクト推論モデル |
 
-### Using Fixed Versions
+### 固定バージョンの使用
 
 ```swift
 let result: MyType = try await client.generate(
@@ -78,7 +78,7 @@ let result: MyType = try await client.generate(
 )
 ```
 
-### Preview Versions
+### プレビューバージョン
 
 ```swift
 let result: MyType = try await client.generate(
@@ -89,24 +89,24 @@ let result: MyType = try await client.generate(
 
 ## Google Gemini
 
-### Setup
+### セットアップ
 
 ```swift
 let client = GeminiClient(apiKey: "...")
 ```
 
-### Available Models
+### 利用可能なモデル
 
-| Alias | Model ID | Description |
-|-------|----------|-------------|
-| `.pro25` | gemini-2.5-pro-preview-06-05 | Most capable |
-| `.flash25` | gemini-2.5-flash-preview-05-20 | Fast and efficient |
-| `.flash25Lite` | gemini-2.5-flash-lite-preview-06-17 | Lightweight |
-| `.flash20` | gemini-2.0-flash | Stable flash model |
-| `.pro15` | gemini-1.5-pro | Previous generation pro |
-| `.flash15` | gemini-1.5-flash | Previous generation flash |
+| エイリアス | モデル ID | 説明 |
+|-----------|----------|------|
+| `.pro25` | gemini-2.5-pro-preview-06-05 | 最も高性能 |
+| `.flash25` | gemini-2.5-flash-preview-05-20 | 高速で効率的 |
+| `.flash25Lite` | gemini-2.5-flash-lite-preview-06-17 | 軽量版 |
+| `.flash20` | gemini-2.0-flash | 安定版フラッシュモデル |
+| `.pro15` | gemini-1.5-pro | 前世代プロモデル |
+| `.flash15` | gemini-1.5-flash | 前世代フラッシュモデル |
 
-### Preview Versions
+### プレビューバージョン
 
 ```swift
 let result: MyType = try await client.generate(
@@ -115,50 +115,50 @@ let result: MyType = try await client.generate(
 )
 ```
 
-## Common Parameters
+## 共通パラメーター
 
-All clients support the following parameters:
+すべてのクライアントで以下のパラメーターがサポートされています:
 
 ```swift
 let result: MyType = try await client.generate(
-    prompt: "Your prompt here",
+    prompt: "プロンプトを入力",
     model: .sonnet,
-    systemPrompt: "You are a helpful assistant",  // Optional
-    temperature: 0.7,  // Optional: 0.0-1.0
-    maxTokens: 1000    // Optional
+    systemPrompt: "あなたは親切なアシスタントです",  // オプション
+    temperature: 0.7,  // オプション: 0.0-1.0
+    maxTokens: 1000    // オプション
 )
 ```
 
-### Parameter Descriptions
+### パラメーター説明
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `prompt` | `String` | The user's input prompt |
-| `model` | Provider-specific | The model to use |
-| `systemPrompt` | `String?` | System instructions |
-| `temperature` | `Double?` | Randomness (0.0-1.0) |
-| `maxTokens` | `Int?` | Maximum response tokens |
+| パラメーター | 型 | 説明 |
+|------------|-----|------|
+| `prompt` | `String` | ユーザーの入力プロンプト |
+| `model` | プロバイダー固有 | 使用するモデル |
+| `systemPrompt` | `String?` | システム指示 |
+| `temperature` | `Double?` | ランダム性 (0.0-1.0) |
+| `maxTokens` | `Int?` | 最大応答トークン数 |
 
-## Type Safety
+## 型安全性
 
-The library ensures type safety at compile time:
+このライブラリはコンパイル時に型安全性を保証します:
 
 ```swift
-// ✅ Compiles - correct model type
+// ✅ コンパイル成功 - 正しいモデル型
 let anthropic = AnthropicClient(apiKey: "...")
 let result: MyType = try await anthropic.generate(
     prompt: "...",
     model: .sonnet  // ClaudeModel
 )
 
-// ❌ Won't compile - wrong model type
+// ❌ コンパイルエラー - 誤ったモデル型
 let result: MyType = try await anthropic.generate(
     prompt: "...",
-    model: .gpt4o  // GPTModel - type mismatch!
+    model: .gpt4o  // GPTModel - 型の不一致！
 )
 ```
 
-## Error Handling
+## エラーハンドリング
 
 ```swift
 do {
@@ -169,18 +169,18 @@ do {
 } catch let error as LLMError {
     switch error {
     case .apiError(let message):
-        print("API error: \(message)")
+        print("APIエラー: \(message)")
     case .decodingError(let message):
-        print("Failed to decode response: \(message)")
+        print("レスポンスのデコードに失敗: \(message)")
     case .invalidResponse:
-        print("Invalid response from API")
+        print("無効なレスポンス")
     case .networkError(let underlying):
-        print("Network error: \(underlying)")
+        print("ネットワークエラー: \(underlying)")
     }
 }
 ```
 
-## Next Steps
+## 次のステップ
 
-- Learn about [Conversation](conversation.md) for multi-turn interactions
-- Check the [API Reference](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) for complete documentation
+- [会話](conversation.md) でマルチターンのやり取りについて学ぶ
+- [API リファレンス](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) で完全なドキュメントを確認

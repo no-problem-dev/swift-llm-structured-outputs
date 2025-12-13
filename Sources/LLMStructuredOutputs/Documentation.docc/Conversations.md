@@ -1,24 +1,24 @@
-# Conversations
+# 会話
 
-Learn how to manage multi-turn conversations with structured outputs.
+構造化出力を使用したマルチターン会話の管理方法を学びます。
 
-## Overview
+## 概要
 
-The ``Conversation`` class provides a convenient way to maintain context across multiple LLM interactions while still receiving type-safe structured outputs.
+``Conversation`` クラスは、型安全な構造化出力を受け取りながら、複数の LLM のやり取りでコンテキストを維持する便利な方法を提供します。
 
-## Creating a Conversation
+## 会話の作成
 
 ```swift
 var conversation = Conversation(
     client: AnthropicClient(apiKey: "..."),
     model: .sonnet,
-    systemPrompt: "You are a helpful assistant"
+    systemPrompt: "あなたは親切なアシスタントです"
 )
 ```
 
-## Sending Messages
+## メッセージの送信
 
-Use the `send` method to exchange messages:
+`send` メソッドを使用してメッセージを交換:
 
 ```swift
 @Structured
@@ -32,77 +32,77 @@ struct PopulationInfo {
     var population: Int
 }
 
-// First turn
-let city: CityInfo = try await conversation.send("What's the capital of Japan?")
-print(city.name)  // "Tokyo"
+// 最初のターン
+let city: CityInfo = try await conversation.send("日本の首都は？")
+print(city.name)  // "東京"
 
-// Second turn - context is maintained
-let pop: PopulationInfo = try await conversation.send("What's its population?")
+// 2番目のターン - コンテキストが維持される
+let pop: PopulationInfo = try await conversation.send("その都市の人口は？")
 print(pop.population)  // 13960000
 ```
 
-## Tracking State
+## 状態の追跡
 
-### Message History
+### メッセージ履歴
 
 ```swift
-// Access all messages
+// すべてのメッセージにアクセス
 let messages = conversation.messages
-print("Total messages: \(messages.count)")
+print("合計メッセージ数: \(messages.count)")
 
-// Number of complete turns
+// 完了したターンの数
 let turns = conversation.turnCount
 ```
 
-### Token Usage
+### トークン使用量
 
 ```swift
 let usage = conversation.totalUsage
-print("Input tokens: \(usage.inputTokens)")
-print("Output tokens: \(usage.outputTokens)")
-print("Total: \(usage.totalTokens)")
+print("入力トークン: \(usage.inputTokens)")
+print("出力トークン: \(usage.outputTokens)")
+print("合計: \(usage.totalTokens)")
 ```
 
-## Resetting Conversations
+## 会話のリセット
 
-Clear the conversation to start fresh:
+会話をクリアして最初からやり直す:
 
 ```swift
 conversation.clear()
 ```
 
-## Low-Level API
+## 低レベル API
 
-For more control, use ``ChatResponse`` directly:
+より細かい制御が必要な場合は、``ChatResponse`` を直接使用:
 
 ```swift
 var messages: [LLMMessage] = []
-messages.append(.user("Hello"))
+messages.append(.user("こんにちは"))
 
 let response: ChatResponse<Greeting> = try await client.chat(
     messages: messages,
     model: .sonnet
 )
 
-// Add assistant response to history
+// アシスタントのレスポンスを履歴に追加
 messages.append(response.assistantMessage)
 
-// Continue the conversation
-messages.append(.user("How are you?"))
+// 会話を続ける
+messages.append(.user("元気ですか？"))
 ```
 
-### ChatResponse Properties
+### ChatResponse のプロパティ
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `result` | `T` | Structured output |
-| `assistantMessage` | `LLMMessage` | For history |
-| `usage` | `TokenUsage` | Token counts |
-| `stopReason` | `StopReason?` | Why response ended |
-| `model` | `String` | Model used |
-| `rawText` | `String` | Raw response |
+| プロパティ | 型 | 説明 |
+|----------|-----|------|
+| `result` | `T` | 構造化出力 |
+| `assistantMessage` | `LLMMessage` | 履歴用 |
+| `usage` | `TokenUsage` | トークン数 |
+| `stopReason` | `StopReason?` | レスポンス終了理由 |
+| `model` | `String` | 使用モデル |
+| `rawText` | `String` | 生レスポンス |
 
-## Configuration
+## 設定
 
 ### Temperature
 
@@ -110,11 +110,11 @@ messages.append(.user("How are you?"))
 var conversation = Conversation(
     client: client,
     model: .sonnet,
-    temperature: 0.7  // 0.0 = deterministic, 1.0 = creative
+    temperature: 0.7  // 0.0 = 確定的、1.0 = 創造的
 )
 ```
 
-### Max Tokens
+### 最大トークン
 
 ```swift
 var conversation = Conversation(
@@ -124,13 +124,13 @@ var conversation = Conversation(
 )
 ```
 
-## Concurrency
+## 並行処理
 
-``Conversation`` is `Sendable` and safe for async use:
+``Conversation`` は `Sendable` であり、非同期での使用に対応:
 
 ```swift
 Task {
     var conv = conversation
-    let result: MyType = try await conv.send("Hello")
+    let result: MyType = try await conv.send("こんにちは")
 }
 ```

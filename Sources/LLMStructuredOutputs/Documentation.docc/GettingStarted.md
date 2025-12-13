@@ -1,14 +1,14 @@
-# Getting Started
+# はじめに
 
-Learn how to add swift-llm-structured-outputs to your project and start generating structured outputs from LLMs.
+swift-llm-structured-outputs をプロジェクトに追加して、LLM から構造化出力を生成する方法を学びます。
 
-## Overview
+## 概要
 
-This guide walks you through the basic setup and usage of LLMStructuredOutputs.
+このガイドでは、LLMStructuredOutputs の基本的なセットアップと使い方を説明します。
 
-## Installation
+## インストール
 
-Add the package to your `Package.swift`:
+`Package.swift` にパッケージを追加:
 
 ```swift
 dependencies: [
@@ -19,7 +19,7 @@ dependencies: [
 ]
 ```
 
-Then add `LLMStructuredOutputs` to your target's dependencies:
+ターゲットの依存関係に `LLMStructuredOutputs` を追加:
 
 ```swift
 .target(
@@ -30,32 +30,32 @@ Then add `LLMStructuredOutputs` to your target's dependencies:
 )
 ```
 
-## Defining Output Types
+## 出力型の定義
 
-Use the `@Structured` macro to define types that can be used as structured output:
+`@Structured` マクロを使用して、構造化出力として使用できる型を定義:
 
 ```swift
 import LLMStructuredOutputs
 
-@Structured("Information about a book")
+@Structured("書籍情報")
 struct BookInfo {
-    @StructuredField("The book's title")
+    @StructuredField("書籍のタイトル")
     var title: String
 
-    @StructuredField("The author's name")
+    @StructuredField("著者名")
     var author: String
 
-    @StructuredField("Publication year", .minimum(1000), .maximum(2100))
+    @StructuredField("出版年", .minimum(1000), .maximum(2100))
     var year: Int
 
-    @StructuredField("Book genres")
+    @StructuredField("ジャンル")
     var genres: [String]
 }
 ```
 
-## Creating a Client
+## クライアントの作成
 
-Choose a client based on your LLM provider:
+使用する LLM プロバイダーに応じてクライアントを選択:
 
 ```swift
 // Anthropic Claude
@@ -68,72 +68,72 @@ let openai = OpenAIClient(apiKey: "sk-...")
 let gemini = GeminiClient(apiKey: "...")
 ```
 
-## Generating Output
+## 出力の生成
 
-Call the `generate` method with your prompt:
+プロンプトを指定して `generate` メソッドを呼び出す:
 
 ```swift
 let book: BookInfo = try await anthropic.generate(
-    prompt: "Tell me about 1984 by George Orwell",
+    prompt: "ジョージ・オーウェルの1984年について教えて",
     model: .sonnet
 )
 
-print(book.title)   // "1984"
-print(book.author)  // "George Orwell"
+print(book.title)   // "1984年"
+print(book.author)  // "ジョージ・オーウェル"
 print(book.year)    // 1949
 ```
 
-## Using Constraints
+## 制約の使用
 
-Add constraints to validate the LLM's output:
+LLM の出力を検証するための制約を追加:
 
 ```swift
-@Structured("Product listing")
+@Structured("商品情報")
 struct Product {
-    @StructuredField("Product name", .minLength(1), .maxLength(100))
+    @StructuredField("商品名", .minLength(1), .maxLength(100))
     var name: String
 
-    @StructuredField("Price in cents", .minimum(0))
+    @StructuredField("価格（円）", .minimum(0))
     var price: Int
 
-    @StructuredField("Quantity in stock", .minimum(0), .maximum(10000))
+    @StructuredField("在庫数", .minimum(0), .maximum(10000))
     var stock: Int
 
-    @StructuredField("Product tags", .minItems(1), .maxItems(10))
+    @StructuredField("タグ", .minItems(1), .maxItems(10))
     var tags: [String]
 }
 ```
 
-## Using Enums
+## 列挙型の使用
 
-For fixed choices, use `@StructuredEnum`:
+固定の選択肢には `@StructuredEnum` を使用:
 
 ```swift
-@StructuredEnum("Sentiment analysis result")
+@StructuredEnum("感情分析結果")
 enum Sentiment: String {
-    @StructuredCase("The text expresses positive emotions")
+    @StructuredCase("ポジティブな感情を表現")
     case positive
 
-    @StructuredCase("The text is neutral")
+    @StructuredCase("中立的な内容")
     case neutral
 
-    @StructuredCase("The text expresses negative emotions")
+    @StructuredCase("ネガティブな感情を表現")
     case negative
 }
 
-@Structured("Analysis result")
+@Structured("分析結果")
 struct Analysis {
-    @StructuredField("Overall sentiment")
+    @StructuredField("全体的な感情")
     var sentiment: Sentiment
 
-    @StructuredField("Confidence score", .minimum(0), .maximum(100))
+    @StructuredField("確信度スコア", .minimum(0), .maximum(100))
     var confidence: Int
 }
 ```
 
-## Error Handling
+## エラーハンドリング
 
-Handle potential errors gracefully:
+エラーを適切に処理:
 
 ```swift
 do {
@@ -144,18 +144,18 @@ do {
 } catch let error as LLMError {
     switch error {
     case .apiError(let message):
-        print("API error: \(message)")
+        print("APIエラー: \(message)")
     case .decodingError(let message):
-        print("Failed to decode: \(message)")
+        print("デコードに失敗: \(message)")
     case .invalidResponse:
-        print("Invalid response")
+        print("無効なレスポンス")
     case .networkError(let underlying):
-        print("Network error: \(underlying)")
+        print("ネットワークエラー: \(underlying)")
     }
 }
 ```
 
-## Next Steps
+## 次のステップ
 
-- Learn about different <doc:Providers> and their models
-- Explore <doc:Conversations> for multi-turn interactions
+- <doc:Providers> で各プロバイダーとモデルについて学ぶ
+- <doc:Conversations> でマルチターン会話を実装する

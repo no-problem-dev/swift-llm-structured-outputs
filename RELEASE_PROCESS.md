@@ -1,125 +1,127 @@
-# Release Process
+# リリースプロセス
 
-This document describes the release process for swift-llm-structured-outputs.
+swift-llm-structured-outputs のリリースプロセスについて説明します。
 
-## Versioning
+## バージョニング
 
-This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html):
+このプロジェクトは [セマンティックバージョニング](https://semver.org/spec/v2.0.0.html) に従います:
 
-- **MAJOR** version for incompatible API changes
-- **MINOR** version for new features (backward compatible)
-- **PATCH** version for bug fixes (backward compatible)
+- **MAJOR** バージョン: 互換性のない API 変更
+- **MINOR** バージョン: 後方互換性のある新機能
+- **PATCH** バージョン: 後方互換性のあるバグ修正
 
-## Release Flow
+## リリースフロー
 
-### 1. Prepare Release Branch
+### 1. リリースブランチの準備
 
 ```bash
-# Create release branch from main
+# main からリリースブランチを作成
 git checkout main
 git pull origin main
-git checkout -b release/v1.0.4
+git checkout -b release/v1.0.5
 ```
 
-### 2. Update CHANGELOG
+### 2. CHANGELOG の更新
 
-1. Move items from `[Unreleased]` to new version section
-2. Add release date in format `YYYY-MM-DD`
-3. Update comparison links at the bottom
+1. `[未リリース]` セクションの項目を新しいバージョンセクションに移動
+2. `YYYY-MM-DD` 形式でリリース日を追加
+3. 下部の比較リンクを更新
 
-Example:
+例:
 ```markdown
-## [Unreleased]
+## [未リリース]
 
-## [1.0.4] - 2025-12-14
+## [1.0.5] - 2025-12-14
 
-### Added
-- New feature description
+### 追加
+- 新機能の説明
 
-### Fixed
-- Bug fix description
+### 修正
+- バグ修正の説明
 ```
 
-### 3. Run Tests
+### 3. テストの実行
 
 ```bash
-# Run all tests
+# すべてのテストを実行
 swift test
 
-# Run tests with verbose output
+# 詳細出力でテストを実行
 swift test --verbose
 ```
 
-### 4. Create Pull Request
+### 4. プルリクエストの作成
 
-1. Push the release branch
-2. Create a PR to `main` with title: `Release v1.0.4`
-3. Include CHANGELOG updates in PR description
-4. Request review if needed
+1. リリースブランチをプッシュ
+2. `main` に対して `Release v1.0.5` というタイトルで PR を作成
+3. PR の説明に CHANGELOG の更新内容を含める
+4. 必要に応じてレビューをリクエスト
 
-### 5. Merge and Release
+### 5. マージとリリース
 
-When the PR is merged to `main`, the GitHub Action will automatically:
+PR が `main` にマージされると、GitHub Action が自動的に以下を実行します:
 
-1. Detect the version from CHANGELOG.md
-2. Create a git tag (e.g., `v1.0.4`)
-3. Create a GitHub Release with:
-   - Release notes from CHANGELOG
-   - Source code archives
+1. ブランチ名からバージョンを検出（`release/v1.0.5` → `v1.0.5`）
+2. git タグを作成（例: `v1.0.5`）
+3. GitHub Release を作成:
+   - CHANGELOG からのリリースノート
+   - ソースコードアーカイブ
+4. 次のリリースブランチを自動作成
+5. 次のリリース用のドラフト PR を作成
 
-## Manual Release (if needed)
+## 手動リリース（必要な場合）
 
-If automatic release fails, you can create a release manually:
+自動リリースが失敗した場合は、手動でリリースを作成できます:
 
 ```bash
-# Tag the release
+# リリースをタグ付け
 git checkout main
 git pull origin main
-git tag v1.0.4
+git tag v1.0.5
 
-# Push the tag
-git push origin v1.0.4
+# タグをプッシュ
+git push origin v1.0.5
 ```
 
-Then create a release on GitHub:
-1. Go to Releases → New Release
-2. Select the tag
-3. Copy release notes from CHANGELOG.md
-4. Publish release
+その後、GitHub でリリースを作成:
+1. Releases → New Release に移動
+2. タグを選択
+3. CHANGELOG.md からリリースノートをコピー
+4. リリースを公開
 
-## Pre-release Versions
+## プレリリースバージョン
 
-For pre-release versions, use suffixes:
+プレリリースバージョンにはサフィックスを使用:
 
-- Alpha: `1.0.4-alpha.1`
-- Beta: `1.0.4-beta.1`
-- Release Candidate: `1.0.4-rc.1`
+- アルファ: `1.0.5-alpha.1`
+- ベータ: `1.0.5-beta.1`
+- リリース候補: `1.0.5-rc.1`
 
-## Checklist
+## チェックリスト
 
-Before releasing:
+リリース前に確認:
 
-- [ ] All tests pass
-- [ ] CHANGELOG.md is updated
-- [ ] Documentation is up to date
-- [ ] Breaking changes are documented
-- [ ] Version number follows semver
+- [ ] すべてのテストが通過
+- [ ] CHANGELOG.md が更新済み
+- [ ] ドキュメントが最新
+- [ ] 破壊的変更がドキュメント化されている
+- [ ] バージョン番号が semver に従っている
 
-## Documentation Updates
+## ドキュメントの更新
 
-After releasing:
+リリース後:
 
-1. DocC documentation is automatically generated via GitHub Actions
-2. Verify documentation at: https://no-problem-dev.github.io/swift-llm-structured-outputs/
+1. DocC ドキュメントは GitHub Actions で自動生成されます
+2. ドキュメントの確認: https://no-problem-dev.github.io/swift-llm-structured-outputs/
 
-## Rollback
+## ロールバック
 
-If a release needs to be reverted:
+リリースを取り消す必要がある場合:
 
 ```bash
-# Delete the tag locally and remotely
-git tag -d v1.0.4
-git push origin :refs/tags/v1.0.4
+# ローカルとリモートでタグを削除
+git tag -d v1.0.5
+git push origin :refs/tags/v1.0.5
 
-# Delete the GitHub Release manually from the web interface
+# GitHub Release は Web インターフェースから手動で削除
 ```
