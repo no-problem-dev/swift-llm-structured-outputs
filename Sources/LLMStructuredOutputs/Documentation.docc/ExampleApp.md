@@ -82,8 +82,6 @@ open Examples/LLMStructuredOutputsExample/LLMStructuredOutputsExample.xcodeproj
 - OpenAI API Key（GPT用）
 - Google AI API Key（Gemini用）
 
-> Note: API キーは Keychain に安全に保存されます。
-
 ### 3. 実行
 
 iOS Simulator または実機で実行。
