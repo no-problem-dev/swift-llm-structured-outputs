@@ -9,7 +9,7 @@ import FoundationNetworking
 ///
 /// このプロバイダーは `AnthropicClient` 内部で使用されます。
 /// 直接使用する場合は `AnthropicClient` を使用してください。
-internal struct AnthropicProvider: LLMProvider {
+internal struct AnthropicProvider: LLMProvider, RetryableProviderProtocol {
     /// API エンドポイント
     private let endpoint: URL
 
@@ -51,7 +51,14 @@ internal struct AnthropicProvider: LLMProvider {
 
     // MARK: - LLMProvider
 
-    public func send(_ request: LLMRequest) async throws -> LLMResponse {
+    func send(_ request: LLMRequest) async throws -> LLMResponse {
+        let (response, _) = try await sendWithResponse(request)
+        return response
+    }
+
+    // MARK: - RetryableProviderProtocol
+
+    func sendWithResponse(_ request: LLMRequest) async throws -> (LLMResponse, HTTPURLResponse) {
         // モデルの検証
         guard case .claude = request.model else {
             throw LLMError.modelNotSupported(model: request.model.id, provider: "Anthropic")
@@ -76,8 +83,13 @@ internal struct AnthropicProvider: LLMProvider {
         // リクエストを送信
         let (data, response) = try await performRequest(urlRequest)
 
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw LLMError.invalidRequest("Invalid response type")
+        }
+
         // レスポンスを処理
-        return try handleResponse(data: data, response: response)
+        let llmResponse = try handleResponse(data: data, httpResponse: httpResponse)
+        return (llmResponse, httpResponse)
     }
 
     // MARK: - Private Helpers
@@ -162,10 +174,9 @@ internal struct AnthropicProvider: LLMProvider {
     }
 
     /// レスポンスを処理
-    private func handleResponse(data: Data, response: URLResponse) throws -> LLMResponse {
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw LLMError.invalidRequest("Invalid response type")
-        }
+    private func handleResponse(data: Data, httpResponse: HTTPURLResponse) throws -> LLMResponse {
+        // レート制限情報を抽出
+        let rateLimitInfo = AnthropicRateLimitExtractor.extractRateLimitInfo(from: httpResponse)
 
         // エラーステータスコードの処理
         switch httpResponse.statusCode {
@@ -174,7 +185,12 @@ internal struct AnthropicProvider: LLMProvider {
         case 401:
             throw LLMError.unauthorized
         case 429:
-            throw LLMError.rateLimitExceeded
+            // レート制限情報付きでエラーを投げる
+            throw RateLimitAwareError(
+                underlyingError: .rateLimitExceeded,
+                rateLimitInfo: rateLimitInfo,
+                statusCode: 429
+            )
         case 400:
             let errorResponse = try? JSONDecoder().decode(AnthropicErrorResponse.self, from: data)
             throw LLMError.invalidRequest(errorResponse?.error.message ?? "Bad request")
@@ -183,7 +199,12 @@ internal struct AnthropicProvider: LLMProvider {
             throw LLMError.modelNotFound(errorResponse?.error.message ?? "Model not found")
         case 500...599:
             let errorResponse = try? JSONDecoder().decode(AnthropicErrorResponse.self, from: data)
-            throw LLMError.serverError(httpResponse.statusCode, errorResponse?.error.message ?? "Server error")
+            // サーバーエラーもレート制限情報を含める（リトライ時に参照できるように）
+            throw RateLimitAwareError(
+                underlyingError: .serverError(httpResponse.statusCode, errorResponse?.error.message ?? "Server error"),
+                rateLimitInfo: rateLimitInfo,
+                statusCode: httpResponse.statusCode
+            )
         default:
             throw LLMError.serverError(httpResponse.statusCode, "Unexpected status code")
         }
