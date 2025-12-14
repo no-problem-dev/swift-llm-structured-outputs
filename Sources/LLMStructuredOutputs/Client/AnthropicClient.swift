@@ -347,7 +347,7 @@ public struct AnthropicClient: StructuredLLMClient, AgentCapableClient {
     public func executeAgentStep(
         messages: [LLMMessage],
         model: ClaudeModel,
-        systemPrompt: String?,
+        systemPrompt: Prompt?,
         tools: ToolSet,
         toolChoice: ToolChoice?,
         responseSchema: JSONSchema?
@@ -355,7 +355,7 @@ public struct AnthropicClient: StructuredLLMClient, AgentCapableClient {
         let request = LLMRequest(
             model: .claude(model),
             messages: messages,
-            systemPrompt: systemPrompt,
+            systemPrompt: systemPrompt?.render(),
             responseSchema: responseSchema,
             tools: tools.isEmpty ? nil : tools,
             toolChoice: tools.isEmpty ? nil : (toolChoice ?? .auto)

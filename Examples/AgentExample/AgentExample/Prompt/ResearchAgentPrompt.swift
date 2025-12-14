@@ -61,11 +61,6 @@ enum ResearchAgentPrompt {
         }
     }
 
-    /// プロンプトをレンダリングしてシステムプロンプト文字列を取得
-    static func render() -> String {
-        build().render()
-    }
-
     /// 短縮版プロンプト（シンプルなタスク用）
     static func buildSimple() -> Prompt {
         Prompt {

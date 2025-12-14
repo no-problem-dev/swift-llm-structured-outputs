@@ -10,7 +10,7 @@ public actor AgentContext {
     private var messages: [LLMMessage]
 
     /// システムプロンプト
-    private let systemPrompt: String?
+    private let systemPrompt: Prompt?
 
     /// 使用可能なツール
     private let tools: ToolSet
@@ -38,7 +38,7 @@ public actor AgentContext {
     ///   - configuration: エージェント設定
     public init(
         initialPrompt: String,
-        systemPrompt: String? = nil,
+        systemPrompt: Prompt? = nil,
         tools: ToolSet,
         configuration: AgentConfiguration = .default
     ) {
@@ -56,7 +56,7 @@ public actor AgentContext {
     ///   - initialMessages: 初期メッセージ履歴
     ///   - configuration: エージェント設定
     public init(
-        systemPrompt: String? = nil,
+        systemPrompt: Prompt? = nil,
         tools: ToolSet,
         initialMessages: [LLMMessage],
         configuration: AgentConfiguration = .default
@@ -75,7 +75,7 @@ public actor AgentContext {
     }
 
     /// システムプロンプトを取得
-    public func getSystemPrompt() -> String? {
+    public func getSystemPrompt() -> Prompt? {
         systemPrompt
     }
 
