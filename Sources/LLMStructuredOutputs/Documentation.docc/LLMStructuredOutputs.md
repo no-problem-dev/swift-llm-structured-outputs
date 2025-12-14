@@ -47,6 +47,7 @@ let user: UserInfo = try await client.generate(
 - <doc:PromptBuilding>
 - <doc:Providers>
 - <doc:Conversations>
+- <doc:ExampleApp>
 
 ### マクロ
 

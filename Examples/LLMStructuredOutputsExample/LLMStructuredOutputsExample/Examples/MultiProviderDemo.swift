@@ -2,7 +2,7 @@
 //  MultiProviderDemo.swift
 //  LLMStructuredOutputsExample
 //
-//  プロバイダー比較デモ
+//  プロバイダー比較デモ（拡張版）
 //
 
 import SwiftUI
@@ -10,14 +10,34 @@ import LLMStructuredOutputs
 
 /// プロバイダー比較デモ
 ///
-/// 同じプロンプトを複数のLLMプロバイダーに送信し、
+/// 複数のLLMプロバイダーに同じプロンプトを送信し、
 /// 結果とパフォーマンスを比較できます。
 struct MultiProviderDemo: View {
     private var settings = AppSettings.shared
 
-    @State private var inputText = "東京スカイツリーは2012年5月に開業した電波塔で、高さは634メートルです。墨田区押上に位置し、年間約400万人が訪れる人気観光スポットです。"
-    @State private var results: [ProviderResult] = []
+    // MARK: - State
+
+    // モデル選択（プロバイダーごと）
+    @State private var selectedClaudeModel: AppSettings.ClaudeModelOption = .sonnet
+    @State private var selectedGPTModel: AppSettings.GPTModelOption = .gpt4o
+    @State private var selectedGeminiModel: AppSettings.GeminiModelOption = .flash25
+
+    // テストケース選択
+    @State private var selectedCategory: TestCaseCategory = .extraction
+    @State private var selectedTestCase: ComparisonTestCase = ComparisonTestCase.basicLandmarkExtraction
+
+    // カスタム入力モード
+    @State private var useCustomInput = false
+    @State private var customSystemPrompt = "テキストからランドマーク情報を抽出してください。"
+    @State private var customInputText = ""
+
+    // 実行状態
+    @State private var results: [ComparisonResultData] = []
     @State private var isRunning = false
+    @State private var runningProviders: Set<AppSettings.Provider> = []
+
+    // UI状態
+    @State private var showModelSelection = false
 
     var body: some View {
         ScrollView {
@@ -27,33 +47,55 @@ struct MultiProviderDemo: View {
 
                 Divider()
 
-                // MARK: - プロバイダー状態
-                ProviderStatusView()
+                // MARK: - プロバイダー設定
+                ProviderConfigSection(
+                    selectedClaudeModel: $selectedClaudeModel,
+                    selectedGPTModel: $selectedGPTModel,
+                    selectedGeminiModel: $selectedGeminiModel,
+                    showModelSelection: $showModelSelection
+                )
 
                 Divider()
 
-                // MARK: - 入力
-                InputTextEditor(
-                    title: "比較用テキスト",
-                    text: $inputText,
-                    minHeight: 100
-                )
+                // MARK: - 入力モード切り替え
+                InputModeToggle(useCustomInput: $useCustomInput)
+
+                // MARK: - テストケース選択 or カスタム入力
+                if useCustomInput {
+                    CustomInputSection(
+                        systemPrompt: $customSystemPrompt,
+                        inputText: $customInputText
+                    )
+                } else {
+                    TestCaseSelectionSection(
+                        selectedCategory: $selectedCategory,
+                        selectedTestCase: $selectedTestCase
+                    )
+
+                    Divider()
+
+                    // MARK: - テストケース詳細
+                    TestCaseDetailSection(testCase: selectedTestCase)
+                }
 
                 // MARK: - 実行
                 ExecuteComparisonButton(
                     isRunning: isRunning,
-                    availableCount: availableProviderCount
+                    availableCount: availableProviderCount,
+                    isCustomMode: useCustomInput,
+                    hasCustomInput: !customInputText.isEmpty
                 ) {
                     runComparison()
                 }
 
                 // MARK: - 結果比較
                 if !results.isEmpty {
-                    ComparisonResultsView(results: results)
+                    ComparisonResultsSection(
+                        results: results,
+                        testCase: useCustomInput ? nil : selectedTestCase,
+                        runningProviders: runningProviders
+                    )
                 }
-
-                // MARK: - コード例
-                CodeExampleSection()
             }
             .padding()
         }
@@ -75,32 +117,41 @@ struct MultiProviderDemo: View {
     // MARK: - Actions
 
     private func runComparison() {
-        guard !inputText.isEmpty else { return }
+        guard !isRunning else { return }
 
         isRunning = true
         results = []
+        runningProviders = []
 
         Task {
-            // 並列実行
-            await withTaskGroup(of: ProviderResult?.self) { group in
+            await withTaskGroup(of: ComparisonResultData?.self) { group in
                 // Anthropic
                 if APIKeyManager.hasAnthropicKey {
+                    await MainActor.run {
+                        runningProviders.insert(.anthropic)
+                    }
                     group.addTask {
-                        await self.executeAnthropic()
+                        await self.executeForProvider(.anthropic)
                     }
                 }
 
                 // OpenAI
                 if APIKeyManager.hasOpenAIKey {
+                    await MainActor.run {
+                        runningProviders.insert(.openai)
+                    }
                     group.addTask {
-                        await self.executeOpenAI()
+                        await self.executeForProvider(.openai)
                     }
                 }
 
                 // Gemini
                 if APIKeyManager.hasGeminiKey {
+                    await MainActor.run {
+                        runningProviders.insert(.gemini)
+                    }
                     group.addTask {
-                        await self.executeGemini()
+                        await self.executeForProvider(.gemini)
                     }
                 }
 
@@ -109,8 +160,8 @@ struct MultiProviderDemo: View {
                     if let result = result {
                         await MainActor.run {
                             results.append(result)
-                            // 完了順にソート
                             results.sort { $0.duration < $1.duration }
+                            runningProviders.remove(result.provider)
                         }
                     }
                 }
@@ -118,181 +169,635 @@ struct MultiProviderDemo: View {
 
             await MainActor.run {
                 isRunning = false
+                runningProviders = []
             }
         }
     }
 
-    private func executeAnthropic() async -> ProviderResult? {
+    private func executeForProvider(_ provider: AppSettings.Provider) async -> ComparisonResultData? {
+        let startTime = Date()
+
+        // カスタム入力モードの場合
+        if useCustomInput {
+            return await executeCustomInput(
+                provider: provider,
+                systemPrompt: customSystemPrompt,
+                inputText: customInputText,
+                startTime: startTime
+            )
+        }
+
+        // テストケースモードの場合
+        let testCase = selectedTestCase
+        switch provider {
+        case .anthropic:
+            return await executeAnthropic(testCase: testCase, startTime: startTime)
+        case .openai:
+            return await executeOpenAI(testCase: testCase, startTime: startTime)
+        case .gemini:
+            return await executeGemini(testCase: testCase, startTime: startTime)
+        }
+    }
+
+    // MARK: - Custom Input Execution
+
+    private func executeCustomInput(
+        provider: AppSettings.Provider,
+        systemPrompt: String,
+        inputText: String,
+        startTime: Date
+    ) async -> ComparisonResultData? {
+        switch provider {
+        case .anthropic:
+            guard let client = settings.createAnthropicClient() else { return nil }
+            let model = selectedClaudeModel.model
+            do {
+                let response: ChatResponse<LandmarkOutput> = try await client.chat(
+                    prompt: inputText,
+                    model: model,
+                    systemPrompt: systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .anthropic,
+                    model: model.id,
+                    testCaseId: "custom",
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+            } catch {
+                return ComparisonResultData(
+                    provider: .anthropic,
+                    model: model.id,
+                    testCaseId: "custom",
+                    duration: Date().timeIntervalSince(startTime),
+                    error: error.localizedDescription
+                )
+            }
+
+        case .openai:
+            guard let client = settings.createOpenAIClient() else { return nil }
+            let model = selectedGPTModel.model
+            do {
+                let response: ChatResponse<LandmarkOutput> = try await client.chat(
+                    prompt: inputText,
+                    model: model,
+                    systemPrompt: systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .openai,
+                    model: model.id,
+                    testCaseId: "custom",
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+            } catch {
+                return ComparisonResultData(
+                    provider: .openai,
+                    model: model.id,
+                    testCaseId: "custom",
+                    duration: Date().timeIntervalSince(startTime),
+                    error: error.localizedDescription
+                )
+            }
+
+        case .gemini:
+            guard let client = settings.createGeminiClient() else { return nil }
+            let model = selectedGeminiModel.model
+            do {
+                let response: ChatResponse<LandmarkOutput> = try await client.chat(
+                    prompt: inputText,
+                    model: model,
+                    systemPrompt: systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .gemini,
+                    model: model.rawValue,
+                    testCaseId: "custom",
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+            } catch {
+                return ComparisonResultData(
+                    provider: .gemini,
+                    model: model.rawValue,
+                    testCaseId: "custom",
+                    duration: Date().timeIntervalSince(startTime),
+                    error: error.localizedDescription
+                )
+            }
+        }
+    }
+
+    // MARK: - Provider Execution
+
+    private func executeAnthropic(testCase: ComparisonTestCase, startTime: Date) async -> ComparisonResultData? {
         guard let client = settings.createAnthropicClient() else { return nil }
+        let model = selectedClaudeModel.model
 
-        let startTime = Date()
         do {
-            let response: ChatResponse<ComparisonOutput> = try await client.chat(
-                prompt: inputText,
-                model: settings.claudeModelOption.model,
-                systemPrompt: "テキストからランドマーク情報を抽出してください。",
-                temperature: settings.temperature,
-                maxTokens: settings.maxTokens
-            )
-            let duration = Date().timeIntervalSince(startTime)
-            return ProviderResult(
-                provider: .anthropic,
-                model: settings.claudeModelOption.model.id,
-                output: response.result,
-                usage: response.usage,
-                duration: duration,
-                error: nil
-            )
+            switch testCase.outputType {
+            case .landmark:
+                let response: ChatResponse<LandmarkOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .anthropic,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .person:
+                let response: ChatResponse<PersonOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .anthropic,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .product:
+                let response: ChatResponse<ProductOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .anthropic,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .meeting:
+                let response: ChatResponse<MeetingOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .anthropic,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .organization:
+                let response: ChatResponse<OrganizationOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .anthropic,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .recipe:
+                let response: ChatResponse<RecipeOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .anthropic,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .event:
+                let response: ChatResponse<EventOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .anthropic,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .calculation:
+                let response: ChatResponse<ProductOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .anthropic,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+            }
         } catch {
-            let duration = Date().timeIntervalSince(startTime)
-            return ProviderResult(
+            return ComparisonResultData(
                 provider: .anthropic,
-                model: settings.claudeModelOption.model.id,
-                output: nil,
-                usage: nil,
-                duration: duration,
+                model: model.id,
+                testCase: testCase,
+                duration: Date().timeIntervalSince(startTime),
                 error: error.localizedDescription
             )
         }
     }
 
-    private func executeOpenAI() async -> ProviderResult? {
+    private func executeOpenAI(testCase: ComparisonTestCase, startTime: Date) async -> ComparisonResultData? {
         guard let client = settings.createOpenAIClient() else { return nil }
+        let model = selectedGPTModel.model
 
-        let startTime = Date()
         do {
-            let response: ChatResponse<ComparisonOutput> = try await client.chat(
-                prompt: inputText,
-                model: settings.gptModelOption.model,
-                systemPrompt: "テキストからランドマーク情報を抽出してください。",
-                temperature: settings.temperature,
-                maxTokens: settings.maxTokens
-            )
-            let duration = Date().timeIntervalSince(startTime)
-            return ProviderResult(
-                provider: .openai,
-                model: settings.gptModelOption.model.id,
-                output: response.result,
-                usage: response.usage,
-                duration: duration,
-                error: nil
-            )
+            switch testCase.outputType {
+            case .landmark:
+                let response: ChatResponse<LandmarkOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .openai,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .person:
+                let response: ChatResponse<PersonOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .openai,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .product:
+                let response: ChatResponse<ProductOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .openai,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .meeting:
+                let response: ChatResponse<MeetingOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .openai,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .organization:
+                let response: ChatResponse<OrganizationOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .openai,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .recipe:
+                let response: ChatResponse<RecipeOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .openai,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .event:
+                let response: ChatResponse<EventOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .openai,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .calculation:
+                let response: ChatResponse<ProductOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .openai,
+                    model: model.id,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+            }
         } catch {
-            let duration = Date().timeIntervalSince(startTime)
-            return ProviderResult(
+            return ComparisonResultData(
                 provider: .openai,
-                model: settings.gptModelOption.model.id,
-                output: nil,
-                usage: nil,
-                duration: duration,
+                model: model.id,
+                testCase: testCase,
+                duration: Date().timeIntervalSince(startTime),
                 error: error.localizedDescription
             )
         }
     }
 
-    private func executeGemini() async -> ProviderResult? {
+    private func executeGemini(testCase: ComparisonTestCase, startTime: Date) async -> ComparisonResultData? {
         guard let client = settings.createGeminiClient() else { return nil }
+        let model = selectedGeminiModel.model
 
-        let startTime = Date()
         do {
-            let response: ChatResponse<ComparisonOutput> = try await client.chat(
-                prompt: inputText,
-                model: settings.geminiModelOption.model,
-                systemPrompt: "テキストからランドマーク情報を抽出してください。",
-                temperature: settings.temperature,
-                maxTokens: settings.maxTokens
-            )
-            let duration = Date().timeIntervalSince(startTime)
-            return ProviderResult(
-                provider: .gemini,
-                model: settings.geminiModelOption.model.rawValue,
-                output: response.result,
-                usage: response.usage,
-                duration: duration,
-                error: nil
-            )
+            switch testCase.outputType {
+            case .landmark:
+                let response: ChatResponse<LandmarkOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .gemini,
+                    model: model.rawValue,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .person:
+                let response: ChatResponse<PersonOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .gemini,
+                    model: model.rawValue,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .product:
+                let response: ChatResponse<ProductOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .gemini,
+                    model: model.rawValue,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .meeting:
+                let response: ChatResponse<MeetingOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .gemini,
+                    model: model.rawValue,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .organization:
+                let response: ChatResponse<OrganizationOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .gemini,
+                    model: model.rawValue,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .recipe:
+                let response: ChatResponse<RecipeOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .gemini,
+                    model: model.rawValue,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .event:
+                let response: ChatResponse<EventOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .gemini,
+                    model: model.rawValue,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+
+            case .calculation:
+                let response: ChatResponse<ProductOutput> = try await client.chat(
+                    prompt: testCase.input,
+                    model: model,
+                    systemPrompt: testCase.systemPrompt,
+                    temperature: settings.temperature,
+                    maxTokens: settings.maxTokens
+                )
+                return ComparisonResultData(
+                    provider: .gemini,
+                    model: model.rawValue,
+                    testCase: testCase,
+                    output: response.result,
+                    usage: response.usage,
+                    duration: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+            }
         } catch {
-            let duration = Date().timeIntervalSince(startTime)
-            return ProviderResult(
+            return ComparisonResultData(
                 provider: .gemini,
-                model: settings.geminiModelOption.model.rawValue,
-                output: nil,
-                usage: nil,
-                duration: duration,
+                model: model.rawValue,
+                testCase: testCase,
+                duration: Date().timeIntervalSince(startTime),
                 error: error.localizedDescription
             )
         }
     }
 }
 
-// MARK: - Data Models
-
-/// 比較用出力
-@Structured("ランドマーク情報")
-struct ComparisonOutput {
-    @StructuredField("名称")
-    var name: String
-
-    @StructuredField("種類")
-    var type: String
-
-    @StructuredField("場所")
-    var location: String?
-
-    @StructuredField("開業/設立年")
-    var establishedYear: Int?
-
-    @StructuredField("特徴的な数値")
-    var keyFigures: [KeyFigure]?
-
-    @StructuredField("説明", .maxLength(200))
-    var description: String
-}
-
-@Structured("数値情報")
-struct KeyFigure {
-    @StructuredField("項目")
-    var label: String
-
-    @StructuredField("値")
-    var value: String
-
-    @StructuredField("単位")
-    var unit: String?
-}
-
-/// プロバイダー結果
-struct ProviderResult: Identifiable {
-    let id = UUID()
-    let provider: AppSettings.Provider
-    let model: String
-    let output: ComparisonOutput?
-    let usage: TokenUsage?
-    let duration: TimeInterval
-    let error: String?
-
-    var isSuccess: Bool {
-        output != nil
-    }
-}
-
-// MARK: - DescriptionSection
+// MARK: - Description Section
 
 private struct DescriptionSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("このデモについて", systemImage: "info.circle.fill")
+            Label("プロバイダー比較", systemImage: "chart.bar.xaxis")
                 .font(.headline)
 
             Text("""
-            同じプロンプトを複数のLLMプロバイダーに並列送信し、
-            結果とパフォーマンスを比較します。
+            同じテストケースを複数のLLMプロバイダーに送信し、結果を比較します。
 
-            比較項目：
-            • 応答時間（レイテンシ）
-            • トークン使用量
-            • 抽出結果の精度
-            • エラー発生有無
+            比較項目：応答時間、トークン使用量、抽出精度
             """)
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -300,66 +805,388 @@ private struct DescriptionSection: View {
     }
 }
 
-// MARK: - ProviderStatusView
+// MARK: - Provider Config Section
 
-private struct ProviderStatusView: View {
+private struct ProviderConfigSection: View {
+    @Binding var selectedClaudeModel: AppSettings.ClaudeModelOption
+    @Binding var selectedGPTModel: AppSettings.GPTModelOption
+    @Binding var selectedGeminiModel: AppSettings.GeminiModelOption
+    @Binding var showModelSelection: Bool
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("プロバイダー状態")
-                .font(.subheadline.bold())
+            HStack {
+                Text("プロバイダー設定")
+                    .font(.subheadline.bold())
 
+                Spacer()
+
+                Button {
+                    showModelSelection.toggle()
+                } label: {
+                    Label(
+                        showModelSelection ? "閉じる" : "モデル選択",
+                        systemImage: showModelSelection ? "chevron.up" : "chevron.down"
+                    )
+                    .font(.caption)
+                }
+            }
+
+            // プロバイダー状態
             HStack(spacing: 12) {
-                ProviderStatusChip(
-                    name: "Anthropic",
+                ProviderChip(
+                    name: "Claude",
+                    model: selectedClaudeModel.model.id,
                     isAvailable: APIKeyManager.hasAnthropicKey,
                     color: .orange
                 )
-                ProviderStatusChip(
-                    name: "OpenAI",
+                ProviderChip(
+                    name: "GPT",
+                    model: selectedGPTModel.model.id,
                     isAvailable: APIKeyManager.hasOpenAIKey,
                     color: .green
                 )
-                ProviderStatusChip(
+                ProviderChip(
                     name: "Gemini",
+                    model: selectedGeminiModel.model.rawValue,
                     isAvailable: APIKeyManager.hasGeminiKey,
                     color: .blue
                 )
+            }
+
+            // モデル選択（展開時）
+            if showModelSelection {
+                VStack(spacing: 12) {
+                    if APIKeyManager.hasAnthropicKey {
+                        ModelPicker(
+                            title: "Claude",
+                            selection: $selectedClaudeModel,
+                            options: AppSettings.ClaudeModelOption.allCases,
+                            color: .orange
+                        )
+                    }
+
+                    if APIKeyManager.hasOpenAIKey {
+                        ModelPicker(
+                            title: "GPT",
+                            selection: $selectedGPTModel,
+                            options: AppSettings.GPTModelOption.allCases,
+                            color: .green
+                        )
+                    }
+
+                    if APIKeyManager.hasGeminiKey {
+                        ModelPicker(
+                            title: "Gemini",
+                            selection: $selectedGeminiModel,
+                            options: AppSettings.GeminiModelOption.allCases,
+                            color: .blue
+                        )
+                    }
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
         }
     }
 }
 
-private struct ProviderStatusChip: View {
+private struct ProviderChip: View {
     let name: String
+    let model: String
     let isAvailable: Bool
     let color: Color
 
     var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: isAvailable ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundStyle(isAvailable ? .green : .red)
-            Text(name)
-                .font(.caption)
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: isAvailable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(isAvailable ? .green : .red)
+                Text(name)
+                    .font(.caption.bold())
+            }
+            Text(model)
+                .font(.system(size: 8, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .background(color.opacity(isAvailable ? 0.2 : 0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(color.opacity(isAvailable ? 0.15 : 0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
         .opacity(isAvailable ? 1 : 0.5)
     }
 }
 
-// MARK: - ExecuteComparisonButton
+private struct ModelPicker<T: Hashable & Identifiable & RawRepresentable>: View where T.RawValue == String {
+    let title: String
+    @Binding var selection: T
+    let options: [T]
+    let color: Color
+
+    var body: some View {
+        HStack(alignment: .center) {
+            Text(title)
+                .font(.caption.bold())
+                .foregroundStyle(color)
+                .frame(width: 60, alignment: .leading)
+
+            Picker("", selection: $selection) {
+                ForEach(options, id: \.id) { option in
+                    Text(option.rawValue)
+                        .font(.caption)
+                        .tag(option)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(color)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+// MARK: - Input Mode Toggle
+
+private struct InputModeToggle: View {
+    @Binding var useCustomInput: Bool
+
+    var body: some View {
+        HStack {
+            Text("入力モード")
+                .font(.subheadline.bold())
+
+            Spacer()
+
+            Picker("", selection: $useCustomInput) {
+                Text("テストケース").tag(false)
+                Text("カスタム入力").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 200)
+        }
+    }
+}
+
+// MARK: - Custom Input Section
+
+private struct CustomInputSection: View {
+    @Binding var systemPrompt: String
+    @Binding var inputText: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // システムプロンプト
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "gearshape.fill")
+                        .foregroundStyle(.secondary)
+                    Text("システムプロンプト")
+                        .font(.caption.bold())
+                }
+
+                TextField("例: テキストからランドマーク情報を抽出してください", text: $systemPrompt, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(2...4)
+            }
+
+            // 入力テキスト
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "text.alignleft")
+                        .foregroundStyle(.secondary)
+                    Text("入力テキスト")
+                        .font(.caption.bold())
+                }
+
+                TextField("抽出したいテキストを入力...", text: $inputText, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(4...10)
+            }
+
+            // 出力形式の説明
+            HStack {
+                Image(systemName: "info.circle")
+                    .foregroundStyle(.blue)
+                Text("出力形式: LandmarkOutput（名称、種類、所在地、設立年、高さなど）")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(8)
+            .background(Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+    }
+}
+
+// MARK: - Test Case Selection Section
+
+private struct TestCaseSelectionSection: View {
+    @Binding var selectedCategory: TestCaseCategory
+    @Binding var selectedTestCase: ComparisonTestCase
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("テストケース")
+                .font(.subheadline.bold())
+
+            // カテゴリ選択
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(TestCaseCategory.allCases) { category in
+                        CategoryChip(
+                            category: category,
+                            isSelected: selectedCategory == category
+                        ) {
+                            selectedCategory = category
+                            // カテゴリ変更時、そのカテゴリの最初のテストケースを選択
+                            if let first = ComparisonTestCase.cases(for: category).first {
+                                selectedTestCase = first
+                            }
+                        }
+                    }
+                }
+            }
+
+            // テストケース選択
+            let cases = ComparisonTestCase.cases(for: selectedCategory)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(cases) { testCase in
+                        TestCaseChip(
+                            testCase: testCase,
+                            isSelected: selectedTestCase.id == testCase.id
+                        ) {
+                            selectedTestCase = testCase
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct CategoryChip: View {
+    let category: TestCaseCategory
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: category.icon)
+                    .font(.caption2)
+                Text(category.rawValue)
+                    .font(.caption)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(isSelected ? Color.accentColor : Color(.systemGray5))
+            .foregroundStyle(isSelected ? .white : .primary)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct TestCaseChip: View {
+    let testCase: ComparisonTestCase
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(testCase.title)
+                .font(.caption)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(isSelected ? Color.accentColor.opacity(0.8) : Color(.systemGray6))
+                .foregroundStyle(isSelected ? .white : .primary)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Test Case Detail Section
+
+private struct TestCaseDetailSection: View {
+    let testCase: ComparisonTestCase
+    @State private var isExpanded = true
+
+    var body: some View {
+        DisclosureGroup("テストケース詳細", isExpanded: $isExpanded) {
+            VStack(alignment: .leading, spacing: 12) {
+                // 説明
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("目的")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                    Text(testCase.description)
+                        .font(.caption)
+                }
+
+                Divider()
+
+                // 入力テキスト
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("入力テキスト")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                    Text(testCase.input)
+                        .font(.caption)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+
+                // システムプロンプト
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("システムプロンプト")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                    Text(testCase.systemPrompt)
+                        .font(.system(.caption, design: .monospaced))
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+            }
+            .padding(.vertical, 8)
+        }
+        .font(.caption.bold())
+    }
+}
+
+// MARK: - Execute Button
 
 private struct ExecuteComparisonButton: View {
     let isRunning: Bool
     let availableCount: Int
+    let isCustomMode: Bool
+    let hasCustomInput: Bool
     let action: () -> Void
 
+    private var isDisabled: Bool {
+        isRunning || availableCount == 0 || (isCustomMode && !hasCustomInput)
+    }
+
+    private var buttonText: String {
+        if isRunning {
+            return "比較実行中..."
+        } else if isCustomMode && !hasCustomInput {
+            return "入力テキストを入力してください"
+        } else {
+            return "\(availableCount)プロバイダーで比較実行"
+        }
+    }
+
     var body: some View {
-        Button {
-            action()
-        } label: {
+        Button(action: action) {
             HStack {
                 if isRunning {
                     ProgressView()
@@ -367,50 +1194,51 @@ private struct ExecuteComparisonButton: View {
                 } else {
                     Image(systemName: "play.fill")
                 }
-                Text(isRunning ? "比較実行中..." : "\(availableCount)プロバイダーで比較実行")
+                Text(buttonText)
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(availableCount > 0 ? Color.blue : Color.gray)
+            .background(isDisabled ? Color.gray : Color.blue)
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
-        .disabled(isRunning || availableCount == 0)
+        .disabled(isDisabled)
     }
 }
 
-// MARK: - ComparisonResultsView
+// MARK: - Comparison Results Section
 
-private struct ComparisonResultsView: View {
-    let results: [ProviderResult]
+private struct ComparisonResultsSection: View {
+    let results: [ComparisonResultData]
+    let testCase: ComparisonTestCase?
+    let runningProviders: Set<AppSettings.Provider>
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // サマリー
-            ComparisonSummary(results: results)
+            ResultSummary(results: results)
 
             Divider()
 
-            // 個別結果
+            // 詳細結果
             Text("詳細結果")
                 .font(.subheadline.bold())
 
-            ForEach(results) { result in
-                ProviderResultCard(result: result, rank: rankFor(result))
+            // 実行中プロバイダー
+            ForEach(Array(runningProviders), id: \.self) { provider in
+                RunningProviderCard(provider: provider)
+            }
+
+            // 完了した結果
+            ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
+                ResultCard(result: result, rank: index + 1)
             }
         }
     }
-
-    private func rankFor(_ result: ProviderResult) -> Int {
-        guard let index = results.firstIndex(where: { $0.id == result.id }) else {
-            return 0
-        }
-        return index + 1
-    }
 }
 
-private struct ComparisonSummary: View {
-    let results: [ProviderResult]
+private struct ResultSummary: View {
+    let results: [ComparisonResultData]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -420,9 +1248,9 @@ private struct ComparisonSummary: View {
             HStack(spacing: 16) {
                 // 最速
                 if let fastest = results.first(where: { $0.isSuccess }) {
-                    SummaryChip(
+                    SummaryItem(
                         title: "最速",
-                        value: fastest.provider.rawValue,
+                        value: fastest.provider.shortName,
                         detail: String(format: "%.2f秒", fastest.duration),
                         color: .green
                     )
@@ -432,20 +1260,20 @@ private struct ComparisonSummary: View {
                 if let minTokens = results
                     .filter({ $0.usage != nil })
                     .min(by: { ($0.usage?.totalTokens ?? 0) < ($1.usage?.totalTokens ?? 0) }) {
-                    SummaryChip(
+                    SummaryItem(
                         title: "最小トークン",
-                        value: minTokens.provider.rawValue,
-                        detail: "\(minTokens.usage?.totalTokens ?? 0) tokens",
+                        value: minTokens.provider.shortName,
+                        detail: "\(minTokens.usage?.totalTokens ?? 0)",
                         color: .blue
                     )
                 }
 
                 // 成功率
                 let successCount = results.filter { $0.isSuccess }.count
-                SummaryChip(
+                SummaryItem(
                     title: "成功率",
                     value: "\(successCount)/\(results.count)",
-                    detail: String(format: "%.0f%%", Double(successCount) / Double(results.count) * 100),
+                    detail: String(format: "%.0f%%", Double(successCount) / Double(max(results.count, 1)) * 100),
                     color: successCount == results.count ? .green : .orange
                 )
             }
@@ -456,7 +1284,7 @@ private struct ComparisonSummary: View {
     }
 }
 
-private struct SummaryChip: View {
+private struct SummaryItem: View {
     let title: String
     let value: String
     let detail: String
@@ -478,8 +1306,32 @@ private struct SummaryChip: View {
     }
 }
 
-private struct ProviderResultCard: View {
-    let result: ProviderResult
+private struct RunningProviderCard: View {
+    let provider: AppSettings.Provider
+
+    var body: some View {
+        HStack {
+            ProgressView()
+                .scaleEffect(0.8)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(provider.rawValue)
+                    .font(.caption.bold())
+                Text("実行中...")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private struct ResultCard: View {
+    let result: ComparisonResultData
     let rank: Int
     @State private var isExpanded = false
 
@@ -487,10 +1339,8 @@ private struct ProviderResultCard: View {
         VStack(alignment: .leading, spacing: 8) {
             // ヘッダー
             HStack {
-                // ランク
-                RankBadge(rank: rank)
+                RankBadge(rank: rank, isSuccess: result.isSuccess)
 
-                // プロバイダー名
                 VStack(alignment: .leading, spacing: 2) {
                     Text(result.provider.rawValue)
                         .font(.caption.bold())
@@ -501,7 +1351,6 @@ private struct ProviderResultCard: View {
 
                 Spacer()
 
-                // ステータス
                 if result.isSuccess {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(String(format: "%.2f秒", result.duration))
@@ -529,10 +1378,17 @@ private struct ProviderResultCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             }
 
-            // 抽出結果（展開可能）
-            if let output = result.output {
-                DisclosureGroup("抽出結果", isExpanded: $isExpanded) {
-                    OutputPreview(output: output)
+            // JSON出力（展開可能）
+            if let json = result.outputJSON {
+                DisclosureGroup("出力結果", isExpanded: $isExpanded) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        Text(json)
+                            .font(.system(.caption2, design: .monospaced))
+                            .textSelection(.enabled)
+                    }
+                    .padding(8)
+                    .background(Color(.systemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
                 .font(.caption)
             }
@@ -545,14 +1401,15 @@ private struct ProviderResultCard: View {
 
 private struct RankBadge: View {
     let rank: Int
+    let isSuccess: Bool
 
     var body: some View {
         ZStack {
             Circle()
-                .fill(rankColor)
+                .fill(isSuccess ? rankColor : Color.red.opacity(0.3))
                 .frame(width: 28, height: 28)
 
-            if rank == 1 {
+            if isSuccess && rank == 1 {
                 Image(systemName: "crown.fill")
                     .font(.caption2)
                     .foregroundStyle(.white)
@@ -571,114 +1428,6 @@ private struct RankBadge: View {
         case 3: return .brown
         default: return .secondary
         }
-    }
-}
-
-private struct OutputPreview: View {
-    let output: ComparisonOutput
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            OutputRow(label: "名称", value: output.name)
-            OutputRow(label: "種類", value: output.type)
-            if let location = output.location {
-                OutputRow(label: "場所", value: location)
-            }
-            if let year = output.establishedYear {
-                OutputRow(label: "設立年", value: "\(year)年")
-            }
-            if let figures = output.keyFigures, !figures.isEmpty {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("数値情報:")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    ForEach(figures, id: \.label) { figure in
-                        Text("• \(figure.label): \(figure.value)\(figure.unit ?? "")")
-                            .font(.caption2)
-                    }
-                }
-            }
-            OutputRow(label: "説明", value: output.description)
-        }
-        .padding(8)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-    }
-}
-
-private struct OutputRow: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        HStack(alignment: .top) {
-            Text("\(label):")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .frame(width: 50, alignment: .leading)
-            Text(value)
-                .font(.caption2)
-        }
-    }
-}
-
-// MARK: - CodeExampleSection
-
-private struct CodeExampleSection: View {
-    @State private var isExpanded = false
-
-    var body: some View {
-        DisclosureGroup("コード例", isExpanded: $isExpanded) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                Text(codeExample)
-                    .font(.system(.caption2, design: .monospaced))
-                    .textSelection(.enabled)
-            }
-            .padding()
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-        .font(.caption.bold())
-        .foregroundStyle(.secondary)
-    }
-
-    private var codeExample: String {
-        """
-        // 複数プロバイダーで並列実行
-        await withTaskGroup(of: Result.self) { group in
-            // Anthropic
-            group.addTask {
-                let client = AnthropicClient(apiKey: "...")
-                return try await client.generate(
-                    prompt: text,
-                    model: .sonnet
-                )
-            }
-
-            // OpenAI
-            group.addTask {
-                let client = OpenAIClient(apiKey: "...")
-                return try await client.generate(
-                    prompt: text,
-                    model: .gpt4o
-                )
-            }
-
-            // Gemini
-            group.addTask {
-                let client = GeminiClient(apiKey: "...")
-                return try await client.generate(
-                    prompt: text,
-                    model: .flash
-                )
-            }
-
-            // 結果を収集
-            for await result in group {
-                print(result)
-            }
-        }
-        """
     }
 }
 
