@@ -85,7 +85,7 @@ final class ChatResponseTests: XCTestCase {
 
     // MARK: - Conversation Tests
 
-    func testConversationInit() {
+    func testConversationInit() async {
         let client = AnthropicClient(apiKey: "test-key")
         let conv = Conversation(
             client: client,
@@ -95,13 +95,17 @@ final class ChatResponseTests: XCTestCase {
             maxTokens: 1000
         )
 
-        XCTAssertTrue(conv.messages.isEmpty)
-        XCTAssertEqual(conv.totalUsage.inputTokens, 0)
-        XCTAssertEqual(conv.totalUsage.outputTokens, 0)
-        XCTAssertEqual(conv.turnCount, 0)
+        let messages = await conv.messages
+        let totalUsage = await conv.totalUsage
+        let turnCount = await conv.turnCount
+
+        XCTAssertTrue(messages.isEmpty)
+        XCTAssertEqual(totalUsage.inputTokens, 0)
+        XCTAssertEqual(totalUsage.outputTokens, 0)
+        XCTAssertEqual(turnCount, 0)
     }
 
-    func testConversationInitWithExistingMessages() {
+    func testConversationInitWithExistingMessages() async {
         let client = OpenAIClient(apiKey: "test-key")
         let existingMessages: [LLMMessage] = [
             .user("Hello"),
@@ -114,13 +118,16 @@ final class ChatResponseTests: XCTestCase {
             messages: existingMessages
         )
 
-        XCTAssertEqual(conv.messages.count, 2)
-        XCTAssertEqual(conv.turnCount, 1)
+        let messages = await conv.messages
+        let turnCount = await conv.turnCount
+
+        XCTAssertEqual(messages.count, 2)
+        XCTAssertEqual(turnCount, 1)
     }
 
-    func testConversationClear() {
+    func testConversationClear() async {
         let client = GeminiClient(apiKey: "test-key")
-        var conv = Conversation(
+        let conv = Conversation(
             client: client,
             model: .flash25,
             messages: [
@@ -129,19 +136,23 @@ final class ChatResponseTests: XCTestCase {
             ]
         )
 
-        // Manually set some usage for testing
-        // (In real usage, this would be set by send())
-        XCTAssertEqual(conv.messages.count, 2)
+        // Verify initial state
+        let initialMessages = await conv.messages
+        XCTAssertEqual(initialMessages.count, 2)
 
-        conv.clear()
+        await conv.clear()
 
-        XCTAssertTrue(conv.messages.isEmpty)
-        XCTAssertEqual(conv.totalUsage.inputTokens, 0)
-        XCTAssertEqual(conv.totalUsage.outputTokens, 0)
-        XCTAssertEqual(conv.turnCount, 0)
+        let messages = await conv.messages
+        let totalUsage = await conv.totalUsage
+        let turnCount = await conv.turnCount
+
+        XCTAssertTrue(messages.isEmpty)
+        XCTAssertEqual(totalUsage.inputTokens, 0)
+        XCTAssertEqual(totalUsage.outputTokens, 0)
+        XCTAssertEqual(turnCount, 0)
     }
 
-    func testConversationTurnCount() {
+    func testConversationTurnCount() async {
         let client = AnthropicClient(apiKey: "test-key")
         let conv = Conversation(
             client: client,
@@ -156,7 +167,8 @@ final class ChatResponseTests: XCTestCase {
             ]
         )
 
-        XCTAssertEqual(conv.turnCount, 3)
+        let turnCount = await conv.turnCount
+        XCTAssertEqual(turnCount, 3)
     }
 
     // MARK: - LLMMessage Helper Tests
@@ -239,5 +251,158 @@ final class ChatResponseTests: XCTestCase {
         XCTAssertEqual(accumulated.inputTokens, 180)
         XCTAssertEqual(accumulated.outputTokens, 90)
         XCTAssertEqual(accumulated.totalTokens, 270)
+    }
+
+    // MARK: - ConversationEvent Tests
+
+    func testConversationEventUserMessage() {
+        let message = LLMMessage.user("Hello")
+        let event = ConversationEvent.userMessage(message)
+
+        if case .userMessage(let msg) = event {
+            XCTAssertEqual(msg.role, .user)
+            XCTAssertEqual(msg.content, "Hello")
+        } else {
+            XCTFail("Expected userMessage event")
+        }
+    }
+
+    func testConversationEventAssistantMessage() {
+        let message = LLMMessage.assistant("Hi there!")
+        let event = ConversationEvent.assistantMessage(message)
+
+        if case .assistantMessage(let msg) = event {
+            XCTAssertEqual(msg.role, .assistant)
+            XCTAssertEqual(msg.content, "Hi there!")
+        } else {
+            XCTFail("Expected assistantMessage event")
+        }
+    }
+
+    func testConversationEventError() {
+        let error = ConversationError.alreadySending
+        let event = ConversationEvent.error(error)
+
+        if case .error(let err) = event {
+            XCTAssertTrue(err is ConversationError)
+        } else {
+            XCTFail("Expected error event")
+        }
+    }
+
+    func testConversationEventCleared() {
+        let event = ConversationEvent.cleared
+
+        if case .cleared = event {
+            // Success
+        } else {
+            XCTFail("Expected cleared event")
+        }
+    }
+
+    func testConversationEventIsSendable() {
+        func takeSendable<T: Sendable>(_ value: T) {}
+
+        let event = ConversationEvent.userMessage(.user("Test"))
+        takeSendable(event)
+    }
+
+    // MARK: - Event Stream Tests
+
+    func testEventStreamCanBeCreated() async {
+        let client = AnthropicClient(apiKey: "test-key")
+        let conv = Conversation(client: client, model: .sonnet)
+
+        // Verify eventStream returns an AsyncStream
+        let stream = await conv.eventStream
+        _ = stream  // Type check passes
+    }
+
+    func testEventStreamReceivesClearedEvent() async {
+        let client = AnthropicClient(apiKey: "test-key")
+        let conv = Conversation(
+            client: client,
+            model: .sonnet,
+            messages: [.user("Initial"), .assistant("Response")]
+        )
+
+        // Use actor to safely collect events
+        let collector = EventCollector()
+
+        // Start monitoring events
+        let monitorTask = Task {
+            for await event in await conv.eventStream {
+                await collector.append(event)
+                // Stop after receiving cleared event
+                if case .cleared = event {
+                    break
+                }
+            }
+        }
+
+        // Give the stream time to set up
+        try? await Task.sleep(nanoseconds: 10_000_000)
+
+        // Clear the conversation - this should emit a cleared event
+        await conv.clear()
+
+        // Wait for the monitor task to complete
+        await monitorTask.value
+
+        let events = await collector.events
+        XCTAssertEqual(events.count, 1)
+        if case .cleared = events.first {
+            // Success
+        } else {
+            XCTFail("Expected cleared event")
+        }
+    }
+
+    func testNewEventStreamTerminatesPrevious() async {
+        let client = AnthropicClient(apiKey: "test-key")
+        let conv = Conversation(client: client, model: .sonnet)
+
+        let termination = TerminationTracker()
+
+        // Start first stream
+        let firstTask = Task {
+            for await _ in await conv.eventStream {
+                // This loop should terminate when a new stream is created
+            }
+            await termination.markTerminated()
+        }
+
+        // Give the first stream time to set up
+        try? await Task.sleep(nanoseconds: 10_000_000)
+
+        // Create a new stream - this should terminate the first one
+        _ = await conv.eventStream
+
+        // Wait for the first task to complete
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        let isTerminated = await termination.isTerminated
+        XCTAssertTrue(isTerminated)
+        firstTask.cancel()
+    }
+}
+
+// MARK: - Test Helpers
+
+/// Thread-safe event collector for tests
+private actor EventCollector {
+    var events: [ConversationEvent] = []
+
+    func append(_ event: ConversationEvent) {
+        events.append(event)
+    }
+}
+
+/// Thread-safe termination tracker for tests
+private actor TerminationTracker {
+    var isTerminated = false
+
+    func markTerminated() {
+        isTerminated = true
     }
 }

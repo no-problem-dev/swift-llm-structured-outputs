@@ -104,12 +104,16 @@ internal struct OpenAIProvider: LLMProvider {
         // 構造化出力の設定
         var responseFormat: OpenAIResponseFormat?
         if let schema = request.responseSchema {
+            // OpenAI用にスキーマをサニタイズ
+            // - additionalProperties: false を設定
+            // - required 配列にすべてのプロパティを含める
+            let sanitizedSchema = schema.sanitizedForOpenAI()
             responseFormat = OpenAIResponseFormat(
                 type: "json_schema",
                 jsonSchema: OpenAIJSONSchemaWrapper(
                     name: "response",
                     strict: true,
-                    schema: schema
+                    schema: sanitizedSchema
                 )
             )
         }

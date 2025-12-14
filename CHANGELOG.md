@@ -7,6 +7,59 @@
 
 ## [未リリース]
 
+## [1.0.8] - 2025-12-14
+
+### 追加
+
+- **iOS サンプルアプリ**: ライブラリの全機能を試せる iOS アプリを追加
+  - 基本的な構造化出力デモ
+  - フィールド制約デモ
+  - 列挙型サポートデモ
+  - 会話機能デモ
+  - イベントストリームデモ
+  - プロンプト DSL デモ
+  - プロンプトビルダーデモ
+  - プロバイダー比較デモ
+
+- **プロバイダー比較機能**
+  - Claude/GPT/Gemini の並列実行と結果比較
+  - プロバイダーごとのモデル選択（Claude: Opus/Sonnet/Haiku, GPT: 4o/4o-mini/o1/o3-mini, Gemini: Pro/Flash/Flash-Lite）
+  - 14種類のテストケース（5カテゴリ：情報抽出、推論、構造、品質、言語）
+  - カスタム入力モード（任意のシステムプロンプト・テキストで比較可能）
+  - レスポンス時間・トークン使用量の計測
+
+- **Prompt DSL**: 構造化プロンプト構築機能
+  - `Prompt { }` ビルダー
+  - `PromptComponent` による構成要素定義
+
+- **Conversation イベントストリーム**: ストリーミング応答機能
+  - `chatStream()` メソッド
+  - リアルタイムの進捗表示
+
+- **CLI 統合テストツール**: `Examples/IntegrationTests`
+  - 3プロバイダーの一括テスト
+  - Docker 対応
+
+- **ドキュメント**: サンプルアプリのドキュメント追加
+  - DocC に `ExampleApp.md` 追加
+  - README にサンプルアプリセクション追加
+
+### 修正
+
+- **OpenAI Structured Outputs**: 未サポートの JSON Schema 制約を除去
+  - `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` を除去
+  - `minLength`, `maxLength`, `pattern`, `format` を除去
+  - `sanitizedForOpenAI()` メソッドを追加
+
+- **Gemini JSON Schema**: 互換性修正
+  - `additionalProperties` を除去
+  - `sanitizedForGemini()` メソッドを追加
+
+- **iOS UX 改善**
+  - キーボード自動dismissal
+  - Picker UI の改善
+  - 設定の UserDefaults 永続化
+
 ## [1.0.7] - 2025-12-13
 
 ### 修正
@@ -112,7 +165,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.7...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.8...HEAD
+[1.0.8]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.6...v1.0.7
 [1.0.6]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.4...v1.0.5
@@ -122,3 +176,5 @@
 <!-- Auto-generated on 2025-12-13T09:37:38Z by release workflow -->
 
 <!-- Auto-generated on 2025-12-13T10:51:06Z by release workflow -->
+
+<!-- Auto-generated on 2025-12-13T11:27:10Z by release workflow -->

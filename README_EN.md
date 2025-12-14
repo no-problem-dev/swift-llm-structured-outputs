@@ -205,6 +205,36 @@ conversation.clear()
 - Swift 6.0+
 - iOS 17.0+ / macOS 14.0+
 
+## Example App
+
+An iOS example app is included in `Examples/LLMStructuredOutputsExample`. Try all features interactively.
+
+### Demo List
+
+| Demo | Features to Verify |
+|------|-------------------|
+| Basic Structured Output | `@Structured` type definition, `generate()` output |
+| Field Constraints | `.minimum()`, `.maximum()`, `.pattern()` constraints |
+| Enum Support | `@StructuredEnum` enum output |
+| Conversation | `Conversation` multi-turn conversations |
+| Event Stream | `chatStream()` streaming responses |
+| Prompt DSL | `Prompt { }` builder for prompt construction |
+| **Provider Comparison** | Claude/GPT/Gemini parallel comparison, response time & token measurement |
+
+### Provider Comparison Demo
+
+Compare structured output quality across 3 major providers:
+
+- **Model Selection**: Select models individually for each provider
+- **Test Cases**: 5 categories, 14 types (extraction, reasoning, structure, quality, language)
+- **Custom Input**: Run comparison tests with any prompt
+- **Metrics**: Response time, token usage, output JSON
+
+```bash
+# Open the example app
+open Examples/LLMStructuredOutputsExample/LLMStructuredOutputsExample.xcodeproj
+```
+
 ## Documentation
 
 For detailed documentation, see:

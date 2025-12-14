@@ -1,0 +1,12 @@
+# Linux build test Dockerfile
+FROM swift:6.0-jammy
+
+WORKDIR /build
+
+# Copy package files
+COPY Package.swift Package.resolved ./
+COPY Sources ./Sources
+COPY Tests ./Tests
+
+# Build the package
+RUN swift build -c release
