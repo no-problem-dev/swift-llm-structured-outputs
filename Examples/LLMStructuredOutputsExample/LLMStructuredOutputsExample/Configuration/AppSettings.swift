@@ -6,12 +6,14 @@
 //
 
 import Foundation
+import SwiftUI
 import LLMStructuredOutputs
 
 /// アプリ全体の設定を管理
 ///
 /// `@Observable` を使用してアプリ全体で設定を共有します。
 /// 設定を変更すると、すべてのデモ画面に反映されます。
+/// プロバイダーとモデル選択は `UserDefaults` で永続化されます。
 @Observable @MainActor
 final class AppSettings {
 
@@ -20,7 +22,47 @@ final class AppSettings {
     /// 共有インスタンス
     static let shared = AppSettings()
 
-    private init() {}
+    // MARK: - UserDefaults Keys
+
+    private enum Keys {
+        static let selectedProvider = "selectedProvider"
+        static let claudeModelOption = "claudeModelOption"
+        static let gptModelOption = "gptModelOption"
+        static let geminiModelOption = "geminiModelOption"
+        static let temperature = "temperature"
+        static let maxTokens = "maxTokens"
+    }
+
+    private init() {
+        // UserDefaultsから復元
+        if let providerRaw = UserDefaults.standard.string(forKey: Keys.selectedProvider),
+           let provider = Provider(rawValue: providerRaw) {
+            _selectedProvider = provider
+        }
+
+        if let claudeRaw = UserDefaults.standard.string(forKey: Keys.claudeModelOption),
+           let claude = ClaudeModelOption(rawValue: claudeRaw) {
+            _claudeModelOption = claude
+        }
+
+        if let gptRaw = UserDefaults.standard.string(forKey: Keys.gptModelOption),
+           let gpt = GPTModelOption(rawValue: gptRaw) {
+            _gptModelOption = gpt
+        }
+
+        if let geminiRaw = UserDefaults.standard.string(forKey: Keys.geminiModelOption),
+           let gemini = GeminiModelOption(rawValue: geminiRaw) {
+            _geminiModelOption = gemini
+        }
+
+        if UserDefaults.standard.object(forKey: Keys.temperature) != nil {
+            _temperature = UserDefaults.standard.double(forKey: Keys.temperature)
+        }
+
+        if UserDefaults.standard.object(forKey: Keys.maxTokens) != nil {
+            _maxTokens = UserDefaults.standard.integer(forKey: Keys.maxTokens)
+        }
+    }
 
     // MARK: - Provider Selection
 
@@ -52,7 +94,14 @@ final class AppSettings {
     }
 
     /// 選択中のプロバイダー
-    var selectedProvider: Provider = .anthropic
+    var selectedProvider: Provider {
+        get { _selectedProvider }
+        set {
+            _selectedProvider = newValue
+            UserDefaults.standard.set(newValue.rawValue, forKey: Keys.selectedProvider)
+        }
+    }
+    private var _selectedProvider: Provider = .anthropic
 
     // MARK: - Model Selection
 
@@ -110,22 +159,57 @@ final class AppSettings {
     }
 
     /// 選択中の Claude モデル
-    var claudeModelOption: ClaudeModelOption = .sonnet
+    var claudeModelOption: ClaudeModelOption {
+        get { _claudeModelOption }
+        set {
+            _claudeModelOption = newValue
+            UserDefaults.standard.set(newValue.rawValue, forKey: Keys.claudeModelOption)
+        }
+    }
+    private var _claudeModelOption: ClaudeModelOption = .sonnet
 
     /// 選択中の GPT モデル
-    var gptModelOption: GPTModelOption = .gpt4o
+    var gptModelOption: GPTModelOption {
+        get { _gptModelOption }
+        set {
+            _gptModelOption = newValue
+            UserDefaults.standard.set(newValue.rawValue, forKey: Keys.gptModelOption)
+        }
+    }
+    private var _gptModelOption: GPTModelOption = .gpt4o
 
     /// 選択中の Gemini モデル
-    var geminiModelOption: GeminiModelOption = .flash25
+    var geminiModelOption: GeminiModelOption {
+        get { _geminiModelOption }
+        set {
+            _geminiModelOption = newValue
+            UserDefaults.standard.set(newValue.rawValue, forKey: Keys.geminiModelOption)
+        }
+    }
+    private var _geminiModelOption: GeminiModelOption = .flash25
 
     // MARK: - Generation Parameters
 
     /// Temperature（創造性パラメータ）
     /// 0.0: 決定的、1.0: ランダム
-    var temperature: Double = 0.7
+    var temperature: Double {
+        get { _temperature }
+        set {
+            _temperature = newValue
+            UserDefaults.standard.set(newValue, forKey: Keys.temperature)
+        }
+    }
+    private var _temperature: Double = 0.7
 
     /// 最大トークン数
-    var maxTokens: Int = 1024
+    var maxTokens: Int {
+        get { _maxTokens }
+        set {
+            _maxTokens = newValue
+            UserDefaults.standard.set(newValue, forKey: Keys.maxTokens)
+        }
+    }
+    private var _maxTokens: Int = 1024
 
     // MARK: - Computed Properties
 
