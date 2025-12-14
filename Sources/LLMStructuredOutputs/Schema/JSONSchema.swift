@@ -369,6 +369,8 @@ extension JSONSchema {
     /// - `additionalProperties: false` が必須
     /// - `required` 配列にすべてのプロパティを含める必要がある
     /// - オプショナルフィールドは型を `["original_type", "null"]` のunion型で表現
+    /// - `format`, `minLength`, `maxLength`, `pattern` は未サポート
+    /// - `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` は未サポート
     ///
     /// このメソッドは既存のスキーマからオプショナル情報を推論できないため、
     /// すべてのプロパティを required として扱い、`additionalProperties: false` を設定します。
@@ -397,15 +399,15 @@ extension JSONSchema {
             additionalProperties: type == .object ? false : additionalProperties, // オブジェクト型では必ず false
             minItems: minItems,
             maxItems: maxItems,
-            minimum: minimum,
-            maximum: maximum,
-            exclusiveMinimum: exclusiveMinimum,
-            exclusiveMaximum: exclusiveMaximum,
-            minLength: minLength,
-            maxLength: maxLength,
-            pattern: pattern,
+            minimum: nil,           // OpenAIは minimum をサポートしない
+            maximum: nil,           // OpenAIは maximum をサポートしない
+            exclusiveMinimum: nil,  // OpenAIは exclusiveMinimum をサポートしない
+            exclusiveMaximum: nil,  // OpenAIは exclusiveMaximum をサポートしない
+            minLength: nil,         // OpenAIは minLength をサポートしない
+            maxLength: nil,         // OpenAIは maxLength をサポートしない
+            pattern: nil,           // OpenAIは pattern をサポートしない
             enum: `enum`,
-            format: format
+            format: nil             // OpenAIは format をサポートしない
         )
     }
 
