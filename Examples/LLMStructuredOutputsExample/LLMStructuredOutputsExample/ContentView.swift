@@ -118,6 +118,28 @@ struct ContentView: View {
                 // MARK: - 高度な機能デモ
                 Section {
                     NavigationLink {
+                        ToolCallingDemo()
+                    } label: {
+                        DemoRow(
+                            icon: "wrench.and.screwdriver.fill",
+                            color: .teal,
+                            title: "ツールコール",
+                            description: "@Tool マクロでLLMに関数を呼び出させる"
+                        )
+                    }
+
+                    NavigationLink {
+                        AgentLoopDemo()
+                    } label: {
+                        DemoRow(
+                            icon: "arrow.trianglehead.2.clockwise.rotate.90",
+                            color: .mint,
+                            title: "エージェントループ",
+                            description: "ツール実行と構造化出力の自動ループ"
+                        )
+                    }
+
+                    NavigationLink {
                         MultiProviderDemo()
                     } label: {
                         DemoRow(

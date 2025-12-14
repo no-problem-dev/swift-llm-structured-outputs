@@ -147,6 +147,81 @@ struct ConversationSummary {
     var tone: String
 }
 
+// MARK: - Test Tools
+
+/// 天気を取得するツール
+@Tool("Get current weather for a location")
+struct GetWeatherTool {
+    @ToolArgument("The city name to get weather for")
+    var location: String
+
+    @ToolArgument("Temperature unit (celsius or fahrenheit)")
+    var unit: String?
+
+    func call() async throws -> String {
+        // シミュレートされた天気データ
+        return "Weather in \(location): Sunny, 22°\(unit == "fahrenheit" ? "F" : "C")"
+    }
+}
+
+/// 計算を行うツール
+@Tool("Perform a mathematical calculation")
+struct CalculatorTool {
+    @ToolArgument("The mathematical expression to evaluate")
+    var expression: String
+
+    func call() async throws -> String {
+        // シンプルな計算シミュレーション
+        return "Result of '\(expression)' = 42"
+    }
+}
+
+/// 現在時刻を取得するツール
+@Tool("Get the current time in a timezone", name: "get_current_time")
+struct CurrentTimeTool {
+    @ToolArgument("The timezone (e.g., 'Asia/Tokyo', 'America/New_York')")
+    var timezone: String?
+
+    func call() async throws -> String {
+        let tz = timezone ?? "UTC"
+        return "Current time in \(tz): 2024-12-14 15:30:00"
+    }
+}
+
+// MARK: - Agent Test Models
+
+/// エージェントの最終出力用: 天気レポート
+@Structured("Weather report with location and conditions")
+struct WeatherReport {
+    @StructuredField("The location for the weather report")
+    var location: String
+
+    @StructuredField("Weather conditions (e.g., Sunny, Cloudy, Rainy)")
+    var conditions: String
+
+    @StructuredField("Temperature value")
+    var temperature: Int
+
+    @StructuredField("Temperature unit (C or F)")
+    var unit: String
+
+    @StructuredField("Brief summary of the weather")
+    var summary: String
+}
+
+/// エージェントの最終出力用: 計算結果レポート
+@Structured("Calculation result report")
+struct CalculationReport {
+    @StructuredField("The original expression")
+    var expression: String
+
+    @StructuredField("The calculated result")
+    var result: Int
+
+    @StructuredField("Explanation of the calculation")
+    var explanation: String
+}
+
 // MARK: - Test Runner
 
 actor TestRunner {
@@ -195,6 +270,66 @@ func skipTest(name: String, reason: String, runner: TestRunner) async {
     print("\n⏭️  Skipping: \(name)")
     print("   Reason: \(reason)")
     await runner.recordSkip()
+}
+
+@MainActor
+func runToolTest(
+    name: String,
+    runner: TestRunner,
+    test: @escaping @Sendable () async throws -> ToolCallResponse
+) async {
+    print("\n🔧 Testing: \(name)")
+    print("   " + String(repeating: "-", count: 50))
+
+    do {
+        let response = try await test()
+        print("   ✅ PASSED")
+        print("   Tool Calls: \(response.toolCalls.count)")
+        for (index, call) in response.toolCalls.enumerated() {
+            print("      [\(index + 1)] \(call.name)")
+            if let args = try? call.argumentsDictionary() {
+                print("          Arguments: \(args)")
+            }
+        }
+        if let text = response.text {
+            print("   Text: \(text.prefix(100))...")
+        }
+        print("   Stop Reason: \(response.stopReason?.rawValue ?? "nil")")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
+}
+
+// MARK: - Agent Test Runner
+
+@MainActor
+func runAgentTest<Output: StructuredProtocol & Encodable & Sendable>(
+    name: String,
+    runner: TestRunner,
+    test: @escaping @Sendable () async throws -> Output
+) async {
+    print("\n🤖 Agent Test: \(name)")
+    print("   " + String(repeating: "-", count: 50))
+
+    do {
+        let result = try await test()
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        if let data = try? encoder.encode(result),
+           let json = String(data: data, encoding: .utf8) {
+            print("   ✅ PASSED")
+            print("   Final Result:")
+            for line in json.components(separatedBy: .newlines) {
+                print("      \(line)")
+            }
+        }
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
 }
 
 // MARK: - Test Suites
@@ -294,6 +429,50 @@ func runAnthropicTests(runner: TestRunner) async {
         let result: PersonInfo = try await conversation.send("His name is Bob and he's 42. He works as a chef.")
         return result
     }
+
+    // Test 7: Tool Calling - Single Tool
+    await runToolTest(name: "Tool Calling - Weather", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "What's the weather like in Tokyo?",
+            model: .sonnet,
+            tools: tools,
+            toolChoice: .auto
+        )
+    }
+
+    // Test 8: Tool Calling - Multiple Tools
+    await runToolTest(name: "Tool Calling - Multiple Tools", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+            CalculatorTool.self
+            CurrentTimeTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "What time is it in Tokyo and what's the weather there?",
+            model: .sonnet,
+            tools: tools,
+            toolChoice: .auto
+        )
+    }
+
+    // Test 9: Tool Calling - Required
+    await runToolTest(name: "Tool Calling - Required", runner: runner) {
+        let tools = ToolSet {
+            CalculatorTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "Hello, how are you?",
+            model: .sonnet,
+            tools: tools,
+            toolChoice: .required
+        )
+    }
 }
 
 @MainActor
@@ -391,6 +570,51 @@ func runOpenAITests(runner: TestRunner) async {
         let result: PersonInfo = try await conversation.send("She's called Sarah, 31 years old, and she's a lawyer.")
         return result
     }
+
+    // Test 7: Tool Calling - Single Tool
+    await runToolTest(name: "Tool Calling - Weather", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "What's the weather like in New York?",
+            model: .gpt4oMini,
+            tools: tools,
+            toolChoice: .auto
+        )
+    }
+
+    // Test 8: Tool Calling - Multiple Tools
+    await runToolTest(name: "Tool Calling - Multiple Tools", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+            CalculatorTool.self
+            CurrentTimeTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "Calculate 15 * 7 and tell me the current time in London",
+            model: .gpt4oMini,
+            tools: tools,
+            toolChoice: .auto
+        )
+    }
+
+    // Test 9: Tool Calling - Specific Tool
+    await runToolTest(name: "Tool Calling - Specific Tool", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+            CalculatorTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "I need some help",
+            model: .gpt4oMini,
+            tools: tools,
+            toolChoice: .tool("calculator_tool")
+        )
+    }
 }
 
 @MainActor
@@ -487,54 +711,378 @@ func runGeminiTests(runner: TestRunner) async {
         let result: PersonInfo = try await conversation.send("His name is David Lee, he's 38, and he's our lead designer.")
         return result
     }
-}
 
-// MARK: - Main
-
-@main
-struct IntegrationTestsMain {
-    static func main() async {
-        print("""
-
-        ╔══════════════════════════════════════════════════════════════╗
-        ║     LLMStructuredOutputs Integration Tests                   ║
-        ║     Testing all providers and features                       ║
-        ╚══════════════════════════════════════════════════════════════╝
-        """)
-
-        // Load .env file if present
-        Config.loadEnvFile()
-
-        // Check API keys
-        print("\n📋 API Key Status:")
-        print("   ANTHROPIC_API_KEY: \(Config.anthropicKey != nil ? "✅ Set" : "❌ Not set")")
-        print("   OPENAI_API_KEY:    \(Config.openAIKey != nil ? "✅ Set" : "❌ Not set")")
-        print("   GEMINI_API_KEY:    \(Config.geminiKey != nil ? "✅ Set" : "❌ Not set")")
-
-        let runner = TestRunner()
-
-        // Run all test suites
-        await runAnthropicTests(runner: runner)
-        await runOpenAITests(runner: runner)
-        await runGeminiTests(runner: runner)
-
-        // Print summary
-        let summary = await runner.summary()
-        print("\n" + String(repeating: "=", count: 60))
-        print("📊 TEST SUMMARY")
-        print(String(repeating: "=", count: 60))
-        print("   ✅ Passed:  \(summary.passed)")
-        print("   ❌ Failed:  \(summary.failed)")
-        print("   ⏭️  Skipped: \(summary.skipped)")
-        print(String(repeating: "=", count: 60))
-
-        if summary.failed > 0 {
-            print("\n⚠️  Some tests failed. Check the output above for details.")
-        } else if summary.passed > 0 {
-            print("\n🎉 All executed tests passed!")
-        } else {
-            print("\n⚠️  No tests were executed. Set API keys to run tests.")
+    // Test 7: Tool Calling - Single Tool
+    await runToolTest(name: "Tool Calling - Weather", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
         }
-        print("")
+
+        return try await client.planToolCalls(
+            prompt: "What's the weather like in Paris?",
+            model: .flash25,
+            tools: tools,
+            toolChoice: .auto
+        )
+    }
+
+    // Test 8: Tool Calling - Multiple Tools
+    await runToolTest(name: "Tool Calling - Multiple Tools", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+            CalculatorTool.self
+            CurrentTimeTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "What's 123 + 456 and what time is it in Sydney?",
+            model: .flash25,
+            tools: tools,
+            toolChoice: .auto
+        )
+    }
+
+    // Test 9: Tool Calling - Required
+    await runToolTest(name: "Tool Calling - Required", runner: runner) {
+        let tools = ToolSet {
+            CurrentTimeTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "Just say hello",
+            model: .flash25,
+            tools: tools,
+            toolChoice: .required
+        )
     }
 }
+
+// MARK: - Agent Test Suites
+
+@MainActor
+func runAnthropicAgentTests(runner: TestRunner) async {
+    print("\n" + String(repeating: "=", count: 60))
+    print("🟠 ANTHROPIC Agent Tests")
+    print(String(repeating: "=", count: 60))
+
+    guard let apiKey = Config.anthropicKey, !apiKey.isEmpty else {
+        print("⚠️  ANTHROPIC_API_KEY not set - skipping Anthropic agent tests")
+        await runner.recordSkip()
+        return
+    }
+
+    let client = AnthropicClient(apiKey: apiKey)
+
+    // Agent Test 1: 天気ツールを使ったエージェントループ
+    await runAgentTest(name: "Weather Agent Loop", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+        }
+
+        let agentSequence: AgentStepSequence<AnthropicClient, WeatherReport> = client.runAgent(
+            prompt: "東京の天気を調べて、天気レポートを作成してください",
+            model: .sonnet,
+            tools: tools,
+            systemPrompt: "You are a helpful weather assistant. Use the weather tool to get information, then create a structured report."
+        )
+
+        var stepCount = 0
+        var finalResult: WeatherReport?
+
+        for try await step in agentSequence {
+            stepCount += 1
+            switch step {
+            case .thinking(let response):
+                let text = response.content.compactMap { $0.text }.joined()
+                print("   💭 Thinking: \(text.prefix(100))...")
+            case .toolCall(let info):
+                print("   🔧 Tool Call: \(info.name)")
+            case .toolResult(let info):
+                print("   📋 Tool Result: \(info.content)")
+            case .finalResponse(let report):
+                print("   ✅ Final Response: \(report.location) - \(report.conditions)")
+                finalResult = report
+            }
+        }
+
+        print("   📊 Total steps: \(stepCount)")
+        guard let result = finalResult else {
+            throw AgentError.invalidState("No final response received")
+        }
+        return result
+    }
+
+    // Agent Test 2: 計算ツールを使ったエージェントループ
+    await runAgentTest(name: "Calculator Agent Loop", runner: runner) {
+        let tools = ToolSet {
+            CalculatorTool.self
+        }
+
+        let agentSequence: AgentStepSequence<AnthropicClient, CalculationReport> = client.runAgent(
+            prompt: "25 x 4 を計算して、結果をレポートにまとめてください",
+            model: .sonnet,
+            tools: tools,
+            systemPrompt: "You are a calculator assistant. Use the calculator tool to compute, then provide a structured report."
+        )
+
+        var finalResult: CalculationReport?
+
+        for try await step in agentSequence {
+            switch step {
+            case .thinking:
+                print("   💭 Thinking...")
+            case .toolCall(let info):
+                print("   🔧 Tool Call: \(info.name)")
+            case .toolResult(let info):
+                print("   📋 Tool Result: \(info.content)")
+            case .finalResponse(let report):
+                print("   ✅ Final Response: \(report.expression) = \(report.result)")
+                finalResult = report
+            }
+        }
+
+        guard let result = finalResult else {
+            throw AgentError.invalidState("No final response received")
+        }
+        return result
+    }
+}
+
+@MainActor
+func runOpenAIAgentTests(runner: TestRunner) async {
+    print("\n" + String(repeating: "=", count: 60))
+    print("🟢 OPENAI Agent Tests")
+    print(String(repeating: "=", count: 60))
+
+    guard let apiKey = Config.openAIKey, !apiKey.isEmpty else {
+        print("⚠️  OPENAI_API_KEY not set - skipping OpenAI agent tests")
+        await runner.recordSkip()
+        return
+    }
+
+    let client = OpenAIClient(apiKey: apiKey)
+
+    // Agent Test 1: 天気ツールを使ったエージェントループ
+    await runAgentTest(name: "Weather Agent Loop", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+        }
+
+        let agentSequence: AgentStepSequence<OpenAIClient, WeatherReport> = client.runAgent(
+            prompt: "Check the weather in New York and create a weather report",
+            model: .gpt4oMini,
+            tools: tools,
+            systemPrompt: "You are a helpful weather assistant. Use the weather tool to get information, then create a structured report."
+        )
+
+        var finalResult: WeatherReport?
+
+        for try await step in agentSequence {
+            switch step {
+            case .thinking:
+                print("   💭 Thinking...")
+            case .toolCall(let info):
+                print("   🔧 Tool Call: \(info.name)")
+            case .toolResult(let info):
+                print("   📋 Tool Result: \(info.content)")
+            case .finalResponse(let report):
+                print("   ✅ Final Response: \(report.location) - \(report.conditions)")
+                finalResult = report
+            }
+        }
+
+        guard let result = finalResult else {
+            throw AgentError.invalidState("No final response received")
+        }
+        return result
+    }
+
+    // Agent Test 2: 計算ツールを使ったエージェントループ
+    await runAgentTest(name: "Calculator Agent Loop", runner: runner) {
+        let tools = ToolSet {
+            CalculatorTool.self
+        }
+
+        let agentSequence: AgentStepSequence<OpenAIClient, CalculationReport> = client.runAgent(
+            prompt: "Calculate 15 * 8 and create a calculation report",
+            model: .gpt4oMini,
+            tools: tools,
+            systemPrompt: "You are a calculator assistant. Use the calculator tool to compute, then provide a structured report."
+        )
+
+        var finalResult: CalculationReport?
+
+        for try await step in agentSequence {
+            switch step {
+            case .thinking:
+                print("   💭 Thinking...")
+            case .toolCall(let info):
+                print("   🔧 Tool Call: \(info.name)")
+            case .toolResult(let info):
+                print("   📋 Tool Result: \(info.content)")
+            case .finalResponse(let report):
+                print("   ✅ Final Response: \(report.expression) = \(report.result)")
+                finalResult = report
+            }
+        }
+
+        guard let result = finalResult else {
+            throw AgentError.invalidState("No final response received")
+        }
+        return result
+    }
+}
+
+@MainActor
+func runGeminiAgentTests(runner: TestRunner) async {
+    print("\n" + String(repeating: "=", count: 60))
+    print("🔵 GEMINI Agent Tests")
+    print(String(repeating: "=", count: 60))
+
+    // Note: Gemini API doesn't support function calling with JSON response mime type
+    // This is an API limitation, not a library issue
+    print("⚠️  Gemini API doesn't support agent loops with structured output")
+    print("   (Function calling + JSON response mime type is unsupported)")
+    await runner.recordSkip()
+    return
+
+    guard let apiKey = Config.geminiKey, !apiKey.isEmpty else {
+        print("⚠️  GEMINI_API_KEY not set - skipping Gemini agent tests")
+        await runner.recordSkip()
+        return
+    }
+
+    let client = GeminiClient(apiKey: apiKey)
+
+    // Agent Test 1: 天気ツールを使ったエージェントループ
+    await runAgentTest(name: "Weather Agent Loop", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+        }
+
+        let agentSequence: AgentStepSequence<GeminiClient, WeatherReport> = client.runAgent(
+            prompt: "パリの天気を調べて、天気レポートを作成してください",
+            model: .flash25,
+            tools: tools,
+            systemPrompt: "You are a helpful weather assistant. Use the weather tool to get information, then create a structured report."
+        )
+
+        var finalResult: WeatherReport?
+
+        for try await step in agentSequence {
+            switch step {
+            case .thinking:
+                print("   💭 Thinking...")
+            case .toolCall(let info):
+                print("   🔧 Tool Call: \(info.name)")
+            case .toolResult(let info):
+                print("   📋 Tool Result: \(info.content)")
+            case .finalResponse(let report):
+                print("   ✅ Final Response: \(report.location) - \(report.conditions)")
+                finalResult = report
+            }
+        }
+
+        guard let result = finalResult else {
+            throw AgentError.invalidState("No final response received")
+        }
+        return result
+    }
+
+    // Agent Test 2: 計算ツールを使ったエージェントループ
+    await runAgentTest(name: "Calculator Agent Loop", runner: runner) {
+        let tools = ToolSet {
+            CalculatorTool.self
+        }
+
+        let agentSequence: AgentStepSequence<GeminiClient, CalculationReport> = client.runAgent(
+            prompt: "100 + 200 を計算して、結果をレポートにまとめてください",
+            model: .flash25,
+            tools: tools,
+            systemPrompt: "You are a calculator assistant. Use the calculator tool to compute, then provide a structured report."
+        )
+
+        var finalResult: CalculationReport?
+
+        for try await step in agentSequence {
+            switch step {
+            case .thinking:
+                print("   💭 Thinking...")
+            case .toolCall(let info):
+                print("   🔧 Tool Call: \(info.name)")
+            case .toolResult(let info):
+                print("   📋 Tool Result: \(info.content)")
+            case .finalResponse(let report):
+                print("   ✅ Final Response: \(report.expression) = \(report.result)")
+                finalResult = report
+            }
+        }
+
+        guard let result = finalResult else {
+            throw AgentError.invalidState("No final response received")
+        }
+        return result
+    }
+}
+
+// MARK: - Main Entry Point
+
+/// テストモード: "all" = 全テスト, "agent" = エージェントテストのみ, "basic" = 基本テストのみ
+let testMode = ProcessInfo.processInfo.environment["TEST_MODE"] ?? "all"
+let isAgentOnly = testMode == "agent"
+let isBasicOnly = testMode == "basic"
+
+let title = isAgentOnly ? "Agent Tests" : (isBasicOnly ? "Basic Tests" : "All Tests")
+
+print("""
+
+╔══════════════════════════════════════════════════════════════╗
+║     LLMStructuredOutputs Integration Tests                   ║
+║     Mode: \(title.padding(toLength: 46, withPad: " ", startingAt: 0)) ║
+╚══════════════════════════════════════════════════════════════╝
+""")
+
+// Load .env file if present
+Config.loadEnvFile()
+
+// Check API keys
+print("\n📋 API Key Status:")
+print("   ANTHROPIC_API_KEY: \(Config.anthropicKey != nil ? "✅ Set" : "❌ Not set")")
+print("   OPENAI_API_KEY:    \(Config.openAIKey != nil ? "✅ Set" : "❌ Not set")")
+print("   GEMINI_API_KEY:    \(Config.geminiKey != nil ? "✅ Set" : "❌ Not set")")
+
+let runner = TestRunner()
+
+// Run test suites based on mode
+if !isAgentOnly {
+    // Basic tests (structured output, tool calling, etc.)
+    await runAnthropicTests(runner: runner)
+    await runOpenAITests(runner: runner)
+    await runGeminiTests(runner: runner)
+}
+
+if !isBasicOnly {
+    // Agent tests (runAgent loop)
+    await runAnthropicAgentTests(runner: runner)
+    await runOpenAIAgentTests(runner: runner)
+    await runGeminiAgentTests(runner: runner)
+}
+
+// Print summary
+let summary = await runner.summary()
+print("\n" + String(repeating: "=", count: 60))
+print("📊 TEST SUMMARY")
+print(String(repeating: "=", count: 60))
+print("   ✅ Passed:  \(summary.passed)")
+print("   ❌ Failed:  \(summary.failed)")
+print("   ⏭️  Skipped: \(summary.skipped)")
+print(String(repeating: "=", count: 60))
+
+if summary.failed > 0 {
+    print("\n⚠️  Some tests failed. Check the output above for details.")
+} else if summary.passed > 0 {
+    print("\n🎉 All executed tests passed!")
+} else {
+    print("\n⚠️  No tests were executed. Set API keys to run tests.")
+}
+print("")

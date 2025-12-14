@@ -37,6 +37,12 @@ internal struct LLMRequest: Sendable {
     /// 最大トークン数
     public let maxTokens: Int?
 
+    /// 使用可能なツール
+    public let tools: ToolSet?
+
+    /// ツール選択の設定
+    public let toolChoice: ToolChoice?
+
     /// リクエストを初期化
     public init(
         model: LLMModel,
@@ -44,7 +50,9 @@ internal struct LLMRequest: Sendable {
         systemPrompt: String? = nil,
         responseSchema: JSONSchema? = nil,
         temperature: Double? = nil,
-        maxTokens: Int? = nil
+        maxTokens: Int? = nil,
+        tools: ToolSet? = nil,
+        toolChoice: ToolChoice? = nil
     ) {
         self.model = model
         self.messages = messages
@@ -52,6 +60,8 @@ internal struct LLMRequest: Sendable {
         self.responseSchema = responseSchema
         self.temperature = temperature
         self.maxTokens = maxTokens
+        self.tools = tools
+        self.toolChoice = toolChoice
     }
 }
 
@@ -139,12 +149,36 @@ public struct TokenUsage: Sendable {
 // MARK: - LLMMessage
 
 /// LLM メッセージ
+///
+/// テキストメッセージに加えて、ツール呼び出しとツール結果もサポートします。
+///
+/// ## 使用例
+///
+/// ```swift
+/// // テキストメッセージ
+/// let userMessage = LLMMessage.user("東京の天気は？")
+/// let assistantMessage = LLMMessage.assistant("東京は晴れです。")
+///
+/// // ツール呼び出し（アシスタントからの応答）
+/// let toolCallMessage = LLMMessage.toolUse(
+///     id: "call_123",
+///     name: "get_weather",
+///     input: jsonData
+/// )
+///
+/// // ツール結果（ユーザーからの応答として送信）
+/// let toolResultMessage = LLMMessage.toolResult(
+///     toolCallId: "call_123",
+///     name: "get_weather",
+///     content: "晴れ、25度"
+/// )
+/// ```
 public struct LLMMessage: Sendable {
     /// メッセージの役割
     public let role: Role
 
-    /// メッセージ内容
-    public let content: String
+    /// メッセージ内容（複合コンテンツ対応）
+    public let contents: [MessageContent]
 
     /// 役割
     public enum Role: String, Sendable {
@@ -152,11 +186,89 @@ public struct LLMMessage: Sendable {
         case assistant
     }
 
-    /// メッセージを初期化
+    /// メッセージコンテンツの種類
+    public enum MessageContent: Sendable, Equatable {
+        /// テキストコンテンツ
+        case text(String)
+
+        /// ツール呼び出し（アシスタントが生成）
+        case toolUse(id: String, name: String, input: Data)
+
+        /// ツール実行結果（ツール呼び出しへの応答）
+        /// - Parameters:
+        ///   - toolCallId: 対応するツール呼び出しID
+        ///   - name: ツール名（Gemini APIで必須）
+        ///   - content: 実行結果の文字列
+        ///   - isError: エラー結果かどうか
+        case toolResult(toolCallId: String, name: String, content: String, isError: Bool)
+    }
+
+    // MARK: - Initializers
+
+    /// メッセージを初期化（複合コンテンツ）
+    public init(role: Role, contents: [MessageContent]) {
+        self.role = role
+        self.contents = contents
+    }
+
+    /// メッセージを初期化（単一テキスト）
     public init(role: Role, content: String) {
         self.role = role
-        self.content = content
+        self.contents = [.text(content)]
     }
+
+    // MARK: - Convenience Properties
+
+    /// テキストコンテンツを取得（後方互換性）
+    ///
+    /// 複数のテキストブロックがある場合は結合して返します。
+    /// テキストがない場合は空文字列を返します。
+    public var content: String {
+        contents.compactMap { content in
+            if case .text(let text) = content {
+                return text
+            }
+            return nil
+        }.joined()
+    }
+
+    /// ツール呼び出しを含むかどうか
+    public var hasToolUse: Bool {
+        contents.contains { content in
+            if case .toolUse = content { return true }
+            return false
+        }
+    }
+
+    /// ツール結果を含むかどうか
+    public var hasToolResult: Bool {
+        contents.contains { content in
+            if case .toolResult = content { return true }
+            return false
+        }
+    }
+
+    /// ツール呼び出しを取得
+    public var toolUses: [(id: String, name: String, input: Data)] {
+        contents.compactMap { content in
+            if case .toolUse(let id, let name, let input) = content {
+                return (id, name, input)
+            }
+            return nil
+        }
+    }
+
+    /// ツール結果を取得
+    public var toolResults: [(toolCallId: String, name: String, content: String, isError: Bool)] {
+        contents.compactMap { content in
+            if case .toolResult(let id, let name, let resultContent, let isError) = content {
+                return (id, name, resultContent, isError)
+            }
+            return nil
+        }
+    }
+
+    // MARK: - Factory Methods
 
     /// ユーザーメッセージを作成
     public static func user(_ content: String) -> LLMMessage {
@@ -166,6 +278,55 @@ public struct LLMMessage: Sendable {
     /// アシスタントメッセージを作成
     public static func assistant(_ content: String) -> LLMMessage {
         LLMMessage(role: .assistant, content: content)
+    }
+
+    /// ツール呼び出しメッセージを作成（アシスタント）
+    ///
+    /// LLM がツールを呼び出すことを決定した際のメッセージ。
+    /// 通常は `LLMResponse` から自動的に生成されます。
+    ///
+    /// - Parameters:
+    ///   - id: ツール呼び出しID
+    ///   - name: ツール名
+    ///   - input: ツール引数（JSON データ）
+    public static func toolUse(id: String, name: String, input: Data) -> LLMMessage {
+        LLMMessage(role: .assistant, contents: [.toolUse(id: id, name: name, input: input)])
+    }
+
+    /// 複数のツール呼び出しを含むメッセージを作成（アシスタント）
+    ///
+    /// - Parameter toolCalls: ツール呼び出し情報の配列
+    public static func toolUses(_ toolCalls: [(id: String, name: String, input: Data)]) -> LLMMessage {
+        let contents = toolCalls.map { MessageContent.toolUse(id: $0.id, name: $0.name, input: $0.input) }
+        return LLMMessage(role: .assistant, contents: contents)
+    }
+
+    /// ツール実行結果メッセージを作成（ユーザー）
+    ///
+    /// ツールを実行した結果を LLM に返すためのメッセージ。
+    ///
+    /// - Parameters:
+    ///   - toolCallId: 対応するツール呼び出しID
+    ///   - name: ツール名
+    ///   - content: 実行結果の文字列
+    ///   - isError: エラー結果かどうか（デフォルト: false）
+    public static func toolResult(
+        toolCallId: String,
+        name: String,
+        content: String,
+        isError: Bool = false
+    ) -> LLMMessage {
+        LLMMessage(role: .user, contents: [.toolResult(toolCallId: toolCallId, name: name, content: content, isError: isError)])
+    }
+
+    /// 複数のツール実行結果を含むメッセージを作成（ユーザー）
+    ///
+    /// - Parameter results: ツール結果情報の配列
+    public static func toolResults(_ results: [(toolCallId: String, name: String, content: String, isError: Bool)]) -> LLMMessage {
+        let contents = results.map {
+            MessageContent.toolResult(toolCallId: $0.toolCallId, name: $0.name, content: $0.content, isError: $0.isError)
+        }
+        return LLMMessage(role: .user, contents: contents)
     }
 }
 

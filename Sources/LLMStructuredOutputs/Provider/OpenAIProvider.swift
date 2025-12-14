@@ -89,16 +89,15 @@ internal struct OpenAIProvider: LLMProvider {
         if let systemPrompt = request.systemPrompt {
             messages.append(OpenAIMessage(
                 role: "system",
-                content: systemPrompt
+                content: systemPrompt,
+                toolCallId: nil,
+                toolCalls: nil
             ))
         }
 
         // ユーザー/アシスタントメッセージ
         for message in request.messages {
-            messages.append(OpenAIMessage(
-                role: message.role == .user ? "user" : "assistant",
-                content: message.content
-            ))
+            messages.append(contentsOf: convertToOpenAIMessages(message))
         }
 
         // 構造化出力の設定
@@ -118,13 +117,96 @@ internal struct OpenAIProvider: LLMProvider {
             )
         }
 
+        // ツール設定
+        let tools = request.tools?.toOpenAIFormat().map { OpenAIToolDef(dict: $0) }
+        let toolChoice = request.toolChoice.map { mapToolChoice($0) }
+
         return OpenAIRequestBody(
             model: request.model.id,
             messages: messages,
             maxCompletionTokens: request.maxTokens ?? Self.defaultMaxTokens,
             temperature: request.temperature,
-            responseFormat: responseFormat
+            responseFormat: responseFormat,
+            tools: tools,
+            toolChoice: toolChoice
         )
+    }
+
+    /// ToolChoice を OpenAI 形式に変換
+    private func mapToolChoice(_ choice: ToolChoice) -> OpenAIToolChoice {
+        switch choice {
+        case .auto:
+            return .auto
+        case .none:
+            return .none
+        case .required:
+            return .required
+        case .tool(let name):
+            return .function(name)
+        }
+    }
+
+    /// LLMMessage を OpenAI メッセージ形式に変換
+    ///
+    /// OpenAI では:
+    /// - テキストメッセージ: `{"role": "user"|"assistant", "content": "..."}`
+    /// - ツール呼び出し: `{"role": "assistant", "tool_calls": [...]}`
+    /// - ツール結果: `{"role": "tool", "tool_call_id": "...", "content": "..."}`
+    private func convertToOpenAIMessages(_ message: LLMMessage) -> [OpenAIMessage] {
+        var result: [OpenAIMessage] = []
+
+        // ツール結果を持つ場合、各結果を個別の tool メッセージとして送信
+        // OpenAI APIではnameは不要（tool_call_idで関連付け）
+        let toolResults = message.toolResults
+        if !toolResults.isEmpty {
+            for toolResult in toolResults {
+                result.append(OpenAIMessage(
+                    role: "tool",
+                    content: toolResult.content,  // (toolCallId, name, content, isError)
+                    toolCallId: toolResult.toolCallId,
+                    toolCalls: nil
+                ))
+            }
+            return result
+        }
+
+        // ツール呼び出しを持つ場合
+        let toolUses = message.toolUses
+        if !toolUses.isEmpty {
+            let toolCalls = toolUses.map { toolUse -> OpenAIMessageToolCall in
+                let argumentsString: String
+                if let str = String(data: toolUse.input, encoding: .utf8) {
+                    argumentsString = str
+                } else {
+                    argumentsString = "{}"
+                }
+                return OpenAIMessageToolCall(
+                    id: toolUse.id,
+                    type: "function",
+                    function: OpenAIMessageToolCallFunction(
+                        name: toolUse.name,
+                        arguments: argumentsString
+                    )
+                )
+            }
+            result.append(OpenAIMessage(
+                role: "assistant",
+                content: message.content.isEmpty ? nil : message.content,
+                toolCallId: nil,
+                toolCalls: toolCalls
+            ))
+            return result
+        }
+
+        // 通常のテキストメッセージ
+        let role = message.role == .user ? "user" : "assistant"
+        result.append(OpenAIMessage(
+            role: role,
+            content: message.content,
+            toolCallId: nil,
+            toolCalls: nil
+        ))
+        return result
     }
 
     /// HTTPリクエストを実行
@@ -182,13 +264,35 @@ internal struct OpenAIProvider: LLMProvider {
         // 停止理由をマッピング
         let stopReason = mapStopReason(choice.finishReason)
 
-        // コンテンツを取得
-        guard let content = choice.message.content else {
+        // コンテンツブロックを構築
+        var contentBlocks: [LLMResponse.ContentBlock] = []
+
+        // テキストコンテンツ
+        if let content = choice.message.content {
+            contentBlocks.append(.text(content))
+        }
+
+        // ツール呼び出し
+        if let toolCalls = choice.message.toolCalls {
+            for toolCall in toolCalls {
+                if toolCall.type == "function",
+                   let argumentsData = toolCall.function.arguments.data(using: .utf8) {
+                    contentBlocks.append(.toolUse(
+                        id: toolCall.id,
+                        name: toolCall.function.name,
+                        input: argumentsData
+                    ))
+                }
+            }
+        }
+
+        // tool_calls の場合は空でもOK
+        guard !contentBlocks.isEmpty || stopReason == .toolUse else {
             throw LLMError.emptyResponse
         }
 
         return LLMResponse(
-            content: [.text(content)],
+            content: contentBlocks,
             model: openAIResponse.model,
             usage: TokenUsage(
                 inputTokens: openAIResponse.usage.promptTokens,
@@ -206,6 +310,8 @@ internal struct OpenAIProvider: LLMProvider {
             return .endTurn
         case "length":
             return .maxTokens
+        case "tool_calls":
+            return .toolUse
         default:
             return nil
         }
@@ -221,6 +327,8 @@ private struct OpenAIRequestBody: Encodable {
     let maxCompletionTokens: Int
     let temperature: Double?
     let responseFormat: OpenAIResponseFormat?
+    let tools: [OpenAIToolDef]?
+    let toolChoice: OpenAIToolChoice?
 
     enum CodingKeys: String, CodingKey {
         case model
@@ -228,6 +336,8 @@ private struct OpenAIRequestBody: Encodable {
         case maxCompletionTokens = "max_completion_tokens"
         case temperature
         case responseFormat = "response_format"
+        case tools
+        case toolChoice = "tool_choice"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -241,13 +351,189 @@ private struct OpenAIRequestBody: Encodable {
         if let responseFormat = responseFormat {
             try container.encode(responseFormat, forKey: .responseFormat)
         }
+        if let tools = tools {
+            try container.encode(tools, forKey: .tools)
+        }
+        if let toolChoice = toolChoice {
+            try container.encode(toolChoice, forKey: .toolChoice)
+        }
+    }
+}
+
+/// OpenAI ツール定義
+private struct OpenAIToolDef: Encodable {
+    let type: String
+    let function: OpenAIFunctionDef
+
+    init(dict: [String: Any]) {
+        self.type = dict["type"] as? String ?? "function"
+        if let funcDict = dict["function"] as? [String: Any] {
+            self.function = OpenAIFunctionDef(dict: funcDict)
+        } else {
+            self.function = OpenAIFunctionDef(dict: [:])
+        }
+    }
+}
+
+/// OpenAI 関数定義
+private struct OpenAIFunctionDef: Encodable {
+    let name: String
+    let description: String
+    let strict: Bool
+    let parameters: [String: Any]
+
+    init(dict: [String: Any]) {
+        self.name = dict["name"] as? String ?? ""
+        self.description = dict["description"] as? String ?? ""
+        self.strict = dict["strict"] as? Bool ?? true
+        self.parameters = dict["parameters"] as? [String: Any] ?? [:]
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name, description, strict, parameters
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(description, forKey: .description)
+        try container.encode(strict, forKey: .strict)
+        // parameters を JSON として手動エンコード
+        let paramsData = try JSONSerialization.data(withJSONObject: parameters)
+        let paramsJSON = try JSONDecoder().decode(OpenAIJSONValue.self, from: paramsData)
+        try container.encode(paramsJSON, forKey: .parameters)
+    }
+}
+
+/// OpenAI ツール選択
+private enum OpenAIToolChoice: Encodable {
+    case auto
+    case none
+    case required
+    case function(String)
+
+    private struct FunctionChoice: Encodable {
+        let type: String
+        let function: FunctionName
+
+        struct FunctionName: Encodable {
+            let name: String
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .auto:
+            try container.encode("auto")
+        case .none:
+            try container.encode("none")
+        case .required:
+            try container.encode("required")
+        case .function(let name):
+            try container.encode(FunctionChoice(type: "function", function: .init(name: name)))
+        }
+    }
+}
+
+/// JSON 値の汎用エンコード用
+private enum OpenAIJSONValue: Codable {
+    case null
+    case bool(Bool)
+    case int(Int)
+    case double(Double)
+    case string(String)
+    case array([OpenAIJSONValue])
+    case object([String: OpenAIJSONValue])
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            self = .null
+        } else if let bool = try? container.decode(Bool.self) {
+            self = .bool(bool)
+        } else if let int = try? container.decode(Int.self) {
+            self = .int(int)
+        } else if let double = try? container.decode(Double.self) {
+            self = .double(double)
+        } else if let string = try? container.decode(String.self) {
+            self = .string(string)
+        } else if let array = try? container.decode([OpenAIJSONValue].self) {
+            self = .array(array)
+        } else if let object = try? container.decode([String: OpenAIJSONValue].self) {
+            self = .object(object)
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode JSON value")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .null:
+            try container.encodeNil()
+        case .bool(let value):
+            try container.encode(value)
+        case .int(let value):
+            try container.encode(value)
+        case .double(let value):
+            try container.encode(value)
+        case .string(let value):
+            try container.encode(value)
+        case .array(let value):
+            try container.encode(value)
+        case .object(let value):
+            try container.encode(value)
+        }
     }
 }
 
 /// OpenAI メッセージ
 private struct OpenAIMessage: Encodable {
     let role: String
-    let content: String
+    let content: String?
+    let toolCallId: String?
+    let toolCalls: [OpenAIMessageToolCall]?
+
+    enum CodingKeys: String, CodingKey {
+        case role
+        case content
+        case toolCallId = "tool_call_id"
+        case toolCalls = "tool_calls"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(role, forKey: .role)
+
+        // content は nil でない場合のみエンコード
+        if let content = content {
+            try container.encode(content, forKey: .content)
+        }
+
+        // tool_call_id は tool role の場合のみ
+        if let toolCallId = toolCallId {
+            try container.encode(toolCallId, forKey: .toolCallId)
+        }
+
+        // tool_calls は assistant の場合のみ
+        if let toolCalls = toolCalls {
+            try container.encode(toolCalls, forKey: .toolCalls)
+        }
+    }
+}
+
+/// OpenAI メッセージ内のツール呼び出し
+private struct OpenAIMessageToolCall: Encodable {
+    let id: String
+    let type: String
+    let function: OpenAIMessageToolCallFunction
+}
+
+/// OpenAI メッセージ内のツール呼び出し関数
+private struct OpenAIMessageToolCallFunction: Encodable {
+    let name: String
+    let arguments: String
 }
 
 /// OpenAI レスポンスフォーマット設定
@@ -289,6 +575,20 @@ private struct OpenAIChoice: Decodable {
 private struct OpenAIResponseMessage: Decodable {
     let role: String
     let content: String?
+    let toolCalls: [OpenAIToolCall]?
+}
+
+/// OpenAI ツール呼び出し
+private struct OpenAIToolCall: Decodable {
+    let id: String
+    let type: String
+    let function: OpenAIToolCallFunction
+}
+
+/// OpenAI ツール呼び出し関数
+private struct OpenAIToolCallFunction: Decodable {
+    let name: String
+    let arguments: String
 }
 
 /// OpenAI 使用量

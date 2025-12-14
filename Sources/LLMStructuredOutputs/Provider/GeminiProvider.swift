@@ -78,10 +78,7 @@ internal struct GeminiProvider: LLMProvider {
         var contents: [GeminiContent] = []
 
         for message in request.messages {
-            contents.append(GeminiContent(
-                role: message.role == .user ? "user" : "model",
-                parts: [GeminiPart(text: message.content)]
-            ))
+            contents.append(contentsOf: convertToGeminiContents(message))
         }
 
         // システムインストラクション
@@ -108,11 +105,49 @@ internal struct GeminiProvider: LLMProvider {
             generationConfig.responseSchema = sanitizedSchema
         }
 
+        // ツール設定
+        var tools: [GeminiTool]?
+        var toolConfig: GeminiToolConfig?
+
+        if let toolSet = request.tools, !toolSet.isEmpty {
+            let geminiFormat = toolSet.toGeminiFormat()
+            let declarations = geminiFormat.map { GeminiFunctionDeclaration(dict: $0) }
+            tools = [GeminiTool(functionDeclarations: declarations)]
+
+            if let choice = request.toolChoice {
+                toolConfig = mapToolChoice(choice)
+            }
+        }
+
         return GeminiRequestBody(
             contents: contents,
             systemInstruction: systemInstruction,
-            generationConfig: generationConfig
+            generationConfig: generationConfig,
+            tools: tools,
+            toolConfig: toolConfig
         )
+    }
+
+    /// ToolChoice を Gemini 形式に変換
+    private func mapToolChoice(_ choice: ToolChoice) -> GeminiToolConfig {
+        switch choice {
+        case .auto:
+            return GeminiToolConfig(
+                functionCallingConfig: GeminiFunctionCallingConfig(mode: "AUTO", allowedFunctionNames: nil)
+            )
+        case .none:
+            return GeminiToolConfig(
+                functionCallingConfig: GeminiFunctionCallingConfig(mode: "NONE", allowedFunctionNames: nil)
+            )
+        case .required:
+            return GeminiToolConfig(
+                functionCallingConfig: GeminiFunctionCallingConfig(mode: "ANY", allowedFunctionNames: nil)
+            )
+        case .tool(let name):
+            return GeminiToolConfig(
+                functionCallingConfig: GeminiFunctionCallingConfig(mode: "ANY", allowedFunctionNames: [name])
+            )
+        }
     }
 
     /// HTTPリクエストを実行
@@ -174,9 +209,30 @@ internal struct GeminiProvider: LLMProvider {
         // 停止理由をマッピング
         let stopReason = mapStopReason(candidate.finishReason)
 
-        // コンテンツを取得
-        guard let content = candidate.content,
-              let text = content.parts.first?.text else {
+        // コンテンツブロックを構築
+        var contentBlocks: [LLMResponse.ContentBlock] = []
+
+        if let content = candidate.content {
+            for part in content.parts {
+                // テキストコンテンツ
+                if let text = part.text {
+                    contentBlocks.append(.text(text))
+                }
+                // 関数呼び出し
+                if let functionCall = part.functionCall {
+                    if let argsData = try? JSONSerialization.data(withJSONObject: functionCall.args ?? [:]) {
+                        contentBlocks.append(.toolUse(
+                            id: UUID().uuidString, // Gemini はIDを返さないので生成
+                            name: functionCall.name,
+                            input: argsData
+                        ))
+                    }
+                }
+            }
+        }
+
+        // tool_use の場合は空でもOK
+        guard !contentBlocks.isEmpty || stopReason == .toolUse else {
             throw LLMError.emptyResponse
         }
 
@@ -192,7 +248,7 @@ internal struct GeminiProvider: LLMProvider {
         }
 
         return LLMResponse(
-            content: [.text(text)],
+            content: contentBlocks,
             model: model,
             usage: usage,
             stopReason: stopReason
@@ -213,6 +269,58 @@ internal struct GeminiProvider: LLMProvider {
             return nil
         }
     }
+
+    /// LLMMessage を Gemini コンテンツ形式に変換
+    ///
+    /// Gemini APIでは:
+    /// - テキストメッセージ: role="user"|"model", parts=[{text: "..."}]
+    /// - ツール呼び出し: role="model", parts=[{functionCall: {name, args}}]
+    /// - ツール結果: role="user", parts=[{functionResponse: {name, response}}]
+    private func convertToGeminiContents(_ message: LLMMessage) -> [GeminiContent] {
+        let role = message.role == .user ? "user" : "model"
+        var parts: [GeminiPart] = []
+        var toolResultParts: [GeminiPart] = []
+
+        for content in message.contents {
+            switch content {
+            case .text(let text):
+                parts.append(GeminiPart(text: text))
+
+            case .toolUse(_, let name, let input):
+                // ツール呼び出し（モデルからの応答）
+                // inputをJSON辞書に変換
+                let args: [String: Any]?
+                if let argsDict = try? JSONSerialization.jsonObject(with: input) as? [String: Any] {
+                    args = argsDict
+                } else {
+                    args = nil
+                }
+                let functionCall = GeminiFunctionCall(name: name, args: args)
+                parts.append(GeminiPart(functionCall: functionCall))
+
+            case .toolResult(_, let name, let resultContent, _):
+                // ツール結果（ユーザーからの応答）
+                // Gemini APIではfunctionResponseにはnameが必須
+                let responseDict: [String: Any] = ["result": resultContent]
+                let functionResponse = GeminiFunctionResponse(name: name, response: responseDict)
+                toolResultParts.append(GeminiPart(functionResponse: functionResponse))
+            }
+        }
+
+        var contents: [GeminiContent] = []
+
+        // 通常のパーツ（テキストとツール呼び出し）
+        if !parts.isEmpty {
+            contents.append(GeminiContent(role: role, parts: parts))
+        }
+
+        // ツール結果は常にuserロールで送信
+        if !toolResultParts.isEmpty {
+            contents.append(GeminiContent(role: "user", parts: toolResultParts))
+        }
+
+        return contents
+    }
 }
 
 // MARK: - Request/Response Types
@@ -222,6 +330,103 @@ private struct GeminiRequestBody: Encodable {
     let contents: [GeminiContent]
     let systemInstruction: GeminiContent?
     let generationConfig: GeminiGenerationConfig
+    let tools: [GeminiTool]?
+    let toolConfig: GeminiToolConfig?
+}
+
+/// Gemini ツール
+private struct GeminiTool: Encodable {
+    let functionDeclarations: [GeminiFunctionDeclaration]
+}
+
+/// Gemini 関数宣言
+private struct GeminiFunctionDeclaration: Encodable {
+    let name: String
+    let description: String
+    let parameters: [String: Any]
+
+    init(dict: [String: Any]) {
+        self.name = dict["name"] as? String ?? ""
+        self.description = dict["description"] as? String ?? ""
+        self.parameters = dict["parameters"] as? [String: Any] ?? [:]
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name, description, parameters
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(description, forKey: .description)
+        // parameters を JSON として手動エンコード
+        let paramsData = try JSONSerialization.data(withJSONObject: parameters)
+        let paramsJSON = try JSONDecoder().decode(GeminiJSONValue.self, from: paramsData)
+        try container.encode(paramsJSON, forKey: .parameters)
+    }
+}
+
+/// Gemini ツール設定
+private struct GeminiToolConfig: Encodable {
+    let functionCallingConfig: GeminiFunctionCallingConfig
+}
+
+/// Gemini 関数呼び出し設定
+private struct GeminiFunctionCallingConfig: Encodable {
+    let mode: String
+    let allowedFunctionNames: [String]?
+}
+
+/// JSON 値の汎用エンコード用
+private enum GeminiJSONValue: Codable {
+    case null
+    case bool(Bool)
+    case int(Int)
+    case double(Double)
+    case string(String)
+    case array([GeminiJSONValue])
+    case object([String: GeminiJSONValue])
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            self = .null
+        } else if let bool = try? container.decode(Bool.self) {
+            self = .bool(bool)
+        } else if let int = try? container.decode(Int.self) {
+            self = .int(int)
+        } else if let double = try? container.decode(Double.self) {
+            self = .double(double)
+        } else if let string = try? container.decode(String.self) {
+            self = .string(string)
+        } else if let array = try? container.decode([GeminiJSONValue].self) {
+            self = .array(array)
+        } else if let object = try? container.decode([String: GeminiJSONValue].self) {
+            self = .object(object)
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode JSON value")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .null:
+            try container.encodeNil()
+        case .bool(let value):
+            try container.encode(value)
+        case .int(let value):
+            try container.encode(value)
+        case .double(let value):
+            try container.encode(value)
+        case .string(let value):
+            try container.encode(value)
+        case .array(let value):
+            try container.encode(value)
+        case .object(let value):
+            try container.encode(value)
+        }
+    }
 }
 
 /// Gemini コンテンツ
@@ -232,7 +437,122 @@ private struct GeminiContent: Codable {
 
 /// Gemini パーツ
 private struct GeminiPart: Codable {
-    let text: String
+    let text: String?
+    let functionCall: GeminiFunctionCall?
+    let functionResponse: GeminiFunctionResponse?
+
+    init(text: String) {
+        self.text = text
+        self.functionCall = nil
+        self.functionResponse = nil
+    }
+
+    init(functionCall: GeminiFunctionCall) {
+        self.text = nil
+        self.functionCall = functionCall
+        self.functionResponse = nil
+    }
+
+    init(functionResponse: GeminiFunctionResponse) {
+        self.text = nil
+        self.functionCall = nil
+        self.functionResponse = functionResponse
+    }
+}
+
+/// Gemini 関数呼び出し
+private struct GeminiFunctionCall: Codable {
+    let name: String
+    let args: [String: Any]?
+
+    enum CodingKeys: String, CodingKey {
+        case name, args
+    }
+
+    init(name: String, args: [String: Any]?) {
+        self.name = name
+        self.args = args
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        // args は任意の JSON なので手動でデコード
+        if let argsJSON = try? container.decodeIfPresent(GeminiAnyCodable.self, forKey: .args) {
+            args = argsJSON.value as? [String: Any]
+        } else {
+            args = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        if let args = args {
+            let argsData = try JSONSerialization.data(withJSONObject: args)
+            let argsJSON = try JSONDecoder().decode(GeminiJSONValue.self, from: argsData)
+            try container.encode(argsJSON, forKey: .args)
+        }
+    }
+}
+
+/// Gemini 関数レスポンス（ツール実行結果）
+private struct GeminiFunctionResponse: Codable {
+    let name: String
+    let response: [String: Any]
+
+    enum CodingKeys: String, CodingKey {
+        case name, response
+    }
+
+    init(name: String, response: [String: Any]) {
+        self.name = name
+        self.response = response
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        if let responseJSON = try? container.decode(GeminiAnyCodable.self, forKey: .response) {
+            response = responseJSON.value as? [String: Any] ?? [:]
+        } else {
+            response = [:]
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        let responseData = try JSONSerialization.data(withJSONObject: response)
+        let responseJSON = try JSONDecoder().decode(GeminiJSONValue.self, from: responseData)
+        try container.encode(responseJSON, forKey: .response)
+    }
+}
+
+/// 任意の JSON 値をデコードするためのラッパー
+private struct GeminiAnyCodable: Decodable {
+    let value: Any
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            value = NSNull()
+        } else if let bool = try? container.decode(Bool.self) {
+            value = bool
+        } else if let int = try? container.decode(Int.self) {
+            value = int
+        } else if let double = try? container.decode(Double.self) {
+            value = double
+        } else if let string = try? container.decode(String.self) {
+            value = string
+        } else if let array = try? container.decode([GeminiAnyCodable].self) {
+            value = array.map { $0.value }
+        } else if let dict = try? container.decode([String: GeminiAnyCodable].self) {
+            value = dict.mapValues { $0.value }
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode value")
+        }
+    }
 }
 
 /// Gemini 生成設定

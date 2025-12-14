@@ -68,6 +68,57 @@ let population: PopulationInfo = try await conversation.send("What is its popula
 print(population.count)  // 13960000
 ```
 
+### 4. Prompt DSL
+
+Build structured prompts with the DSL:
+
+```swift
+let prompt = Prompt {
+    PromptComponent.role("Data analysis expert")
+    PromptComponent.objective("Extract user information")
+    PromptComponent.instruction("Extract names without honorifics")
+    PromptComponent.constraint("Do not guess")
+    PromptComponent.example(
+        input: "Jane Doe (28) lives in New York",
+        output: #"{"name": "Jane Doe", "age": 28}"#
+    )
+}
+
+let user: UserInfo = try await client.generate(
+    prompt: prompt,
+    model: .sonnet
+)
+```
+
+### 5. Tool Calling
+
+Let the LLM decide which tools (functions) to call. For details, see the [Tool Calling Guide](documentation/tool-calling.md).
+
+```swift
+@Tool("Get weather for a specified city")
+struct GetWeather {
+    @ToolArgument("City name")
+    var location: String
+
+    func call() async throws -> String {
+        return "Tokyo: Sunny, 22°C"
+    }
+}
+
+let tools = ToolSet { GetWeather.self }
+
+let plan = try await client.planToolCalls(
+    prompt: "What's the weather in Tokyo?",
+    model: .sonnet,
+    tools: tools
+)
+
+for call in plan.toolCalls {
+    let result = try await tools.execute(toolNamed: call.name, with: call.arguments)
+    print(result.stringValue)
+}
+```
+
 ## Installation
 
 ### Swift Package Manager
@@ -219,6 +270,7 @@ An iOS example app is included in `Examples/LLMStructuredOutputsExample`. Try al
 | Conversation | `Conversation` multi-turn conversations |
 | Event Stream | `chatStream()` streaming responses |
 | Prompt DSL | `Prompt { }` builder for prompt construction |
+| Tool Calling | `@Tool` definition, `planToolCalls()` planning |
 | **Provider Comparison** | Claude/GPT/Gemini parallel comparison, response time & token measurement |
 
 ### Provider Comparison Demo
@@ -242,6 +294,8 @@ For detailed documentation, see:
 - [API Reference](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/)
 - [Guides](documentation/)
   - [Getting Started](documentation/getting-started.md)
+  - [Prompt Building](documentation/prompt-building.md)
+  - [Tool Calling](documentation/tool-calling.md)
   - [Providers](documentation/providers.md)
   - [Conversation](documentation/conversation.md)
 

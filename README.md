@@ -69,6 +69,54 @@ let user: UserInfo = try await client.generate(
 )
 ```
 
+### ツール定義
+
+`@Tool` マクロで LLM が呼び出せるツールを定義します：
+
+```swift
+@Tool("指定された都市の天気を取得する")
+struct GetWeather {
+    @ToolArgument("都市名")
+    var location: String
+
+    func call() async throws -> String {
+        return "\(location): 晴れ、22°C"
+    }
+}
+```
+
+### エージェントループ
+
+`runAgent` で LLM がツールを自動実行し、構造化出力を生成するまでループします：
+
+```swift
+@Structured("天気レポート")
+struct WeatherReport {
+    @StructuredField("場所") var location: String
+    @StructuredField("天気") var conditions: String
+    @StructuredField("気温") var temperature: Int
+}
+
+let tools = ToolSet { GetWeather.self }
+
+let sequence: AgentStepSequence<AnthropicClient, WeatherReport> = client.runAgent(
+    prompt: "東京の天気を調べてレポートを作成して",
+    model: .sonnet,
+    tools: tools
+)
+
+for try await step in sequence {
+    switch step {
+    case .toolCall(let info): print("🔧 \(info.name)")
+    case .toolResult(let info): print("📤 \(info.content)")
+    case .finalResponse(let report): print("✅ \(report.location): \(report.conditions)")
+    default: break
+    }
+}
+```
+
+詳細は[エージェントループガイド](documentation/agent-loop.md)を参照してください。
+
 ## インストール
 
 ```swift
@@ -93,6 +141,8 @@ dependencies: [
 |--------|------|
 | [はじめに](documentation/getting-started.md) | インストールと基本的な使い方 |
 | [プロンプト構築](documentation/prompt-building.md) | DSL を使ったプロンプト構築 |
+| [ツールコール](documentation/tool-calling.md) | LLM に外部関数を呼び出させる |
+| [エージェントループ](documentation/agent-loop.md) | ツール自動実行と構造化出力の生成 |
 | [プロバイダー](documentation/providers.md) | 各プロバイダーとモデルの詳細 |
 | [会話](documentation/conversation.md) | マルチターン会話の実装 |
 
@@ -114,6 +164,8 @@ dependencies: [
 | 会話機能 | `Conversation` によるマルチターン会話 |
 | イベントストリーム | `chatStream()` によるストリーミング応答 |
 | プロンプト DSL | `Prompt { }` ビルダーによるプロンプト構築 |
+| ツールコール | `@Tool` によるツール定義、`planToolCalls()` による計画 |
+| エージェントループ | `runAgent()` によるツール自動実行と構造化出力生成 |
 | **プロバイダー比較** | Claude/GPT/Gemini の並列比較、レスポンス時間・トークン計測 |
 
 ### プロバイダー比較デモ
