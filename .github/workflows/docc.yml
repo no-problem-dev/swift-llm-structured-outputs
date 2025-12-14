@@ -27,7 +27,7 @@ jobs:
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.0'
+          xcode-version: '26.0'
 
       - name: Create docs directory
         run: mkdir -p ./docs
