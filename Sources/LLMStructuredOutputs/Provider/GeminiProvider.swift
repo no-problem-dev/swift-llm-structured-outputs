@@ -9,7 +9,7 @@ import FoundationNetworking
 ///
 /// このプロバイダーは `GeminiClient` 内部で使用されます。
 /// 直接使用する場合は `GeminiClient` を使用してください。
-internal struct GeminiProvider: LLMProvider {
+internal struct GeminiProvider: LLMProvider, RetryableProviderProtocol {
     /// API キー
     private let apiKey: String
 
@@ -45,7 +45,14 @@ internal struct GeminiProvider: LLMProvider {
 
     // MARK: - LLMProvider
 
-    public func send(_ request: LLMRequest) async throws -> LLMResponse {
+    func send(_ request: LLMRequest) async throws -> LLMResponse {
+        let (response, _) = try await sendWithResponse(request)
+        return response
+    }
+
+    // MARK: - RetryableProviderProtocol
+
+    func sendWithResponse(_ request: LLMRequest) async throws -> (LLMResponse, HTTPURLResponse) {
         // モデルの検証
         guard case .gemini = request.model else {
             throw LLMError.modelNotSupported(model: request.model.id, provider: "Gemini")
@@ -66,8 +73,13 @@ internal struct GeminiProvider: LLMProvider {
         // リクエストを送信
         let (data, response) = try await performRequest(urlRequest)
 
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw LLMError.invalidRequest("Invalid response type")
+        }
+
         // レスポンスを処理
-        return try handleResponse(data: data, response: response, model: request.model.id)
+        let llmResponse = try handleResponse(data: data, httpResponse: httpResponse, model: request.model.id)
+        return (llmResponse, httpResponse)
     }
 
     // MARK: - Private Helpers
@@ -160,10 +172,9 @@ internal struct GeminiProvider: LLMProvider {
     }
 
     /// レスポンスを処理
-    private func handleResponse(data: Data, response: URLResponse, model: String) throws -> LLMResponse {
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw LLMError.invalidRequest("Invalid response type")
-        }
+    private func handleResponse(data: Data, httpResponse: HTTPURLResponse, model: String) throws -> LLMResponse {
+        // レート制限情報を抽出
+        let rateLimitInfo = GeminiRateLimitExtractor.extractRateLimitInfo(from: httpResponse)
 
         // エラーステータスコードの処理
         switch httpResponse.statusCode {
@@ -172,7 +183,12 @@ internal struct GeminiProvider: LLMProvider {
         case 401, 403:
             throw LLMError.unauthorized
         case 429:
-            throw LLMError.rateLimitExceeded
+            // レート制限情報付きでエラーを投げる
+            throw RateLimitAwareError(
+                underlyingError: .rateLimitExceeded,
+                rateLimitInfo: rateLimitInfo,
+                statusCode: 429
+            )
         case 400:
             let errorResponse = try? JSONDecoder().decode(GeminiErrorResponse.self, from: data)
             throw LLMError.invalidRequest(errorResponse?.error.message ?? "Bad request")
@@ -181,7 +197,12 @@ internal struct GeminiProvider: LLMProvider {
             throw LLMError.modelNotFound(errorResponse?.error.message ?? "Model not found")
         case 500...599:
             let errorResponse = try? JSONDecoder().decode(GeminiErrorResponse.self, from: data)
-            throw LLMError.serverError(httpResponse.statusCode, errorResponse?.error.message ?? "Server error")
+            // サーバーエラーもレート制限情報を含める（リトライ時に参照できるように）
+            throw RateLimitAwareError(
+                underlyingError: .serverError(httpResponse.statusCode, errorResponse?.error.message ?? "Server error"),
+                rateLimitInfo: rateLimitInfo,
+                statusCode: httpResponse.statusCode
+            )
         default:
             throw LLMError.serverError(httpResponse.statusCode, "Unexpected status code")
         }

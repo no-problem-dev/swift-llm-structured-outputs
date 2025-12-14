@@ -41,7 +41,7 @@ import FoundationNetworking
 public struct AnthropicClient: StructuredLLMClient, AgentCapableClient {
     public typealias Model = ClaudeModel
 
-    private let provider: AnthropicProvider
+    private let provider: any LLMProvider
 
     // MARK: - Initializers
 
@@ -51,16 +51,31 @@ public struct AnthropicClient: StructuredLLMClient, AgentCapableClient {
     ///   - apiKey: Anthropic API キー
     ///   - endpoint: カスタムエンドポイント（オプション）
     ///   - session: カスタム URLSession（オプション）
+    ///   - retryConfiguration: リトライ設定（デフォルト: 有効）
+    ///   - retryEventHandler: リトライイベントハンドラー（オプション）
     public init(
         apiKey: String,
         endpoint: URL? = nil,
-        session: URLSession = .shared
+        session: URLSession = .shared,
+        retryConfiguration: RetryConfiguration = .default,
+        retryEventHandler: RetryEventHandler? = nil
     ) {
-        self.provider = AnthropicProvider(
+        let baseProvider = AnthropicProvider(
             apiKey: apiKey,
             endpoint: endpoint,
             session: session
         )
+
+        if retryConfiguration.isEnabled {
+            self.provider = RetryableProvider(
+                provider: baseProvider,
+                extractorType: AnthropicRateLimitExtractor.self,
+                retryPolicy: retryConfiguration.policy,
+                eventHandler: retryEventHandler
+            )
+        } else {
+            self.provider = baseProvider
+        }
     }
 
     // MARK: - StructuredLLMClient
