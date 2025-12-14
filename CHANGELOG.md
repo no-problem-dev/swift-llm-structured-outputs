@@ -7,6 +7,33 @@
 
 ## [未リリース]
 
+## [1.0.9] - 2025-12-14
+
+### 追加
+
+- **ツールコール機能**: LLMにツール（関数）の選択と引数決定を計画させる機能
+  - `@Tool` マクロ: ツール定義用の構造体マクロ
+  - `@ToolArgument` マクロ: ツール引数の説明・制約定義
+  - `ToolSet` Result Builder: 複数ツールの登録
+  - `planToolCalls()` API: Claude/GPT/Gemini 対応
+  - `ToolChoice`: 自動選択・強制指定・無効化の制御
+  - `ToolResult`: ツール実行結果の型安全な管理
+  - ToolCallingDemo: iOSサンプルアプリにデモ追加
+
+- **エージェントループ機能**: LLMが自動的にツールを選択・実行し、構造化出力を生成するまでループする機能
+  - `AgentStep`: エージェントステップの列挙型（thinking, toolCall, toolResult, finalResponse）
+  - `AgentStepSequence`: ステップを返すAsyncSequence
+  - `AgentContext`: エージェントループの内部状態管理（Actor）
+  - `AgentConfiguration`: 設定（maxSteps, autoExecuteTools）
+  - `AgentCapableClient`: エージェント機能を持つクライアントのプロトコル
+  - `runAgent()`: エージェントループを実行するメソッド（Anthropic/OpenAI対応、Gemini非対応）
+  - AgentLoopDemo: iOSサンプルアプリにエージェントデモ追加
+
+- **ドキュメント**
+  - documentation/tool-calling.md: ツールコール詳細ガイド
+  - documentation/agent-loop.md: エージェントループ詳細ガイド
+  - DocC: AgentLoop.md 追加
+
 ## [1.0.8] - 2025-12-14
 
 ### 追加
@@ -165,7 +192,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.8...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.9...HEAD
+[1.0.9]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.6...v1.0.7
 [1.0.6]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.5...v1.0.6
