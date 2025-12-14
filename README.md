@@ -100,6 +100,36 @@ dependencies: [
 
 - [LLMStructuredOutputs](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) - 型安全な構造化出力 API
 
+## サンプルアプリ
+
+`Examples/LLMStructuredOutputsExample` に iOS サンプルアプリを同梱。全機能をインタラクティブに確認できます。
+
+### デモ一覧
+
+| デモ | 確認できる機能 |
+|-----|--------------|
+| 基本的な構造化出力 | `@Structured` による型定義、`generate()` による出力生成 |
+| フィールド制約 | `.minimum()`, `.maximum()`, `.pattern()` 等の制約 |
+| 列挙型サポート | `@StructuredEnum` による enum 出力 |
+| 会話機能 | `Conversation` によるマルチターン会話 |
+| イベントストリーム | `chatStream()` によるストリーミング応答 |
+| プロンプト DSL | `Prompt { }` ビルダーによるプロンプト構築 |
+| **プロバイダー比較** | Claude/GPT/Gemini の並列比較、レスポンス時間・トークン計測 |
+
+### プロバイダー比較デモ
+
+3大プロバイダーの構造化出力品質を比較検証：
+
+- **モデル選択**: 各プロバイダーのモデルを個別に選択
+- **テストケース**: 5カテゴリ・14種類（情報抽出、推論、構造、品質、言語）
+- **カスタム入力**: 任意のプロンプトで比較テスト実行
+- **計測項目**: レスポンス時間、トークン使用量、出力 JSON
+
+```bash
+# サンプルアプリを開く
+open Examples/LLMStructuredOutputsExample/LLMStructuredOutputsExample.xcodeproj
+```
+
 ## 対応プロバイダー
 
 | プロバイダー | クライアント | モデル例 |
