@@ -18,6 +18,11 @@ public actor AgentContext {
     /// 設定
     private let configuration: AgentConfiguration
 
+    /// 設定への同期アクセス（Actor 外から初期化時に使用）
+    ///
+    /// - Note: この値は初期化後に変更されないため、同期アクセスが安全
+    internal nonisolated let configurationSync: AgentConfiguration
+
     /// 現在のステップ数
     private var currentStep: Int = 0
 
@@ -46,6 +51,7 @@ public actor AgentContext {
         self.systemPrompt = systemPrompt
         self.tools = tools
         self.configuration = configuration
+        self.configurationSync = configuration
     }
 
     /// メッセージ履歴から AgentContext を初期化
@@ -65,6 +71,7 @@ public actor AgentContext {
         self.systemPrompt = systemPrompt
         self.tools = tools
         self.configuration = configuration
+        self.configurationSync = configuration
     }
 
     // MARK: - State Access

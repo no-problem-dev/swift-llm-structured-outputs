@@ -112,7 +112,9 @@ public struct LLMResponse: Sendable {
             guard case .toolUse(_, _, let data) = self else {
                 return nil
             }
-            return try JSONDecoder().decode(type, from: data)
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            return try decoder.decode(type, from: data)
         }
     }
 

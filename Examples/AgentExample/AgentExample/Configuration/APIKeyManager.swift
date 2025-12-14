@@ -30,6 +30,7 @@ enum APIKeyManager {
     private enum Keys {
         static let anthropic = "com.example.agentexample.anthropic_api_key"
         static let openAI = "com.example.agentexample.openai_api_key"
+        static let gemini = "com.example.agentexample.gemini_api_key"
         static let braveSearch = "com.example.agentexample.brave_search_api_key"
     }
 
@@ -42,6 +43,9 @@ enum APIKeyManager {
         }
         if let key = ProcessInfo.processInfo.environment["OPENAI_API_KEY"], !key.isEmpty {
             setOpenAIKey(key)
+        }
+        if let key = ProcessInfo.processInfo.environment["GEMINI_API_KEY"], !key.isEmpty {
+            setGeminiKey(key)
         }
         if let key = ProcessInfo.processInfo.environment["BRAVE_SEARCH_API_KEY"], !key.isEmpty {
             setBraveSearchKey(key)
@@ -64,6 +68,14 @@ enum APIKeyManager {
             return envKey
         }
         return UserDefaults.standard.string(forKey: Keys.openAI)
+    }
+
+    /// Gemini API キー
+    static var geminiKey: String? {
+        if let envKey = ProcessInfo.processInfo.environment["GEMINI_API_KEY"], !envKey.isEmpty {
+            return envKey
+        }
+        return UserDefaults.standard.string(forKey: Keys.gemini)
     }
 
     // MARK: - External API Keys (Read)
@@ -96,6 +108,15 @@ enum APIKeyManager {
         }
     }
 
+    /// Gemini API キーを保存
+    static func setGeminiKey(_ key: String?) {
+        if let key = key, !key.isEmpty {
+            UserDefaults.standard.set(key, forKey: Keys.gemini)
+        } else {
+            UserDefaults.standard.removeObject(forKey: Keys.gemini)
+        }
+    }
+
     // MARK: - External API Keys (Write)
 
     /// Brave Search API キーを保存
@@ -111,6 +132,7 @@ enum APIKeyManager {
     static func clearAllKeys() {
         UserDefaults.standard.removeObject(forKey: Keys.anthropic)
         UserDefaults.standard.removeObject(forKey: Keys.openAI)
+        UserDefaults.standard.removeObject(forKey: Keys.gemini)
         UserDefaults.standard.removeObject(forKey: Keys.braveSearch)
     }
 
@@ -128,6 +150,12 @@ enum APIKeyManager {
         return !key.isEmpty
     }
 
+    /// Gemini API キーが設定されているか
+    static var hasGeminiKey: Bool {
+        guard let key = geminiKey else { return false }
+        return !key.isEmpty
+    }
+
     /// Brave Search API キーが設定されているか
     static var hasBraveSearchKey: Bool {
         guard let key = braveSearchKey else { return false }
@@ -136,7 +164,7 @@ enum APIKeyManager {
 
     /// いずれかの LLM API キーが設定されているか
     static var hasAnyLLMKey: Bool {
-        hasAnthropicKey || hasOpenAIKey
+        hasAnthropicKey || hasOpenAIKey || hasGeminiKey
     }
 
     // MARK: - Status
@@ -145,10 +173,11 @@ enum APIKeyManager {
     struct KeyStatus {
         let anthropic: Bool
         let openAI: Bool
+        let gemini: Bool
         let braveSearch: Bool
 
         var llmConfiguredCount: Int {
-            [anthropic, openAI].filter { $0 }.count
+            [anthropic, openAI, gemini].filter { $0 }.count
         }
     }
 
@@ -157,6 +186,7 @@ enum APIKeyManager {
         KeyStatus(
             anthropic: hasAnthropicKey,
             openAI: hasOpenAIKey,
+            gemini: hasGeminiKey,
             braveSearch: hasBraveSearchKey
         )
     }

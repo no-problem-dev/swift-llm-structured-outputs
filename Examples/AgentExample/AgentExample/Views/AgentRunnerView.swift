@@ -12,13 +12,9 @@ import LLMStructuredOutputs
 ///
 /// リサーチエージェントを実行し、ステップごとの進行状況を可視化します。
 struct AgentRunnerView: View {
-    private var settings = AgentSettings.shared
-
+    @State private var controller = AgentExecutionController()
     @State private var selectedScenarioIndex = 0
     @State private var inputText = ResearchScenario.scenarios[0].prompt
-    @State private var state: AgentExecutionState = .idle
-    @State private var steps: [AgentStepInfo] = []
-    @State private var isRunning = false
 
     var body: some View {
         ScrollView {
@@ -28,8 +24,8 @@ struct AgentRunnerView: View {
 
                 Divider()
 
-                // MARK: - ツール一覧
-                ToolsSection()
+                // MARK: - ツール選択
+                ToolSelectionSection()
 
                 Divider()
 
@@ -42,16 +38,18 @@ struct AgentRunnerView: View {
                 // MARK: - 入力
                 InputSection(inputText: $inputText)
 
-                // MARK: - 実行ボタン
-                ExecutionSection(
-                    isRunning: isRunning,
-                    canExecute: canExecute,
-                    onExecute: executeAgent
+                // MARK: - 実行/停止ボタン
+                ExecutionControlSection(
+                    controller: controller,
+                    inputText: inputText
                 )
 
                 // MARK: - 結果表示
-                if !state.isIdle {
-                    ResultSection(state: state, steps: steps)
+                if !controller.state.isIdle {
+                    ResultSection(
+                        state: controller.state,
+                        steps: controller.steps
+                    )
                 }
             }
             .padding()
@@ -59,150 +57,6 @@ struct AgentRunnerView: View {
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle("リサーチエージェント")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    // MARK: - Computed Properties
-
-    private var canExecute: Bool {
-        !inputText.isEmpty && settings.isCurrentProviderAvailable && !isRunning
-    }
-
-    // MARK: - Actions
-
-    private func executeAgent() {
-        state = .loading
-        steps = []
-        isRunning = true
-
-        let tools = ResearchToolSet.tools
-
-        Task {
-            do {
-                switch settings.selectedProvider {
-                case .anthropic:
-                    guard let client = settings.createAnthropicClient() else {
-                        state = .error("Anthropic クライアントの作成に失敗しました")
-                        isRunning = false
-                        return
-                    }
-                    try await runAnthropicAgent(client: client, tools: tools)
-
-                case .openai:
-                    guard let client = settings.createOpenAIClient() else {
-                        state = .error("OpenAI クライアントの作成に失敗しました")
-                        isRunning = false
-                        return
-                    }
-                    try await runOpenAIAgent(client: client, tools: tools)
-                }
-            } catch {
-                state = .error(error.localizedDescription)
-            }
-            isRunning = false
-        }
-    }
-
-    private func runAnthropicAgent(client: AnthropicClient, tools: ToolSet) async throws {
-        let systemPrompt = ResearchAgentPrompt.build()
-        let config = settings.createAgentConfiguration()
-
-        let agentSequence: AgentStepSequence<AnthropicClient, ResearchReport> = client.runAgent(
-            prompt: inputText,
-            model: settings.claudeModelOption.model,
-            tools: tools,
-            systemPrompt: systemPrompt,
-            configuration: config
-        )
-
-        var finalResult: ResearchReport?
-
-        for try await step in agentSequence {
-            let stepInfo = processStep(step)
-            await MainActor.run {
-                steps.append(stepInfo)
-            }
-
-            if case .finalResponse(let report) = step {
-                finalResult = report
-            }
-        }
-
-        if let result = finalResult {
-            state = .success(result)
-        } else {
-            state = .error("最終レスポンスが取得できませんでした")
-        }
-    }
-
-    private func runOpenAIAgent(client: OpenAIClient, tools: ToolSet) async throws {
-        let systemPrompt = ResearchAgentPrompt.build()
-        let config = settings.createAgentConfiguration()
-
-        let agentSequence: AgentStepSequence<OpenAIClient, ResearchReport> = client.runAgent(
-            prompt: inputText,
-            model: settings.gptModelOption.model,
-            tools: tools,
-            systemPrompt: systemPrompt,
-            configuration: config
-        )
-
-        var finalResult: ResearchReport?
-
-        for try await step in agentSequence {
-            let stepInfo = processStep(step)
-            await MainActor.run {
-                steps.append(stepInfo)
-            }
-
-            if case .finalResponse(let report) = step {
-                finalResult = report
-            }
-        }
-
-        if let result = finalResult {
-            state = .success(result)
-        } else {
-            state = .error("最終レスポンスが取得できませんでした")
-        }
-    }
-
-    private func processStep(_ step: AgentStep<ResearchReport>) -> AgentStepInfo {
-        switch step {
-        case .thinking(let response):
-            let text = response.content.compactMap { $0.text }.joined()
-            return AgentStepInfo(
-                type: .thinking,
-                content: text.isEmpty ? "（考え中...）" : text
-            )
-
-        case .toolCall(let info):
-            return AgentStepInfo(
-                type: .toolCall,
-                content: info.name,
-                detail: formatToolInput(info.input)
-            )
-
-        case .toolResult(let info):
-            // 全文を渡す（表示側で折りたたみ処理）
-            return AgentStepInfo(
-                type: .toolResult,
-                content: info.content,
-                isError: info.isError
-            )
-
-        case .finalResponse(let report):
-            return AgentStepInfo(
-                type: .finalResponse,
-                content: report.title
-            )
-        }
-    }
-
-    private func formatToolInput(_ data: Data) -> String? {
-        guard let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return nil
-        }
-        return dict.map { "\($0.key): \($0.value)" }.joined(separator: ", ")
     }
 }
 
@@ -221,46 +75,6 @@ private struct HeaderSection: View {
             """)
             .font(.caption)
             .foregroundStyle(.secondary)
-        }
-    }
-}
-
-// MARK: - Tools Section
-
-private struct ToolsSection: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("利用可能なツール")
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
-
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 8) {
-                ForEach(ResearchToolSet.descriptions, id: \.name) { tool in
-                    VStack(spacing: 4) {
-                        Image(systemName: tool.icon)
-                            .font(.title3)
-                            .foregroundStyle(.blue)
-                        Text(tool.description)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-            }
-
-            if !ResearchToolSet.isWebSearchAvailable {
-                Label("Web検索を使用するには Brave Search API キーを設定してください", systemImage: "exclamationmark.triangle")
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
-            }
         }
     }
 }
@@ -330,46 +144,120 @@ private struct InputSection: View {
     }
 }
 
-// MARK: - Execution Section
+// MARK: - Execution Control Section
 
-struct ExecutionSection: View {
-    let isRunning: Bool
-    let canExecute: Bool
-    let onExecute: () -> Void
+private struct ExecutionControlSection: View {
+    let controller: AgentExecutionController
+    let inputText: String
+
+    var settings = AgentSettings.shared
+    var toolConfig = ToolConfiguration.shared
+
+    private var canExecute: Bool {
+        controller.canExecute(prompt: inputText)
+    }
 
     var body: some View {
-        let settings = AgentSettings.shared
         VStack(spacing: 12) {
-            if !settings.isCurrentProviderAvailable {
-                Label("\(settings.selectedProvider.shortName) API キーが設定されていません", systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.orange.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            // 警告メッセージ
+            WarningMessages(
+                isProviderAvailable: settings.isCurrentProviderAvailable,
+                hasUsableTools: toolConfig.hasUsableTools,
+                providerName: settings.selectedProvider.shortName
+            )
+
+            // 実行/停止ボタン
+            if controller.isRunning {
+                StopButton(onStop: { controller.cancel() })
+            } else {
+                StartButton(
+                    canExecute: canExecute,
+                    onStart: { controller.start(prompt: inputText) }
+                )
+            }
+        }
+    }
+}
+
+/// 警告メッセージ表示
+private struct WarningMessages: View {
+    let isProviderAvailable: Bool
+    let hasUsableTools: Bool
+    let providerName: String
+
+    var body: some View {
+        VStack(spacing: 8) {
+            if !isProviderAvailable {
+                WarningBanner(
+                    message: "\(providerName) API キーが設定されていません",
+                    color: .orange
+                )
             }
 
-            Button {
-                onExecute()
-            } label: {
-                HStack {
-                    if isRunning {
-                        ProgressView()
-                            .tint(.white)
-                    } else {
-                        Image(systemName: "play.fill")
-                    }
-                    Text(isRunning ? "実行中..." : "エージェントを実行")
-                }
-                .font(.headline)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(canExecute ? Color.accentColor : Color.gray)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+            if !hasUsableTools {
+                WarningBanner(
+                    message: "使用するツールを1つ以上選択してください",
+                    color: .orange
+                )
             }
-            .disabled(!canExecute)
+        }
+    }
+}
+
+/// 警告バナー
+private struct WarningBanner: View {
+    let message: String
+    let color: Color
+
+    var body: some View {
+        Label(message, systemImage: "exclamationmark.triangle")
+            .font(.caption)
+            .foregroundStyle(color)
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(color.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// 開始ボタン
+private struct StartButton: View {
+    let canExecute: Bool
+    let onStart: () -> Void
+
+    var body: some View {
+        Button(action: onStart) {
+            HStack {
+                Image(systemName: "play.fill")
+                Text("エージェントを実行")
+            }
+            .font(.headline)
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(canExecute ? Color.accentColor : Color.gray)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .disabled(!canExecute)
+    }
+}
+
+/// 停止ボタン
+private struct StopButton: View {
+    let onStop: () -> Void
+
+    var body: some View {
+        Button(action: onStop) {
+            HStack {
+                Image(systemName: "stop.fill")
+                Text("停止")
+            }
+            .font(.headline)
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.red)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 }
@@ -407,22 +295,33 @@ private struct ResultSection: View {
 private struct ErrorView: View {
     let message: String
 
+    private var isCancelled: Bool {
+        message == "キャンセルされました"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("エラー", systemImage: "exclamationmark.triangle.fill")
-                .font(.headline)
-                .foregroundStyle(.red)
+            Label(
+                isCancelled ? "キャンセル" : "エラー",
+                systemImage: isCancelled ? "xmark.circle.fill" : "exclamationmark.triangle.fill"
+            )
+            .font(.headline)
+            .foregroundStyle(isCancelled ? .orange : .red)
 
-            Text(message)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if !isCancelled {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.red.opacity(0.1))
+        .background((isCancelled ? Color.orange : Color.red).opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
+
+// MARK: - Preview
 
 #Preview {
     NavigationStack {
