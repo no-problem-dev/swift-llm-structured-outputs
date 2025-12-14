@@ -44,6 +44,7 @@ let user: UserInfo = try await client.generate(
 ### 基本
 
 - <doc:GettingStarted>
+- <doc:PromptBuilding>
 - <doc:Providers>
 - <doc:Conversations>
 
