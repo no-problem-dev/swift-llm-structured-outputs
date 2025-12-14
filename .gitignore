@@ -5,6 +5,9 @@
 ## User settings
 xcuserdata/
 
+## Shared schemes (may contain API keys in environment variables)
+xcshareddata/xcschemes/
+
 ## compatibility with Xcode 8 and earlier (ignoring not required starting Xcode 9)
 *.xcscmblueprint
 *.xccheckout
