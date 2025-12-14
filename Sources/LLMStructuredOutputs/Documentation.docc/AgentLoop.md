@@ -72,7 +72,7 @@ for try await step in sequence {
 
 - **Anthropic (Claude)**: 対応
 - **OpenAI (GPT)**: 対応
-- **Google (Gemini)**: 非対応（API制限）
+- **Google (Gemini)**: 対応
 
 ## Topics
 
