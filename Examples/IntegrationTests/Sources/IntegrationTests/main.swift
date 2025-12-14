@@ -147,6 +147,47 @@ struct ConversationSummary {
     var tone: String
 }
 
+// MARK: - Test Tools
+
+/// 天気を取得するツール
+@Tool("Get current weather for a location")
+struct GetWeatherTool {
+    @ToolArgument("The city name to get weather for")
+    var location: String
+
+    @ToolArgument("Temperature unit (celsius or fahrenheit)")
+    var unit: String?
+
+    func call() async throws -> String {
+        // シミュレートされた天気データ
+        return "Weather in \(location): Sunny, 22°\(unit == "fahrenheit" ? "F" : "C")"
+    }
+}
+
+/// 計算を行うツール
+@Tool("Perform a mathematical calculation")
+struct CalculatorTool {
+    @ToolArgument("The mathematical expression to evaluate")
+    var expression: String
+
+    func call() async throws -> String {
+        // シンプルな計算シミュレーション
+        return "Result of '\(expression)' = 42"
+    }
+}
+
+/// 現在時刻を取得するツール
+@Tool("Get the current time in a timezone", name: "get_current_time")
+struct CurrentTimeTool {
+    @ToolArgument("The timezone (e.g., 'Asia/Tokyo', 'America/New_York')")
+    var timezone: String?
+
+    func call() async throws -> String {
+        let tz = timezone ?? "UTC"
+        return "Current time in \(tz): 2024-12-14 15:30:00"
+    }
+}
+
 // MARK: - Test Runner
 
 actor TestRunner {
@@ -195,6 +236,36 @@ func skipTest(name: String, reason: String, runner: TestRunner) async {
     print("\n⏭️  Skipping: \(name)")
     print("   Reason: \(reason)")
     await runner.recordSkip()
+}
+
+@MainActor
+func runToolTest(
+    name: String,
+    runner: TestRunner,
+    test: @escaping @Sendable () async throws -> ToolCallResponse
+) async {
+    print("\n🔧 Testing: \(name)")
+    print("   " + String(repeating: "-", count: 50))
+
+    do {
+        let response = try await test()
+        print("   ✅ PASSED")
+        print("   Tool Calls: \(response.toolCalls.count)")
+        for (index, call) in response.toolCalls.enumerated() {
+            print("      [\(index + 1)] \(call.name)")
+            if let args = try? call.argumentsDictionary() {
+                print("          Arguments: \(args)")
+            }
+        }
+        if let text = response.text {
+            print("   Text: \(text.prefix(100))...")
+        }
+        print("   Stop Reason: \(response.stopReason?.rawValue ?? "nil")")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
 }
 
 // MARK: - Test Suites
@@ -294,6 +365,50 @@ func runAnthropicTests(runner: TestRunner) async {
         let result: PersonInfo = try await conversation.send("His name is Bob and he's 42. He works as a chef.")
         return result
     }
+
+    // Test 7: Tool Calling - Single Tool
+    await runToolTest(name: "Tool Calling - Weather", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "What's the weather like in Tokyo?",
+            model: .sonnet,
+            tools: tools,
+            toolChoice: .auto
+        )
+    }
+
+    // Test 8: Tool Calling - Multiple Tools
+    await runToolTest(name: "Tool Calling - Multiple Tools", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+            CalculatorTool.self
+            CurrentTimeTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "What time is it in Tokyo and what's the weather there?",
+            model: .sonnet,
+            tools: tools,
+            toolChoice: .auto
+        )
+    }
+
+    // Test 9: Tool Calling - Required
+    await runToolTest(name: "Tool Calling - Required", runner: runner) {
+        let tools = ToolSet {
+            CalculatorTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "Hello, how are you?",
+            model: .sonnet,
+            tools: tools,
+            toolChoice: .required
+        )
+    }
 }
 
 @MainActor
@@ -391,6 +506,51 @@ func runOpenAITests(runner: TestRunner) async {
         let result: PersonInfo = try await conversation.send("She's called Sarah, 31 years old, and she's a lawyer.")
         return result
     }
+
+    // Test 7: Tool Calling - Single Tool
+    await runToolTest(name: "Tool Calling - Weather", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "What's the weather like in New York?",
+            model: .gpt4oMini,
+            tools: tools,
+            toolChoice: .auto
+        )
+    }
+
+    // Test 8: Tool Calling - Multiple Tools
+    await runToolTest(name: "Tool Calling - Multiple Tools", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+            CalculatorTool.self
+            CurrentTimeTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "Calculate 15 * 7 and tell me the current time in London",
+            model: .gpt4oMini,
+            tools: tools,
+            toolChoice: .auto
+        )
+    }
+
+    // Test 9: Tool Calling - Specific Tool
+    await runToolTest(name: "Tool Calling - Specific Tool", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+            CalculatorTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "I need some help",
+            model: .gpt4oMini,
+            tools: tools,
+            toolChoice: .tool("calculator_tool")
+        )
+    }
 }
 
 @MainActor
@@ -486,6 +646,50 @@ func runGeminiTests(runner: TestRunner) async {
         let _: PersonInfo = try await conversation.send("I want to tell you about my colleague.")
         let result: PersonInfo = try await conversation.send("His name is David Lee, he's 38, and he's our lead designer.")
         return result
+    }
+
+    // Test 7: Tool Calling - Single Tool
+    await runToolTest(name: "Tool Calling - Weather", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "What's the weather like in Paris?",
+            model: .flash25,
+            tools: tools,
+            toolChoice: .auto
+        )
+    }
+
+    // Test 8: Tool Calling - Multiple Tools
+    await runToolTest(name: "Tool Calling - Multiple Tools", runner: runner) {
+        let tools = ToolSet {
+            GetWeatherTool.self
+            CalculatorTool.self
+            CurrentTimeTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "What's 123 + 456 and what time is it in Sydney?",
+            model: .flash25,
+            tools: tools,
+            toolChoice: .auto
+        )
+    }
+
+    // Test 9: Tool Calling - Required
+    await runToolTest(name: "Tool Calling - Required", runner: runner) {
+        let tools = ToolSet {
+            CurrentTimeTool.self
+        }
+
+        return try await client.planToolCalls(
+            prompt: "Just say hello",
+            model: .flash25,
+            tools: tools,
+            toolChoice: .required
+        )
     }
 }
 

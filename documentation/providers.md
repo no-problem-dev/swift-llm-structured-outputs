@@ -182,5 +182,6 @@ do {
 
 ## 次のステップ
 
+- [ツールコール](tool-calling.md) で LLM に外部関数を呼び出させる方法を学ぶ
 - [会話](conversation.md) でマルチターンのやり取りについて学ぶ
 - [API リファレンス](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) で完全なドキュメントを確認

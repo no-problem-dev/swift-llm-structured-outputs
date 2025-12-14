@@ -365,6 +365,7 @@ class ConversationViewModel: ObservableObject {
 
 ## 次のステップ
 
+- [ツールコール](tool-calling.md) で LLM に外部関数を呼び出させる方法を学ぶ
 - [プロバイダー](providers.md) ガイドでプロバイダー固有の詳細を確認
 - [はじめに](getting-started.md) で基本的なセットアップを確認
 - [API リファレンス](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) で完全なドキュメントを閲覧
