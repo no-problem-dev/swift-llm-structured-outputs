@@ -10,13 +10,18 @@ public actor AgentContext {
     private var messages: [LLMMessage]
 
     /// システムプロンプト
-    private let systemPrompt: String?
+    private let systemPrompt: Prompt?
 
     /// 使用可能なツール
     private let tools: ToolSet
 
     /// 設定
     private let configuration: AgentConfiguration
+
+    /// 設定への同期アクセス（Actor 外から初期化時に使用）
+    ///
+    /// - Note: この値は初期化後に変更されないため、同期アクセスが安全
+    internal nonisolated let configurationSync: AgentConfiguration
 
     /// 現在のステップ数
     private var currentStep: Int = 0
@@ -38,7 +43,7 @@ public actor AgentContext {
     ///   - configuration: エージェント設定
     public init(
         initialPrompt: String,
-        systemPrompt: String? = nil,
+        systemPrompt: Prompt? = nil,
         tools: ToolSet,
         configuration: AgentConfiguration = .default
     ) {
@@ -46,6 +51,7 @@ public actor AgentContext {
         self.systemPrompt = systemPrompt
         self.tools = tools
         self.configuration = configuration
+        self.configurationSync = configuration
     }
 
     /// メッセージ履歴から AgentContext を初期化
@@ -56,7 +62,7 @@ public actor AgentContext {
     ///   - initialMessages: 初期メッセージ履歴
     ///   - configuration: エージェント設定
     public init(
-        systemPrompt: String? = nil,
+        systemPrompt: Prompt? = nil,
         tools: ToolSet,
         initialMessages: [LLMMessage],
         configuration: AgentConfiguration = .default
@@ -65,6 +71,7 @@ public actor AgentContext {
         self.systemPrompt = systemPrompt
         self.tools = tools
         self.configuration = configuration
+        self.configurationSync = configuration
     }
 
     // MARK: - State Access
@@ -75,7 +82,7 @@ public actor AgentContext {
     }
 
     /// システムプロンプトを取得
-    public func getSystemPrompt() -> String? {
+    public func getSystemPrompt() -> Prompt? {
         systemPrompt
     }
 
@@ -161,6 +168,18 @@ public actor AgentContext {
     /// ループを完了としてマーク
     public func markCompleted() {
         isCompleted = true
+    }
+
+    /// 最終出力要求のユーザーメッセージを追加
+    ///
+    /// 構造化出力（responseSchema）を要求する際、OpenAI APIは
+    /// メッセージ配列の最後がユーザーメッセージである必要があります。
+    /// このメソッドはその要件を満たすためのメッセージを追加します。
+    public func addFinalOutputRequest() {
+        let message = LLMMessage.user(
+            "Please provide your final response in the required JSON format."
+        )
+        messages.append(message)
     }
 
     /// ループが継続可能かチェック

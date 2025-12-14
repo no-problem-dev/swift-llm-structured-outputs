@@ -43,7 +43,7 @@ import FoundationNetworking
 public struct OpenAIClient: StructuredLLMClient, AgentCapableClient {
     public typealias Model = GPTModel
 
-    private let provider: OpenAIProvider
+    private let provider: any LLMProvider
 
     // MARK: - Initializers
 
@@ -54,18 +54,33 @@ public struct OpenAIClient: StructuredLLMClient, AgentCapableClient {
     ///   - organization: 組織 ID（オプション）
     ///   - endpoint: カスタムエンドポイント（オプション）
     ///   - session: カスタム URLSession（オプション）
+    ///   - retryConfiguration: リトライ設定（デフォルト: 有効）
+    ///   - retryEventHandler: リトライイベントハンドラー（オプション）
     public init(
         apiKey: String,
         organization: String? = nil,
         endpoint: URL? = nil,
-        session: URLSession = .shared
+        session: URLSession = .shared,
+        retryConfiguration: RetryConfiguration = .default,
+        retryEventHandler: RetryEventHandler? = nil
     ) {
-        self.provider = OpenAIProvider(
+        let baseProvider = OpenAIProvider(
             apiKey: apiKey,
             organization: organization,
             endpoint: endpoint,
             session: session
         )
+
+        if retryConfiguration.isEnabled {
+            self.provider = RetryableProvider(
+                provider: baseProvider,
+                extractorType: OpenAIRateLimitExtractor.self,
+                retryPolicy: retryConfiguration.policy,
+                eventHandler: retryEventHandler
+            )
+        } else {
+            self.provider = baseProvider
+        }
     }
 
     // MARK: - StructuredLLMClient
@@ -337,7 +352,7 @@ public struct OpenAIClient: StructuredLLMClient, AgentCapableClient {
     public func executeAgentStep(
         messages: [LLMMessage],
         model: GPTModel,
-        systemPrompt: String?,
+        systemPrompt: Prompt?,
         tools: ToolSet,
         toolChoice: ToolChoice?,
         responseSchema: JSONSchema?
@@ -345,7 +360,7 @@ public struct OpenAIClient: StructuredLLMClient, AgentCapableClient {
         let request = LLMRequest(
             model: .gpt(model),
             messages: messages,
-            systemPrompt: systemPrompt,
+            systemPrompt: systemPrompt?.render(),
             responseSchema: responseSchema,
             tools: tools.isEmpty ? nil : tools,
             toolChoice: tools.isEmpty ? nil : (toolChoice ?? .auto)

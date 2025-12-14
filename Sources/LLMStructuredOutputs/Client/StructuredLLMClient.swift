@@ -220,7 +220,7 @@ public protocol AgentCapableClient: StructuredLLMClient {
     func executeAgentStep(
         messages: [LLMMessage],
         model: Model,
-        systemPrompt: String?,
+        systemPrompt: Prompt?,
         tools: ToolSet,
         toolChoice: ToolChoice?,
         responseSchema: JSONSchema?
@@ -289,7 +289,7 @@ extension AgentCapableClient {
         prompt: String,
         model: Model,
         tools: ToolSet,
-        systemPrompt: String? = nil,
+        systemPrompt: Prompt? = nil,
         configuration: AgentConfiguration = .default
     ) -> AgentStepSequence<Self, Output> {
         runAgent(
@@ -314,7 +314,7 @@ extension AgentCapableClient {
         messages: [LLMMessage],
         model: Model,
         tools: ToolSet,
-        systemPrompt: String? = nil,
+        systemPrompt: Prompt? = nil,
         configuration: AgentConfiguration = .default
     ) -> AgentStepSequence<Self, Output> {
         let context = AgentContext(

@@ -42,7 +42,7 @@ import FoundationNetworking
 public struct GeminiClient: StructuredLLMClient, AgentCapableClient {
     public typealias Model = GeminiModel
 
-    private let provider: GeminiProvider
+    private let provider: any LLMProvider
 
     // MARK: - Initializers
 
@@ -52,16 +52,31 @@ public struct GeminiClient: StructuredLLMClient, AgentCapableClient {
     ///   - apiKey: Google AI API キー
     ///   - baseURL: カスタムベース URL（オプション）
     ///   - session: カスタム URLSession（オプション）
+    ///   - retryConfiguration: リトライ設定（デフォルト: 有効）
+    ///   - retryEventHandler: リトライイベントハンドラー（オプション）
     public init(
         apiKey: String,
         baseURL: String? = nil,
-        session: URLSession = .shared
+        session: URLSession = .shared,
+        retryConfiguration: RetryConfiguration = .default,
+        retryEventHandler: RetryEventHandler? = nil
     ) {
-        self.provider = GeminiProvider(
+        let baseProvider = GeminiProvider(
             apiKey: apiKey,
             baseURL: baseURL,
             session: session
         )
+
+        if retryConfiguration.isEnabled {
+            self.provider = RetryableProvider(
+                provider: baseProvider,
+                extractorType: GeminiRateLimitExtractor.self,
+                retryPolicy: retryConfiguration.policy,
+                eventHandler: retryEventHandler
+            )
+        } else {
+            self.provider = baseProvider
+        }
     }
 
     // MARK: - StructuredLLMClient
@@ -333,7 +348,7 @@ public struct GeminiClient: StructuredLLMClient, AgentCapableClient {
     public func executeAgentStep(
         messages: [LLMMessage],
         model: GeminiModel,
-        systemPrompt: String?,
+        systemPrompt: Prompt?,
         tools: ToolSet,
         toolChoice: ToolChoice?,
         responseSchema: JSONSchema?
@@ -341,7 +356,7 @@ public struct GeminiClient: StructuredLLMClient, AgentCapableClient {
         let request = LLMRequest(
             model: .gemini(model),
             messages: messages,
-            systemPrompt: systemPrompt,
+            systemPrompt: systemPrompt?.render(),
             responseSchema: responseSchema,
             tools: tools.isEmpty ? nil : tools,
             toolChoice: tools.isEmpty ? nil : (toolChoice ?? .auto)
