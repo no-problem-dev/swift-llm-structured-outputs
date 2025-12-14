@@ -352,7 +352,7 @@ public struct OpenAIClient: StructuredLLMClient, AgentCapableClient {
     public func executeAgentStep(
         messages: [LLMMessage],
         model: GPTModel,
-        systemPrompt: String?,
+        systemPrompt: Prompt?,
         tools: ToolSet,
         toolChoice: ToolChoice?,
         responseSchema: JSONSchema?
@@ -360,7 +360,7 @@ public struct OpenAIClient: StructuredLLMClient, AgentCapableClient {
         let request = LLMRequest(
             model: .gpt(model),
             messages: messages,
-            systemPrompt: systemPrompt,
+            systemPrompt: systemPrompt?.render(),
             responseSchema: responseSchema,
             tools: tools.isEmpty ? nil : tools,
             toolChoice: tools.isEmpty ? nil : (toolChoice ?? .auto)

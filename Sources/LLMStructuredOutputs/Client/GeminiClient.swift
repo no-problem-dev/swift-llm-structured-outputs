@@ -348,7 +348,7 @@ public struct GeminiClient: StructuredLLMClient, AgentCapableClient {
     public func executeAgentStep(
         messages: [LLMMessage],
         model: GeminiModel,
-        systemPrompt: String?,
+        systemPrompt: Prompt?,
         tools: ToolSet,
         toolChoice: ToolChoice?,
         responseSchema: JSONSchema?
@@ -356,7 +356,7 @@ public struct GeminiClient: StructuredLLMClient, AgentCapableClient {
         let request = LLMRequest(
             model: .gemini(model),
             messages: messages,
-            systemPrompt: systemPrompt,
+            systemPrompt: systemPrompt?.render(),
             responseSchema: responseSchema,
             tools: tools.isEmpty ? nil : tools,
             toolChoice: tools.isEmpty ? nil : (toolChoice ?? .auto)

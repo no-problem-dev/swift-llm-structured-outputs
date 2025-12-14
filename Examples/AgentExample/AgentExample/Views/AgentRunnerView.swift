@@ -103,7 +103,7 @@ struct AgentRunnerView: View {
     }
 
     private func runAnthropicAgent(client: AnthropicClient, tools: ToolSet) async throws {
-        let systemPrompt = ResearchAgentPrompt.render()
+        let systemPrompt = ResearchAgentPrompt.build()
         let config = settings.createAgentConfiguration()
 
         let agentSequence: AgentStepSequence<AnthropicClient, ResearchReport> = client.runAgent(
@@ -135,7 +135,7 @@ struct AgentRunnerView: View {
     }
 
     private func runOpenAIAgent(client: OpenAIClient, tools: ToolSet) async throws {
-        let systemPrompt = ResearchAgentPrompt.render()
+        let systemPrompt = ResearchAgentPrompt.build()
         let config = settings.createAgentConfiguration()
 
         let agentSequence: AgentStepSequence<OpenAIClient, ResearchReport> = client.runAgent(
