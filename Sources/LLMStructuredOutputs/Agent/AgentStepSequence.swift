@@ -267,6 +267,9 @@ private actor AgentLoopRunner<Client: AgentCapableClient, Output: StructuredProt
                 // ツールがまだ存在する = 非構造化テキストで終了しようとしている
                 // 最終出力フェーズに遷移して、構造化出力を要求
                 phase = .finalOutput(retryCount: 0)
+                // OpenAI APIはresponseSchema使用時、最後のメッセージがユーザーである必要がある
+                // アシスタントメッセージの後にユーザーメッセージを追加
+                await context.addFinalOutputRequest()
                 // thinking として返し、次のステップで構造化出力を要求
                 return .thinking(response)
             }
@@ -286,6 +289,8 @@ private actor AgentLoopRunner<Client: AgentCapableClient, Output: StructuredProt
                 }
                 // 再試行回数を更新してリトライ
                 phase = .finalOutput(retryCount: newRetryCount)
+                // リトライ時もユーザーメッセージが最後である必要がある
+                await context.addFinalOutputRequest()
                 return .thinking(response)
             }
 

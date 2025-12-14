@@ -8,9 +8,9 @@
 import Foundation
 import LLMStructuredOutputs
 
-/// リサーチエージェント用ツールセット
+/// エージェント用ツールセット
 ///
-/// Web検索、ページ取得、天気、計算、時刻取得の5つのツールを提供します。
+/// Web検索、ページ取得、天気、計算、時刻取得、単位変換、文字列操作、乱数生成の8つのツールを提供します。
 /// ToolConfigurationと連携して、ユーザーが選択したツールのみを含むToolSetを生成できます。
 enum ResearchToolSet {
 
@@ -24,6 +24,9 @@ enum ResearchToolSet {
             WeatherTool.self
             CalculatorTool.self
             CurrentTimeTool.self
+            UnitConverterTool.self
+            StringManipulationTool.self
+            RandomGeneratorTool.self
         }
     }
 
@@ -59,6 +62,12 @@ enum ResearchToolSet {
                 toolSet = toolSet.appending(CalculatorTool.self)
             case .currentTime:
                 toolSet = toolSet.appending(CurrentTimeTool.self)
+            case .unitConverter:
+                toolSet = toolSet.appending(UnitConverterTool.self)
+            case .stringManipulation:
+                toolSet = toolSet.appending(StringManipulationTool.self)
+            case .randomGenerator:
+                toolSet = toolSet.appending(RandomGeneratorTool.self)
             }
         }
 
@@ -86,7 +95,7 @@ enum ResearchToolSet {
     /// 利用可能なツールの数
     static var availableToolCount: Int {
         // WebSearchToolはAPIキーが必要、それ以外は常に利用可能
-        isWebSearchAvailable ? 5 : 4
+        isWebSearchAvailable ? 8 : 7
     }
 
     /// ツールセットの状態を取得
@@ -96,7 +105,10 @@ enum ResearchToolSet {
             webFetchAvailable: true,
             weatherAvailable: true,
             calculatorAvailable: true,
-            currentTimeAvailable: true
+            currentTimeAvailable: true,
+            unitConverterAvailable: true,
+            stringManipulationAvailable: true,
+            randomGeneratorAvailable: true
         )
     }
 }
@@ -110,13 +122,19 @@ extension ResearchToolSet {
         let weatherAvailable: Bool
         let calculatorAvailable: Bool
         let currentTimeAvailable: Bool
+        let unitConverterAvailable: Bool
+        let stringManipulationAvailable: Bool
+        let randomGeneratorAvailable: Bool
 
         var allAvailable: Bool {
-            webSearchAvailable && webFetchAvailable && weatherAvailable && calculatorAvailable && currentTimeAvailable
+            webSearchAvailable && webFetchAvailable && weatherAvailable &&
+            calculatorAvailable && currentTimeAvailable && unitConverterAvailable &&
+            stringManipulationAvailable && randomGeneratorAvailable
         }
 
         var availableCount: Int {
-            [webSearchAvailable, webFetchAvailable, weatherAvailable, calculatorAvailable, currentTimeAvailable]
+            [webSearchAvailable, webFetchAvailable, weatherAvailable, calculatorAvailable,
+             currentTimeAvailable, unitConverterAvailable, stringManipulationAvailable, randomGeneratorAvailable]
                 .filter { $0 }.count
         }
     }

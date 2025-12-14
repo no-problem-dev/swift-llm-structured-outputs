@@ -14,6 +14,9 @@ enum ToolIdentifier: String, CaseIterable, Identifiable {
     case weather = "get_weather"
     case calculator = "calculator"
     case currentTime = "get_current_time"
+    case unitConverter = "convert_unit"
+    case stringManipulation = "manipulate_string"
+    case randomGenerator = "generate_random"
 
     var id: String { rawValue }
 
@@ -25,6 +28,9 @@ enum ToolIdentifier: String, CaseIterable, Identifiable {
         case .weather: return "天気情報"
         case .calculator: return "計算機"
         case .currentTime: return "現在時刻"
+        case .unitConverter: return "単位変換"
+        case .stringManipulation: return "文字列操作"
+        case .randomGenerator: return "乱数生成"
         }
     }
 
@@ -36,6 +42,9 @@ enum ToolIdentifier: String, CaseIterable, Identifiable {
         case .weather: return "都市の天気情報を取得"
         case .calculator: return "数式を計算"
         case .currentTime: return "現在の日時を取得"
+        case .unitConverter: return "長さ・重さ・温度の単位を変換"
+        case .stringManipulation: return "文字数カウント・変換など"
+        case .randomGenerator: return "乱数・UUID・パスワード生成"
         }
     }
 
@@ -47,6 +56,9 @@ enum ToolIdentifier: String, CaseIterable, Identifiable {
         case .weather: return "cloud.sun.fill"
         case .calculator: return "function"
         case .currentTime: return "clock.fill"
+        case .unitConverter: return "arrow.left.arrow.right"
+        case .stringManipulation: return "textformat.abc"
+        case .randomGenerator: return "dice.fill"
         }
     }
 

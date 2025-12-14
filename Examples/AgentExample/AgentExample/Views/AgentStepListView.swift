@@ -15,6 +15,14 @@ struct AgentStepListView: View {
     let steps: [AgentStepInfo]
     let isLoading: Bool
 
+    private var latestStepType: AgentStepType? {
+        steps.last?.type
+    }
+
+    private var startTime: Date? {
+        steps.first?.timestamp
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -23,24 +31,23 @@ struct AgentStepListView: View {
 
                 Spacer()
 
-                if isLoading {
-                    HStack(spacing: 4) {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text("実行中...")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    Text("\(steps.count) ステップ")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Text("\(steps.count) ステップ")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if isLoading {
+                ExecutionProgressBanner(currentPhase: latestStepType, startTime: startTime)
             }
 
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
-                    StepRow(step: step, isLast: index == steps.count - 1)
+                    let isLastStep = index == steps.count - 1
+                    StepRow(
+                        step: step,
+                        isLast: isLastStep,
+                        isLatestActive: isLastStep && isLoading
+                    )
                 }
             }
             .padding()
@@ -50,16 +57,116 @@ struct AgentStepListView: View {
     }
 }
 
+// MARK: - Execution Progress Banner
+
+private struct ExecutionProgressBanner: View {
+    let currentPhase: AgentStepType?
+    let startTime: Date?
+
+    private var phaseInfo: (icon: String, label: String, color: Color) {
+        guard let phase = currentPhase else {
+            return ("brain.head.profile", "準備中", .gray)
+        }
+
+        switch phase {
+        case .thinking:
+            return ("brain.head.profile", "思考中", .purple)
+        case .toolCall:
+            return ("wrench.and.screwdriver", "ツール実行中", .blue)
+        case .toolResult:
+            return ("doc.text", "結果処理中", .green)
+        case .finalResponse:
+            return ("sparkles", "レポート生成中", .orange)
+        }
+    }
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.5)) { timeline in
+            let dotCount = Int(timeline.date.timeIntervalSince1970 * 2) % 3
+            let animatedDots = String(repeating: ".", count: dotCount + 1)
+            let elapsedTime = startTime.map { timeline.date.timeIntervalSince($0) } ?? 0
+            let elapsedTimeText = formatElapsedTime(elapsedTime)
+
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(phaseInfo.color.opacity(0.2))
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: phaseInfo.icon)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(phaseInfo.color)
+                        .symbolEffect(.pulse, options: .repeating)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text(phaseInfo.label)
+                            .font(.subheadline.bold())
+                            .foregroundStyle(phaseInfo.color)
+
+                        Text(animatedDots)
+                            .font(.subheadline.bold())
+                            .foregroundStyle(phaseInfo.color)
+                            .frame(width: 20, alignment: .leading)
+                    }
+
+                    HStack(spacing: 8) {
+                        Text("エージェントが処理を実行しています")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if startTime != nil {
+                            Text("•")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                            Text(elapsedTimeText)
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                ProgressView()
+                    .scaleEffect(0.9)
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(phaseInfo.color.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(phaseInfo.color.opacity(0.3), lineWidth: 1)
+                    )
+            )
+        }
+    }
+
+    private func formatElapsedTime(_ elapsed: TimeInterval) -> String {
+        let minutes = Int(elapsed) / 60
+        let seconds = Int(elapsed) % 60
+        if minutes > 0 {
+            return String(format: "%d:%02d", minutes, seconds)
+        } else {
+            return String(format: "%d秒", seconds)
+        }
+    }
+}
+
 // MARK: - Step Row
 
 private struct StepRow: View {
     let step: AgentStepInfo
     let isLast: Bool
+    let isLatestActive: Bool
 
     /// 折りたたみ表示の文字数閾値
     private let collapseThreshold = 150
 
     @State private var isExpanded = false
+    @State private var isPulsing = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -72,6 +179,21 @@ private struct StepRow: View {
                         Image(systemName: step.type.icon)
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(.white)
+                    }
+                    .overlay {
+                        if isLatestActive {
+                            Circle()
+                                .stroke(stepColor.opacity(0.5), lineWidth: 3)
+                                .scaleEffect(isPulsing ? 1.5 : 1.0)
+                                .opacity(isPulsing ? 0 : 1)
+                        }
+                    }
+                    .onAppear {
+                        if isLatestActive {
+                            withAnimation(.easeOut(duration: 1.0).repeatForever(autoreverses: false)) {
+                                isPulsing = true
+                            }
+                        }
                     }
 
                 if !isLast {
