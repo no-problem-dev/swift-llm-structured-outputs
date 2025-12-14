@@ -170,6 +170,18 @@ public actor AgentContext {
         isCompleted = true
     }
 
+    /// 最終出力要求のユーザーメッセージを追加
+    ///
+    /// 構造化出力（responseSchema）を要求する際、OpenAI APIは
+    /// メッセージ配列の最後がユーザーメッセージである必要があります。
+    /// このメソッドはその要件を満たすためのメッセージを追加します。
+    public func addFinalOutputRequest() {
+        let message = LLMMessage.user(
+            "Please provide your final response in the required JSON format."
+        )
+        messages.append(message)
+    }
+
     /// ループが継続可能かチェック
     ///
     /// - Returns: 継続可能なら true

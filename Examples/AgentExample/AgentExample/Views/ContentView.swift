@@ -20,7 +20,7 @@ struct ContentView: View {
                 AgentRunnerView()
             }
             .tabItem {
-                Label("リサーチ", systemImage: "magnifyingglass.circle.fill")
+                Label("エージェント", systemImage: "brain.head.profile.fill")
             }
             .tag(0)
 

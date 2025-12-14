@@ -14,7 +14,7 @@ import LLMStructuredOutputs
 /// APIキー不要で利用可能です。
 @Tool("指定された都市や場所の現在の天気情報を取得します。天気、気温、湿度などの情報が含まれます。", name: "get_weather")
 struct WeatherTool {
-    @ToolArgument("天気を取得したい場所（例: 東京、Paris、New York）")
+    @ToolArgument("天気を取得したい場所。必ず英語のローマ字表記で指定してください（例: Tokyo, New York, Paris, London, Beijing）。日本語や漢字、カタカナは使用しないでください。")
     var location: String
 
     func call() async throws -> String {

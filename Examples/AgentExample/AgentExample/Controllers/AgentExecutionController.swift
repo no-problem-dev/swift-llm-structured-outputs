@@ -9,9 +9,6 @@ import Foundation
 import LLMStructuredOutputs
 
 /// エージェント実行制御
-///
-/// エージェントの実行ライフサイクル（開始、キャンセル、完了）を管理します。
-/// ViewからUIロジックを分離し、単一責任の原則に従います。
 @Observable @MainActor
 final class AgentExecutionController {
 
@@ -22,18 +19,13 @@ final class AgentExecutionController {
 
     // MARK: - State
 
-    /// 実行状態
     private(set) var state: AgentExecutionState = .idle
-
-    /// 実行中のステップ履歴
     private(set) var steps: [AgentStepInfo] = []
 
-    /// 実行中かどうか
     var isRunning: Bool {
         runningTask != nil
     }
 
-    /// 実行中のタスク
     private var runningTask: Task<Void, Never>?
 
     // MARK: - Initialization
@@ -46,20 +38,16 @@ final class AgentExecutionController {
     // MARK: - Public Methods
 
     /// エージェントを実行開始
-    func start(prompt: String) {
-        // 既に実行中なら何もしない
+    func start(prompt: String, category: ScenarioCategory) {
         guard runningTask == nil else { return }
 
-        // 状態をリセット
         state = .loading
         steps = []
 
-        // ツールセットを構築
         let tools = ResearchToolSet.configuredTools
 
-        // 実行タスクを開始
         runningTask = Task {
-            await executeAgent(prompt: prompt, tools: tools)
+            await executeAgent(prompt: prompt, category: category, tools: tools)
         }
     }
 
@@ -68,7 +56,6 @@ final class AgentExecutionController {
         runningTask?.cancel()
         runningTask = nil
 
-        // キャンセル状態を設定
         if state.isLoading {
             state = .cancelled
             steps.append(AgentStepInfo(
@@ -96,7 +83,7 @@ final class AgentExecutionController {
 
     // MARK: - Private Methods
 
-    private func executeAgent(prompt: String, tools: ToolSet) async {
+    private func executeAgent(prompt: String, category: ScenarioCategory, tools: ToolSet) async {
         do {
             switch settings.selectedProvider {
             case .anthropic:
@@ -105,7 +92,7 @@ final class AgentExecutionController {
                     runningTask = nil
                     return
                 }
-                try await runAnthropicAgent(client: client, prompt: prompt, tools: tools)
+                try await runAgent(client: client, model: settings.claudeModelOption.model, prompt: prompt, category: category, tools: tools)
 
             case .openai:
                 guard let client = settings.createOpenAIClient() else {
@@ -113,7 +100,7 @@ final class AgentExecutionController {
                     runningTask = nil
                     return
                 }
-                try await runOpenAIAgent(client: client, prompt: prompt, tools: tools)
+                try await runAgent(client: client, model: settings.gptModelOption.model, prompt: prompt, category: category, tools: tools)
 
             case .gemini:
                 guard let client = settings.createGeminiClient() else {
@@ -121,10 +108,9 @@ final class AgentExecutionController {
                     runningTask = nil
                     return
                 }
-                try await runGeminiAgent(client: client, prompt: prompt, tools: tools)
+                try await runAgent(client: client, model: settings.geminiModelOption.model, prompt: prompt, category: category, tools: tools)
             }
         } catch is CancellationError {
-            // キャンセルは正常終了として扱う
             if state.isLoading {
                 state = .cancelled
             }
@@ -135,19 +121,101 @@ final class AgentExecutionController {
         runningTask = nil
     }
 
-    private func runAnthropicAgent(client: AnthropicClient, prompt: String, tools: ToolSet) async throws {
-        let systemPrompt = ResearchAgentPrompt.build()
+    private func runAgent<Client: AgentCapableClient>(
+        client: Client,
+        model: Client.Model,
+        prompt: String,
+        category: ScenarioCategory,
+        tools: ToolSet
+    ) async throws where Client.Model: Sendable {
         let config = settings.createAgentConfiguration()
 
-        let agentSequence: AgentStepSequence<AnthropicClient, ResearchReport> = client.runAgent(
+        switch category {
+        case .research:
+            let systemPrompt = AgentPrompt.forResearch()
+            try await runTypedAgent(
+                client: client,
+                model: model,
+                prompt: prompt,
+                tools: tools,
+                systemPrompt: systemPrompt,
+                config: config
+            ) { (report: ResearchReport) in
+                .research(report)
+            }
+
+        case .calculation:
+            let systemPrompt = AgentPrompt.forCalculation()
+            try await runTypedAgent(
+                client: client,
+                model: model,
+                prompt: prompt,
+                tools: tools,
+                systemPrompt: systemPrompt,
+                config: config
+            ) { (report: CalculationReport) in
+                .calculation(report)
+            }
+
+        case .temporal:
+            let systemPrompt = AgentPrompt.forTemporal()
+            try await runTypedAgent(
+                client: client,
+                model: model,
+                prompt: prompt,
+                tools: tools,
+                systemPrompt: systemPrompt,
+                config: config
+            ) { (report: TemporalReport) in
+                .temporal(report)
+            }
+
+        case .multiTool:
+            let systemPrompt = AgentPrompt.forMultiTool()
+            try await runTypedAgent(
+                client: client,
+                model: model,
+                prompt: prompt,
+                tools: tools,
+                systemPrompt: systemPrompt,
+                config: config
+            ) { (report: MultiToolReport) in
+                .multiTool(report)
+            }
+
+        case .reasoning:
+            let systemPrompt = AgentPrompt.forReasoning()
+            try await runTypedAgent(
+                client: client,
+                model: model,
+                prompt: prompt,
+                tools: tools,
+                systemPrompt: systemPrompt,
+                config: config
+            ) { (report: ReasoningReport) in
+                .reasoning(report)
+            }
+        }
+    }
+
+    private func runTypedAgent<Client: AgentCapableClient, Output: StructuredProtocol>(
+        client: Client,
+        model: Client.Model,
+        prompt: String,
+        tools: ToolSet,
+        systemPrompt: Prompt,
+        config: AgentConfiguration,
+        transform: @escaping (Output) -> AgentResult
+    ) async throws where Client.Model: Sendable {
+        let agentSequence: AgentStepSequence<Client, Output> = client.runAgent(
             prompt: prompt,
-            model: settings.claudeModelOption.model,
+            model: model,
             tools: tools,
             systemPrompt: systemPrompt,
             configuration: config
         )
 
-        var finalResult: ResearchReport?
+        var finalResult: Output?
 
         for try await step in agentSequence {
             try Task.checkCancellation()
@@ -161,77 +229,13 @@ final class AgentExecutionController {
         }
 
         if let result = finalResult {
-            state = .success(result)
+            state = .success(transform(result))
         } else if !Task.isCancelled {
             state = .error("最終レスポンスが取得できませんでした")
         }
     }
 
-    private func runOpenAIAgent(client: OpenAIClient, prompt: String, tools: ToolSet) async throws {
-        let systemPrompt = ResearchAgentPrompt.build()
-        let config = settings.createAgentConfiguration()
-
-        let agentSequence: AgentStepSequence<OpenAIClient, ResearchReport> = client.runAgent(
-            prompt: prompt,
-            model: settings.gptModelOption.model,
-            tools: tools,
-            systemPrompt: systemPrompt,
-            configuration: config
-        )
-
-        var finalResult: ResearchReport?
-
-        for try await step in agentSequence {
-            try Task.checkCancellation()
-
-            let stepInfo = processStep(step)
-            steps.append(stepInfo)
-
-            if case .finalResponse(let report) = step {
-                finalResult = report
-            }
-        }
-
-        if let result = finalResult {
-            state = .success(result)
-        } else if !Task.isCancelled {
-            state = .error("最終レスポンスが取得できませんでした")
-        }
-    }
-
-    private func runGeminiAgent(client: GeminiClient, prompt: String, tools: ToolSet) async throws {
-        let systemPrompt = ResearchAgentPrompt.build()
-        let config = settings.createAgentConfiguration()
-
-        let agentSequence: AgentStepSequence<GeminiClient, ResearchReport> = client.runAgent(
-            prompt: prompt,
-            model: settings.geminiModelOption.model,
-            tools: tools,
-            systemPrompt: systemPrompt,
-            configuration: config
-        )
-
-        var finalResult: ResearchReport?
-
-        for try await step in agentSequence {
-            try Task.checkCancellation()
-
-            let stepInfo = processStep(step)
-            steps.append(stepInfo)
-
-            if case .finalResponse(let report) = step {
-                finalResult = report
-            }
-        }
-
-        if let result = finalResult {
-            state = .success(result)
-        } else if !Task.isCancelled {
-            state = .error("最終レスポンスが取得できませんでした")
-        }
-    }
-
-    private func processStep(_ step: AgentStep<ResearchReport>) -> AgentStepInfo {
+    private func processStep<Output>(_ step: AgentStep<Output>) -> AgentStepInfo {
         switch step {
         case .thinking(let response):
             let text = response.content.compactMap { $0.text }.joined()
@@ -254,10 +258,10 @@ final class AgentExecutionController {
                 isError: info.isError
             )
 
-        case .finalResponse(let report):
+        case .finalResponse:
             return AgentStepInfo(
                 type: .finalResponse,
-                content: report.title
+                content: "レポート生成完了"
             )
         }
     }
@@ -267,21 +271,5 @@ final class AgentExecutionController {
             return nil
         }
         return dict.map { "\($0.key): \($0.value)" }.joined(separator: ", ")
-    }
-}
-
-// MARK: - AgentExecutionState Extension
-
-extension AgentExecutionState {
-    /// キャンセルされたかどうか
-    static var cancelled: AgentExecutionState {
-        .error("キャンセルされました")
-    }
-
-    var isCancelled: Bool {
-        if case .error(let message) = self {
-            return message == "キャンセルされました"
-        }
-        return false
     }
 }
