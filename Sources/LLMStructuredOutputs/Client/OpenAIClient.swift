@@ -40,7 +40,7 @@ import FoundationNetworking
 /// - `.gpt4` - GPT-4
 /// - `.o1` - o1（推論特化）
 /// - `.o1Mini` - o1 mini
-public struct OpenAIClient: StructuredLLMClient {
+public struct OpenAIClient: StructuredLLMClient, AgentCapableClient {
     public typealias Model = GPTModel
 
     private let provider: OpenAIProvider
@@ -330,5 +330,27 @@ public struct OpenAIClient: StructuredLLMClient {
             model: response.model,
             rawText: rawText
         )
+    }
+
+    // MARK: - AgentCapableClient
+
+    public func executeAgentStep(
+        messages: [LLMMessage],
+        model: GPTModel,
+        systemPrompt: String?,
+        tools: ToolSet,
+        toolChoice: ToolChoice?,
+        responseSchema: JSONSchema?
+    ) async throws -> LLMResponse {
+        let request = LLMRequest(
+            model: .gpt(model),
+            messages: messages,
+            systemPrompt: systemPrompt,
+            responseSchema: responseSchema,
+            tools: tools.isEmpty ? nil : tools,
+            toolChoice: tools.isEmpty ? nil : (toolChoice ?? .auto)
+        )
+
+        return try await provider.send(request)
     }
 }

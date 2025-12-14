@@ -10,9 +10,10 @@ LLMStructuredOutputs は、大規模言語モデルから型安全な構造化�
 
 - **型安全な構造化出力** - Swift マクロを使用
 - **マルチプロバイダー対応** - Claude (Anthropic)、GPT (OpenAI)、Gemini (Google)
+- **ツールコール** - LLM に外部関数を呼び出させる
+- **エージェントループ** - ツール実行と構造化出力の自動ループ
 - **会話管理** - マルチターンのやり取りに対応
 - **完全な Swift Concurrency サポート** - async/await 対応
-- **ゼロ依存** - swift-syntax のみ使用
 
 ## クイックスタート
 
@@ -47,6 +48,7 @@ let user: UserInfo = try await client.generate(
 - <doc:PromptBuilding>
 - <doc:Providers>
 - <doc:Conversations>
+- <doc:AgentLoop>
 - <doc:ExampleApp>
 
 ### マクロ
@@ -55,6 +57,8 @@ let user: UserInfo = try await client.generate(
 - ``StructuredField(_:_:)``
 - ``StructuredEnum(_:)``
 - ``StructuredCase(_:)``
+- ``Tool(_:name:)``
+- ``ToolArgument(_:)``
 
 ### クライアント
 
@@ -84,6 +88,24 @@ let user: UserInfo = try await client.generate(
 - ``FieldConstraint``
 - ``StructuredProtocol``
 
+### ツール
+
+- ``ToolSet``
+- ``ToolChoice``
+- ``ToolResult``
+- ``ToolCallResponse``
+
+### エージェント
+
+- ``AgentStep``
+- ``AgentStepSequence``
+- ``AgentConfiguration``
+- ``AgentContext``
+- ``AgentError``
+- ``ToolCallInfo``
+- ``ToolResultInfo``
+
 ### エラー
 
 - ``LLMError``
+- ``AgentError``

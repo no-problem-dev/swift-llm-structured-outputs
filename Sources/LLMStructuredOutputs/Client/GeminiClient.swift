@@ -39,7 +39,7 @@ import FoundationNetworking
 /// - `.flash20` - Gemini 2.0 Flash
 /// - `.pro15` - Gemini 1.5 Pro
 /// - `.flash15` - Gemini 1.5 Flash
-public struct GeminiClient: StructuredLLMClient {
+public struct GeminiClient: StructuredLLMClient, AgentCapableClient {
     public typealias Model = GeminiModel
 
     private let provider: GeminiProvider
@@ -326,5 +326,27 @@ public struct GeminiClient: StructuredLLMClient {
             model: response.model,
             rawText: rawText
         )
+    }
+
+    // MARK: - AgentCapableClient
+
+    public func executeAgentStep(
+        messages: [LLMMessage],
+        model: GeminiModel,
+        systemPrompt: String?,
+        tools: ToolSet,
+        toolChoice: ToolChoice?,
+        responseSchema: JSONSchema?
+    ) async throws -> LLMResponse {
+        let request = LLMRequest(
+            model: .gemini(model),
+            messages: messages,
+            systemPrompt: systemPrompt,
+            responseSchema: responseSchema,
+            tools: tools.isEmpty ? nil : tools,
+            toolChoice: tools.isEmpty ? nil : (toolChoice ?? .auto)
+        )
+
+        return try await provider.send(request)
     }
 }

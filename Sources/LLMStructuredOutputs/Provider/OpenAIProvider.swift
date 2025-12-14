@@ -89,16 +89,15 @@ internal struct OpenAIProvider: LLMProvider {
         if let systemPrompt = request.systemPrompt {
             messages.append(OpenAIMessage(
                 role: "system",
-                content: systemPrompt
+                content: systemPrompt,
+                toolCallId: nil,
+                toolCalls: nil
             ))
         }
 
         // ユーザー/アシスタントメッセージ
         for message in request.messages {
-            messages.append(OpenAIMessage(
-                role: message.role == .user ? "user" : "assistant",
-                content: message.content
-            ))
+            messages.append(contentsOf: convertToOpenAIMessages(message))
         }
 
         // 構造化出力の設定
@@ -145,6 +144,69 @@ internal struct OpenAIProvider: LLMProvider {
         case .tool(let name):
             return .function(name)
         }
+    }
+
+    /// LLMMessage を OpenAI メッセージ形式に変換
+    ///
+    /// OpenAI では:
+    /// - テキストメッセージ: `{"role": "user"|"assistant", "content": "..."}`
+    /// - ツール呼び出し: `{"role": "assistant", "tool_calls": [...]}`
+    /// - ツール結果: `{"role": "tool", "tool_call_id": "...", "content": "..."}`
+    private func convertToOpenAIMessages(_ message: LLMMessage) -> [OpenAIMessage] {
+        var result: [OpenAIMessage] = []
+
+        // ツール結果を持つ場合、各結果を個別の tool メッセージとして送信
+        // OpenAI APIではnameは不要（tool_call_idで関連付け）
+        let toolResults = message.toolResults
+        if !toolResults.isEmpty {
+            for toolResult in toolResults {
+                result.append(OpenAIMessage(
+                    role: "tool",
+                    content: toolResult.content,  // (toolCallId, name, content, isError)
+                    toolCallId: toolResult.toolCallId,
+                    toolCalls: nil
+                ))
+            }
+            return result
+        }
+
+        // ツール呼び出しを持つ場合
+        let toolUses = message.toolUses
+        if !toolUses.isEmpty {
+            let toolCalls = toolUses.map { toolUse -> OpenAIMessageToolCall in
+                let argumentsString: String
+                if let str = String(data: toolUse.input, encoding: .utf8) {
+                    argumentsString = str
+                } else {
+                    argumentsString = "{}"
+                }
+                return OpenAIMessageToolCall(
+                    id: toolUse.id,
+                    type: "function",
+                    function: OpenAIMessageToolCallFunction(
+                        name: toolUse.name,
+                        arguments: argumentsString
+                    )
+                )
+            }
+            result.append(OpenAIMessage(
+                role: "assistant",
+                content: message.content.isEmpty ? nil : message.content,
+                toolCallId: nil,
+                toolCalls: toolCalls
+            ))
+            return result
+        }
+
+        // 通常のテキストメッセージ
+        let role = message.role == .user ? "user" : "assistant"
+        result.append(OpenAIMessage(
+            role: role,
+            content: message.content,
+            toolCallId: nil,
+            toolCalls: nil
+        ))
+        return result
     }
 
     /// HTTPリクエストを実行
@@ -429,7 +491,49 @@ private enum OpenAIJSONValue: Codable {
 /// OpenAI メッセージ
 private struct OpenAIMessage: Encodable {
     let role: String
-    let content: String
+    let content: String?
+    let toolCallId: String?
+    let toolCalls: [OpenAIMessageToolCall]?
+
+    enum CodingKeys: String, CodingKey {
+        case role
+        case content
+        case toolCallId = "tool_call_id"
+        case toolCalls = "tool_calls"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(role, forKey: .role)
+
+        // content は nil でない場合のみエンコード
+        if let content = content {
+            try container.encode(content, forKey: .content)
+        }
+
+        // tool_call_id は tool role の場合のみ
+        if let toolCallId = toolCallId {
+            try container.encode(toolCallId, forKey: .toolCallId)
+        }
+
+        // tool_calls は assistant の場合のみ
+        if let toolCalls = toolCalls {
+            try container.encode(toolCalls, forKey: .toolCalls)
+        }
+    }
+}
+
+/// OpenAI メッセージ内のツール呼び出し
+private struct OpenAIMessageToolCall: Encodable {
+    let id: String
+    let type: String
+    let function: OpenAIMessageToolCallFunction
+}
+
+/// OpenAI メッセージ内のツール呼び出し関数
+private struct OpenAIMessageToolCallFunction: Encodable {
+    let name: String
+    let arguments: String
 }
 
 /// OpenAI レスポンスフォーマット設定
