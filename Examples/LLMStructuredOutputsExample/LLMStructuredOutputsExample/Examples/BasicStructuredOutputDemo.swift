@@ -66,6 +66,7 @@ struct BasicStructuredOutputDemo: View {
             }
             .padding()
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("基本の構造化出力")
         .navigationBarTitleDisplayMode(.inline)
     }

@@ -71,6 +71,7 @@ struct FieldConstraintsDemo: View {
             }
             .padding()
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("制約の活用")
         .navigationBarTitleDisplayMode(.inline)
     }

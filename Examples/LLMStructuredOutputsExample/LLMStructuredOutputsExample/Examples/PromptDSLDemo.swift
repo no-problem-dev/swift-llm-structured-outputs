@@ -77,6 +77,7 @@ struct PromptDSLDemo: View {
             }
             .padding()
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Prompt DSL")
         .navigationBarTitleDisplayMode(.inline)
     }

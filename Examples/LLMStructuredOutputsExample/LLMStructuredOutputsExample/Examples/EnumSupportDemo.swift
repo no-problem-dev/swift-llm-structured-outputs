@@ -71,6 +71,7 @@ struct EnumSupportDemo: View {
             }
             .padding()
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Enum対応")
         .navigationBarTitleDisplayMode(.inline)
     }

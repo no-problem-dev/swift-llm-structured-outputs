@@ -57,6 +57,7 @@ struct MultiProviderDemo: View {
             }
             .padding()
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("プロバイダー比較")
         .navigationBarTitleDisplayMode(.inline)
     }

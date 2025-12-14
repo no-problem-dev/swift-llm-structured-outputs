@@ -38,6 +38,7 @@ struct ConversationDemo: View {
                 }
                 .padding()
             }
+            .scrollDismissesKeyboard(.interactively)
 
             Divider()
 

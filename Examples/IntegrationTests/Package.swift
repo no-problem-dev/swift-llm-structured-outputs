@@ -16,8 +16,7 @@ let package = Package(
             name: "IntegrationTests",
             dependencies: [
                 .product(name: "LLMStructuredOutputs", package: "swift-llm-structured-outputs"),
-            ],
-            path: "Sources"
+            ]
         ),
     ]
 )

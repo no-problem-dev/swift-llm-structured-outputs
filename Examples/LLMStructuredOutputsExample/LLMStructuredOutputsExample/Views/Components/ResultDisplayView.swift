@@ -225,19 +225,33 @@ struct SampleInputPicker: View {
     @Binding var selectedIndex: Int
 
     var body: some View {
-        HStack {
+        VStack(alignment: .leading, spacing: 8) {
             Text("サンプル入力")
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
 
-            Spacer()
-
-            Picker("サンプル", selection: $selectedIndex) {
-                ForEach(Array(descriptions.enumerated()), id: \.offset) { index, description in
-                    Text(description).tag(index)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Array(descriptions.enumerated()), id: \.offset) { index, description in
+                        Button {
+                            selectedIndex = index
+                        } label: {
+                            Text(description)
+                                .font(.subheadline)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(
+                                    selectedIndex == index
+                                        ? Color.accentColor
+                                        : Color(.systemGray5)
+                                )
+                                .foregroundStyle(selectedIndex == index ? .white : .primary)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
-            .pickerStyle(.menu)
         }
     }
 }

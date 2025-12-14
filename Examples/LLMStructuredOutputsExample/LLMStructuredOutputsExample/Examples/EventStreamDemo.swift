@@ -40,6 +40,7 @@ struct EventStreamDemo: View {
                 }
                 .padding()
             }
+            .scrollDismissesKeyboard(.interactively)
 
             Divider()
 

@@ -362,4 +362,84 @@ extension JSONSchema {
             format: format
         )
     }
+
+    /// OpenAI API用にスキーマをサニタイズ
+    ///
+    /// OpenAI Structured Outputsは以下の制約があります：
+    /// - `additionalProperties: false` が必須
+    /// - `required` 配列にすべてのプロパティを含める必要がある
+    /// - オプショナルフィールドは型を `["original_type", "null"]` のunion型で表現
+    ///
+    /// このメソッドは既存のスキーマからオプショナル情報を推論できないため、
+    /// すべてのプロパティを required として扱い、`additionalProperties: false` を設定します。
+    /// オプショナルフィールドのサポートはマクロ側で別途対応が必要です。
+    public func sanitizedForOpenAI() -> JSONSchema {
+        // プロパティを再帰的にサニタイズ
+        let sanitizedProperties = properties?.mapValues { $0.sanitizedForOpenAI() }
+
+        // itemsを再帰的にサニタイズ
+        let sanitizedItems = items?.value.sanitizedForOpenAI()
+
+        // OpenAIでは required 配列にすべてのプロパティキーを含める必要がある
+        let allRequired: [String]?
+        if let props = sanitizedProperties {
+            allRequired = Array(props.keys).sorted()
+        } else {
+            allRequired = required
+        }
+
+        return JSONSchema(
+            type: type,
+            description: description,
+            properties: sanitizedProperties,
+            required: allRequired,
+            items: sanitizedItems,
+            additionalProperties: type == .object ? false : additionalProperties, // オブジェクト型では必ず false
+            minItems: minItems,
+            maxItems: maxItems,
+            minimum: minimum,
+            maximum: maximum,
+            exclusiveMinimum: exclusiveMinimum,
+            exclusiveMaximum: exclusiveMaximum,
+            minLength: minLength,
+            maxLength: maxLength,
+            pattern: pattern,
+            enum: `enum`,
+            format: format
+        )
+    }
+
+    /// Gemini API用にスキーマをサニタイズ
+    ///
+    /// Gemini APIはJSON Schemaの一部の機能をサポートしていない場合があります：
+    /// - `additionalProperties`: 一部のAPIバージョンでサポートされていない可能性
+    ///
+    /// このメソッドは互換性のないフィールドを除去したスキーマを返します。
+    public func sanitizedForGemini() -> JSONSchema {
+        // プロパティを再帰的にサニタイズ
+        let sanitizedProperties = properties?.mapValues { $0.sanitizedForGemini() }
+
+        // itemsを再帰的にサニタイズ
+        let sanitizedItems = items?.value.sanitizedForGemini()
+
+        return JSONSchema(
+            type: type,
+            description: description,
+            properties: sanitizedProperties,
+            required: required,
+            items: sanitizedItems,
+            additionalProperties: nil, // Geminiでは additionalProperties を除去
+            minItems: minItems,
+            maxItems: maxItems,
+            minimum: minimum,
+            maximum: maximum,
+            exclusiveMinimum: exclusiveMinimum,
+            exclusiveMaximum: exclusiveMaximum,
+            minLength: minLength,
+            maxLength: maxLength,
+            pattern: pattern,
+            enum: `enum`,
+            format: format
+        )
+    }
 }
