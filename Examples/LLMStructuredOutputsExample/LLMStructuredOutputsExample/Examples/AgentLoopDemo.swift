@@ -49,9 +49,7 @@ struct AgentLoopDemo: View {
                 RegisteredToolsSection()
 
                 // MARK: - 実行
-                if settings.selectedProvider == .gemini {
-                    GeminiUnsupportedView()
-                } else if settings.isCurrentProviderAvailable {
+                if settings.isCurrentProviderAvailable {
                     ExecuteButton(
                         isLoading: state.isLoading,
                         isEnabled: !inputText.isEmpty
@@ -95,8 +93,8 @@ struct AgentLoopDemo: View {
                     try await runOpenAIAgent(client: client, tools: tools)
 
                 case .gemini:
-                    // Gemini は Function calling + JSON response をサポートしていない
-                    state = .error(AgentError.invalidState("Gemini does not support agent loops with structured output"))
+                    guard let client = settings.createGeminiClient() else { return }
+                    try await runGeminiAgent(client: client, tools: tools)
                 }
             } catch {
                 state = .error(error)
@@ -136,6 +134,34 @@ struct AgentLoopDemo: View {
         let agentSequence: AgentStepSequence<OpenAIClient, WeatherReport> = client.runAgent(
             prompt: inputText,
             model: settings.gptModelOption.model,
+            tools: tools,
+            systemPrompt: "ユーザーの要求に応じてツールを使用し、構造化されたレポートを生成してください。"
+        )
+
+        var finalResult: WeatherReport?
+
+        for try await step in agentSequence {
+            let stepInfo = processStep(step)
+            await MainActor.run {
+                steps.append(stepInfo)
+            }
+
+            if case .finalResponse(let report) = step {
+                finalResult = report
+            }
+        }
+
+        if let result = finalResult {
+            state = .success(AnyEncodable(result))
+        } else {
+            state = .error(AgentError.invalidState("最終レスポンスが取得できませんでした"))
+        }
+    }
+
+    private func runGeminiAgent(client: GeminiClient, tools: ToolSet) async throws {
+        let agentSequence: AgentStepSequence<GeminiClient, WeatherReport> = client.runAgent(
+            prompt: inputText,
+            model: settings.geminiModelOption.model,
             tools: tools,
             systemPrompt: "ユーザーの要求に応じてツールを使用し、構造化されたレポートを生成してください。"
         )
@@ -451,18 +477,6 @@ private struct RegisteredToolsSection: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
-        }
-    }
-}
-
-// MARK: - Gemini Unsupported View
-
-private struct GeminiUnsupportedView: View {
-    var body: some View {
-        ContentUnavailableView {
-            Label("Geminiは非対応", systemImage: "exclamationmark.triangle")
-        } description: {
-            Text("Gemini APIはツール呼び出しと構造化JSON出力の同時使用をサポートしていません。AnthropicまたはOpenAIプロバイダーをご利用ください。")
         }
     }
 }

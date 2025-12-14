@@ -64,194 +64,348 @@ public struct AgentStepSequence<Client: AgentCapableClient, Output: StructuredPr
 
 extension AgentStepSequence {
     public struct AsyncIterator: AsyncIteratorProtocol {
-        private let client: Client
-        private let model: Client.Model
-        private let context: AgentContext
-        private let state: IteratorState<Client>
+        private let runner: AgentLoopRunner<Client, Output>
 
         init(client: Client, model: Client.Model, context: AgentContext) {
-            self.client = client
-            self.model = model
-            self.context = context
-            self.state = IteratorState<Client>()
+            self.runner = AgentLoopRunner(client: client, model: model, context: context)
         }
 
         public mutating func next() async throws -> Element? {
-            try await state.next(client: client, model: model, context: context)
+            try await runner.nextStep()
         }
     }
 }
 
-// MARK: - IteratorState (Actor)
+// MARK: - AgentLoopRunner
 
-/// イテレータの内部状態を管理する Actor
-private actor IteratorState<Client: AgentCapableClient> where Client.Model: Sendable {
-    /// 現在の状態
-    private var phase: Phase = .initial
+/// エージェントループの実行を管理する Actor
+///
+/// 終了ポリシーに基づいてループの継続/終了を判定し、
+/// ツール呼び出しの実行と結果の管理を行います。
+private actor AgentLoopRunner<Client: AgentCapableClient, Output: StructuredProtocol>
+    where Client.Model: Sendable
+{
+    // MARK: - Types
 
-    /// 保留中のイベント（ツール呼び出し/結果を順次返すため）
-    private var pendingEvents: [PendingEvent] = []
+    /// ループの実行フェーズ
+    ///
+    /// エージェントループは以下のフェーズを順に遷移します：
+    /// - ツール使用フェーズ: LLMがツールを自由に呼び出せる状態
+    /// - 最終出力フェーズ: 構造化JSONの生成を要求する状態
+    /// - 完了: ループが終了した状態
+    private enum LoopPhase: Sendable, Equatable {
+        /// ツール使用フェーズ
+        /// LLMがツールを呼び出し可能。responseSchemaは送信しない。
+        case toolUse
 
-    /// フェーズ
-    enum Phase {
-        case initial
-        case waitingForLLM
-        case processingToolCalls([ToolCallInfo])
+        /// 最終出力フェーズ
+        /// ツールを無効化し、responseSchemaを送信して構造化出力を要求。
+        /// associated value: デコード再試行回数
+        case finalOutput(retryCount: Int)
+
+        /// ループ完了
         case completed
     }
 
     /// 保留中のイベント
-    enum PendingEvent {
+    private enum PendingEvent {
         case toolCall(ToolCallInfo)
         case toolResult(ToolResultInfo)
     }
 
-    /// 次の要素を取得
-    func next<Output: StructuredProtocol>(
-        client: Client,
-        model: Client.Model,
-        context: AgentContext
-    ) async throws -> AgentStep<Output>? {
-        // 保留中のイベントがあれば返す
-        if !pendingEvents.isEmpty {
-            let event = pendingEvents.removeFirst()
-            switch event {
-            case .toolCall(let info):
-                return .toolCall(info)
-            case .toolResult(let info):
-                return .toolResult(info)
-            }
+    // MARK: - Properties
+
+    /// LLM クライアント
+    private let client: Client
+
+    /// 使用するモデル
+    private let model: Client.Model
+
+    /// エージェントコンテキスト
+    private let context: AgentContext
+
+    /// 終了ポリシー
+    private let terminationPolicy: any AgentTerminationPolicy
+
+    /// ループ状態マネージャー
+    private let stateManager: AgentLoopStateManager
+
+    /// 保留中のイベント（ツール呼び出し/結果を順次返すため）
+    private var pendingEvents: [PendingEvent] = []
+
+    /// 現在のループフェーズ
+    private var phase: LoopPhase = .toolUse
+
+    /// 最大デコード再試行回数
+    private let maxDecodeRetries: Int = 2
+
+    // MARK: - Initialization
+
+    init(client: Client, model: Client.Model, context: AgentContext) {
+        self.client = client
+        self.model = model
+        self.context = context
+
+        // 設定から状態マネージャーを初期化
+        let config = context.configurationSync
+        self.stateManager = AgentLoopStateManager(configuration: config)
+
+        // 設定から終了ポリシーを作成（重複検出 + 総呼び出し回数制限付き）
+        self.terminationPolicy = TerminationPolicyFactory.make(from: config)
+    }
+
+    // MARK: - Main Loop
+
+    /// 次のステップを取得
+    func nextStep() async throws -> AgentStep<Output>? {
+        // 1. 保留中のイベントを返す
+        if let event = consumePendingEvent() {
+            return event
         }
 
-        // 完了している場合
-        if case .completed = phase {
+        // 2. フェーズに基づく完了チェック
+        if phase == .completed {
             return nil
         }
 
-        // 継続可能かチェック
-        let canContinue = await context.canContinue()
-        if !canContinue {
-            let isCompleted = await context.getIsCompleted()
-            if isCompleted {
-                phase = .completed
-                return nil
-            }
-            let config = await context.getConfiguration()
-            throw AgentError.maxStepsExceeded(steps: config.maxSteps)
+        // 3. ステップ制限チェック
+        if await stateManager.isAtStepLimit {
+            throw AgentError.maxStepsExceeded(steps: stateManager.maxSteps)
         }
 
-        // ステップをインクリメント
-        try await context.incrementStep()
+        // 4. ステップをインクリメント
+        try await stateManager.incrementStep()
 
-        // LLM にリクエストを送信
-        let response = try await sendRequest(
-            client: client,
-            model: model,
-            context: context,
-            responseSchema: Output.jsonSchema
-        )
+        // 5. LLM にリクエストを送信
+        let response = try await sendRequest()
 
-        // レスポンスをコンテキストに追加
+        // 6. レスポンスをコンテキストに追加
         await context.addAssistantResponse(response)
 
-        // ツール呼び出しをチェック
-        let toolCalls = await context.extractToolCalls(from: response)
+        // 7. 終了ポリシーで判定
+        let decision = await terminationPolicy.shouldTerminate(
+            response: response,
+            context: stateManager
+        )
 
-        if !toolCalls.isEmpty {
-            // ツール呼び出しがある場合
-            phase = .processingToolCalls(toolCalls)
+        // 8. 判定に基づいて処理
+        return try await handleDecision(decision, response: response)
+    }
 
-            // 設定を取得
-            let config = await context.getConfiguration()
+    // MARK: - Decision Handling
 
-            if config.autoExecuteTools {
-                // 自動実行: ツール呼び出しと結果をイベントとしてキュー
-                var results: [ToolResultInfo] = []
+    /// 終了判定に基づいて処理を行う
+    private func handleDecision(
+        _ decision: TerminationDecision,
+        response: LLMResponse
+    ) async throws -> AgentStep<Output>? {
+        switch decision {
+        case .continueWithTools(let calls):
+            return try await processToolCalls(calls)
 
-                for call in toolCalls {
-                    pendingEvents.append(.toolCall(call))
+        case .continueWithThinking:
+            return .thinking(response)
 
-                    // ツールを実行
-                    let result = await executeToolSafely(context: context, call: call)
-                    results.append(result)
-                    pendingEvents.append(.toolResult(result))
-                }
+        case .terminateWithOutput(let text):
+            return try await decodeFinalOutput(text, response: response)
 
-                // 結果をコンテキストに追加
-                await context.addToolResults(results)
+        case .terminateImmediately(let reason):
+            return handleImmediateTermination(reason)
+        }
+    }
 
-                // 次のLLM呼び出しのためにフェーズをリセット
-                phase = .waitingForLLM
+    /// ツール呼び出しを処理
+    private func processToolCalls(_ calls: [ToolCallInfo]) async throws -> AgentStep<Output>? {
+        // 設定を取得
+        let config = await context.getConfiguration()
 
-                // 最初のイベントを返す
-                if !pendingEvents.isEmpty {
-                    let event = pendingEvents.removeFirst()
-                    switch event {
-                    case .toolCall(let info):
-                        return .toolCall(info)
-                    case .toolResult(let info):
-                        return .toolResult(info)
-                    }
-                }
-            } else {
-                // 手動実行モード: thinking イベントを返して終了
-                // （呼び出し側がツール実行を処理する必要あり）
-                await context.markCompleted()
-                phase = .completed
+        if config.autoExecuteTools {
+            // 自動実行モード
+            var results: [ToolResultInfo] = []
+
+            for call in calls {
+                // 履歴に記録
+                await stateManager.recordToolCall(call)
+
+                // イベントをキュー
+                pendingEvents.append(.toolCall(call))
+
+                // ツールを実行
+                let result = await executeToolSafely(call)
+                results.append(result)
+                pendingEvents.append(.toolResult(result))
+            }
+
+            // 結果をコンテキストに追加
+            await context.addToolResults(results)
+
+            // 最初のイベントを返す
+            return consumePendingEvent()
+        } else {
+            // 手動実行モード: 完了としてマーク
+            phase = .completed
+            await context.markCompleted()
+
+            // 手動モードでは呼び出し側がツール実行を処理するため、
+            // ここでは単に nil を返してループを終了
+            return nil
+        }
+    }
+
+    /// 最終出力をデコードまたは最終出力フェーズへ遷移
+    ///
+    /// - ツールなしでリクエストした場合: 直接デコードを試行
+    /// - ツールありでendTurnを受けた場合: 最終出力フェーズに遷移し、
+    ///   構造化出力を要求する追加リクエストを送信
+    private func decodeFinalOutput(_ text: String, response: LLMResponse) async throws -> AgentStep<Output>? {
+        // フェーズに応じた処理
+        switch phase {
+        case .toolUse:
+            // ツール使用フェーズでendTurnを受けた場合
+            let tools = await context.getTools()
+            if !tools.isEmpty {
+                // ツールがまだ存在する = 非構造化テキストで終了しようとしている
+                // 最終出力フェーズに遷移して、構造化出力を要求
+                phase = .finalOutput(retryCount: 0)
+                // thinking として返し、次のステップで構造化出力を要求
                 return .thinking(response)
             }
-        }
+            // ツールがない場合はそのままデコードを試行
+            return try decodeAndComplete(text)
 
-        // テキストレスポンスを取得
-        let textContent = await context.extractText(from: response)
-
-        // 最終出力をデコードしてみる
-        if !textContent.isEmpty {
+        case .finalOutput(let retryCount):
+            // 最終出力フェーズでデコードを試行
             do {
-                let output = try JSONDecoder().decode(Output.self, from: Data(textContent.utf8))
-                await context.markCompleted()
-                phase = .completed
-                return .finalResponse(output)
+                return try decodeAndComplete(text)
             } catch {
-                // デコードに失敗した場合、thinking として返す
-                // （次のステップでLLMが構造化出力を生成することを期待）
+                // デコードに失敗した場合、再試行カウンタをチェック
+                let newRetryCount = retryCount + 1
+                if newRetryCount >= maxDecodeRetries {
+                    // 最大再試行回数に達した場合はエラー
+                    throw AgentError.outputDecodingFailed(error)
+                }
+                // 再試行回数を更新してリトライ
+                phase = .finalOutput(retryCount: newRetryCount)
                 return .thinking(response)
             }
-        }
 
-        // 空のレスポンスの場合
-        await context.markCompleted()
+        case .completed:
+            // 既に完了している場合（通常は到達しない）
+            return nil
+        }
+    }
+
+    /// JSONをデコードして完了状態に遷移
+    private func decodeAndComplete(_ text: String) throws -> AgentStep<Output> {
+        let output = try JSONDecoder().decode(Output.self, from: Data(text.utf8))
         phase = .completed
-        return nil
+        Task { await context.markCompleted() }
+        return .finalResponse(output)
+    }
+
+    /// 即座終了を処理
+    private func handleImmediateTermination(_ reason: TerminationReason) -> AgentStep<Output>? {
+        phase = .completed
+        Task { await context.markCompleted() }
+
+        // 終了理由に応じた処理
+        switch reason {
+        case .completed, .emptyResponse:
+            return nil
+
+        case .maxStepsReached:
+            // このケースは通常、事前のチェックで処理されるべき
+            return nil
+
+        case .duplicateToolCallDetected(let toolName, let count):
+            // 重複検出の場合はログ出力のみで終了
+            #if DEBUG
+            print("[AgentLoop] Duplicate tool call detected: \(toolName) called \(count) times with same input")
+            #endif
+            return nil
+
+        case .maxToolCallsPerToolReached(let toolName, let count):
+            // 同一ツールの呼び出し回数上限に到達
+            #if DEBUG
+            print("[AgentLoop] Tool call limit reached: \(toolName) called \(count) times total")
+            #endif
+            return nil
+
+        case .unexpectedStopReason:
+            return nil
+        }
+    }
+
+    // MARK: - Helper Methods
+
+    /// 保留中のイベントを消費
+    private func consumePendingEvent() -> AgentStep<Output>? {
+        guard !pendingEvents.isEmpty else { return nil }
+
+        let event = pendingEvents.removeFirst()
+        switch event {
+        case .toolCall(let info):
+            return .toolCall(info)
+        case .toolResult(let info):
+            return .toolResult(info)
+        }
     }
 
     /// LLM にリクエストを送信
-    private func sendRequest(
-        client: Client,
-        model: Client.Model,
-        context: AgentContext,
-        responseSchema: JSONSchema
-    ) async throws -> LLMResponse {
+    ///
+    /// Anthropic の推奨パターンに従い、フェーズに応じてリクエストを構築：
+    /// - ツール使用フェーズ: ツールを送信、responseSchemaは送らない
+    /// - 最終出力フェーズ: ツールなし、responseSchemaを送信
+    ///
+    /// これにより、ツール使用中にLLMがテキスト応答を返した際の
+    /// JSONデコードエラーを防ぎます。
+    private func sendRequest() async throws -> LLMResponse {
         let messages = await context.getMessages()
         let systemPrompt = await context.getSystemPrompt()
-        let tools = await context.getTools()
 
-        do {
-            return try await client.executeAgentStep(
-                messages: messages,
-                model: model,
-                systemPrompt: systemPrompt,
-                tools: tools,
-                toolChoice: .auto,
-                responseSchema: responseSchema
-            )
-        } catch let error as LLMError {
-            throw AgentError.llmError(error)
+        switch phase {
+        case .toolUse:
+            // ツール使用フェーズ: ツールを送信、responseSchemaは送らない
+            let tools = await context.getTools()
+            let shouldRequestStructuredOutput = tools.isEmpty
+            let responseSchema: JSONSchema? = shouldRequestStructuredOutput ? Output.jsonSchema : nil
+
+            do {
+                return try await client.executeAgentStep(
+                    messages: messages,
+                    model: model,
+                    systemPrompt: systemPrompt,
+                    tools: tools,
+                    toolChoice: tools.isEmpty ? nil : .auto,
+                    responseSchema: responseSchema
+                )
+            } catch let error as LLMError {
+                throw AgentError.llmError(error)
+            }
+
+        case .finalOutput:
+            // 最終出力フェーズ: ツールなし、responseSchemaを送信
+            do {
+                return try await client.executeAgentStep(
+                    messages: messages,
+                    model: model,
+                    systemPrompt: systemPrompt,
+                    tools: ToolSet {},
+                    toolChoice: nil,
+                    responseSchema: Output.jsonSchema
+                )
+            } catch let error as LLMError {
+                throw AgentError.llmError(error)
+            }
+
+        case .completed:
+            // 完了フェーズでは呼ばれないはず
+            throw AgentError.invalidState("sendRequest called in completed phase")
         }
     }
 
     /// ツールを安全に実行（エラーをキャッチしてToolResultInfoとして返す）
-    private func executeToolSafely(context: AgentContext, call: ToolCallInfo) async -> ToolResultInfo {
+    private func executeToolSafely(_ call: ToolCallInfo) async -> ToolResultInfo {
         do {
             let result = try await context.executeTool(named: call.name, with: call.input)
             return ToolResultInfo(

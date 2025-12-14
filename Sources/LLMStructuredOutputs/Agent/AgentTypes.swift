@@ -95,15 +95,39 @@ public struct AgentConfiguration: Sendable {
     /// ツール実行を自動で行うか
     public let autoExecuteTools: Bool
 
+    /// 重複ツール呼び出しの最大許容回数（同一ツール・同一入力）
+    ///
+    /// LLM が同じツールを同じ引数で繰り返し呼び出す場合、
+    /// この回数を超えるとループを終了します。
+    public let maxDuplicateToolCalls: Int
+
+    /// 同一ツールの最大総呼び出し回数
+    ///
+    /// 同じツールが（異なる引数でも）この回数を超えて呼ばれた場合、
+    /// ループを終了します。これにより、同じツールを延々と
+    /// 異なるクエリで呼び続けるパターンを防止します。
+    ///
+    /// - Note: `nil` の場合は制限なし（maxSteps でのみ制限）
+    public let maxToolCallsPerTool: Int?
+
     /// デフォルト設定
     public static let `default` = AgentConfiguration(
         maxSteps: 10,
-        autoExecuteTools: true
+        autoExecuteTools: true,
+        maxDuplicateToolCalls: 2,
+        maxToolCallsPerTool: 5
     )
 
-    public init(maxSteps: Int = 10, autoExecuteTools: Bool = true) {
+    public init(
+        maxSteps: Int = 10,
+        autoExecuteTools: Bool = true,
+        maxDuplicateToolCalls: Int = 2,
+        maxToolCallsPerTool: Int? = 5
+    ) {
         self.maxSteps = maxSteps
         self.autoExecuteTools = autoExecuteTools
+        self.maxDuplicateToolCalls = maxDuplicateToolCalls
+        self.maxToolCallsPerTool = maxToolCallsPerTool
     }
 }
 
