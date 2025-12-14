@@ -37,6 +37,12 @@ internal struct LLMRequest: Sendable {
     /// 最大トークン数
     public let maxTokens: Int?
 
+    /// 使用可能なツール
+    public let tools: ToolSet?
+
+    /// ツール選択の設定
+    public let toolChoice: ToolChoice?
+
     /// リクエストを初期化
     public init(
         model: LLMModel,
@@ -44,7 +50,9 @@ internal struct LLMRequest: Sendable {
         systemPrompt: String? = nil,
         responseSchema: JSONSchema? = nil,
         temperature: Double? = nil,
-        maxTokens: Int? = nil
+        maxTokens: Int? = nil,
+        tools: ToolSet? = nil,
+        toolChoice: ToolChoice? = nil
     ) {
         self.model = model
         self.messages = messages
@@ -52,6 +60,8 @@ internal struct LLMRequest: Sendable {
         self.responseSchema = responseSchema
         self.temperature = temperature
         self.maxTokens = maxTokens
+        self.tools = tools
+        self.toolChoice = toolChoice
     }
 }
 

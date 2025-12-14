@@ -255,6 +255,7 @@ let classificationPrompt = Prompt {
 
 ## 次のステップ
 
+- [ツールコール](tool-calling.md) で LLM に外部関数を呼び出させる方法を学ぶ
 - [はじめに](getting-started.md) で基本的な使い方を確認
 - [プロバイダー](providers.md) で各プロバイダーとモデルについて学ぶ
 - [会話](conversation.md) でマルチターン会話を実装する

@@ -8,5 +8,7 @@ struct StructuredMacrosPlugin: CompilerPlugin {
         StructuredFieldMacro.self,
         StructuredEnumMacro.self,
         StructuredCaseMacro.self,
+        ToolMacro.self,
+        ToolArgumentMacro.self,
     ]
 }

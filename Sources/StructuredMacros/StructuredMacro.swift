@@ -316,13 +316,15 @@ public struct StructuredMacro: MemberMacro, ExtensionMacro {
         let descriptionArg = typeDescription.map { "description: \"\($0)\"," } ?? ""
         let requiredArg = requiredFields.isEmpty ? "" : "required: [\(requiredFields.joined(separator: ", "))],"
 
+        // 空の properties の場合は [:] を使用
+        let propertiesLiteral = properties.isEmpty ? "[:]" : "[\n\(propertiesCode)        ]"
+
         let code: DeclSyntax = """
             public static var jsonSchema: JSONSchema {
                 JSONSchema(
                     type: .object,
                     \(raw: descriptionArg)
-                    properties: [
-            \(raw: propertiesCode)        ],
+                    properties: \(raw: propertiesLiteral),
                     \(raw: requiredArg)
                     additionalProperties: false
                 )

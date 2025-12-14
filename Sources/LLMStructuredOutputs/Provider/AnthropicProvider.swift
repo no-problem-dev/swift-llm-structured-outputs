@@ -101,14 +101,34 @@ internal struct AnthropicProvider: LLMProvider {
             )
         }
 
+        // ツール設定
+        let tools = request.tools?.toAnthropicFormat()
+        let toolChoice = request.toolChoice.map { mapToolChoice($0) }
+
         return AnthropicRequestBody(
             model: request.model.id,
             messages: messages,
             system: request.systemPrompt,
             maxTokens: request.maxTokens ?? Self.defaultMaxTokens,
             temperature: request.temperature,
-            outputFormat: outputFormat
+            outputFormat: outputFormat,
+            tools: tools,
+            toolChoice: toolChoice
         )
+    }
+
+    /// ToolChoice を Anthropic 形式に変換
+    private func mapToolChoice(_ choice: ToolChoice) -> AnthropicToolChoice {
+        switch choice {
+        case .auto:
+            return .auto
+        case .none:
+            return .none
+        case .required:
+            return .any
+        case .tool(let name):
+            return .tool(name)
+        }
     }
 
     /// HTTPリクエストを実行
@@ -162,16 +182,23 @@ internal struct AnthropicProvider: LLMProvider {
         let stopReason = mapStopReason(anthropicResponse.stopReason)
 
         // コンテンツブロックを変換
-        let contentBlocks = anthropicResponse.content.compactMap { block -> LLMResponse.ContentBlock? in
+        let contentBlocks = try anthropicResponse.content.compactMap { block -> LLMResponse.ContentBlock? in
             switch block.type {
             case "text":
                 return block.text.map { .text($0) }
+            case "tool_use":
+                guard let id = block.id, let name = block.name, let input = block.input else {
+                    return nil
+                }
+                let inputData = try JSONSerialization.data(withJSONObject: input)
+                return .toolUse(id: id, name: name, input: inputData)
             default:
                 return nil
             }
         }
 
-        guard !contentBlocks.isEmpty else {
+        // tool_use の場合は空でもOK
+        guard !contentBlocks.isEmpty || stopReason == .toolUse else {
             throw LLMError.emptyResponse
         }
 
@@ -203,6 +230,8 @@ private struct AnthropicRequestBody: Encodable {
     let maxTokens: Int
     let temperature: Double?
     let outputFormat: AnthropicOutputFormat?
+    let tools: [[String: Any]]?
+    let toolChoice: AnthropicToolChoice?
 
     enum CodingKeys: String, CodingKey {
         case model
@@ -211,6 +240,8 @@ private struct AnthropicRequestBody: Encodable {
         case maxTokens = "max_tokens"
         case temperature
         case outputFormat = "output_format"
+        case tools
+        case toolChoice = "tool_choice"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -226,6 +257,118 @@ private struct AnthropicRequestBody: Encodable {
         }
         if let outputFormat = outputFormat {
             try container.encode(outputFormat, forKey: .outputFormat)
+        }
+        if let tools = tools {
+            // tools を直接エンコード
+            let toolDefs = tools.map { AnthropicToolDef(dict: $0) }
+            try container.encode(toolDefs, forKey: .tools)
+        }
+        if let toolChoice = toolChoice {
+            try container.encode(toolChoice, forKey: .toolChoice)
+        }
+    }
+}
+
+/// Anthropic ツール定義（エンコード用）
+private struct AnthropicToolDef: Encodable {
+    let name: String
+    let description: String
+    let inputSchema: [String: Any]
+
+    init(dict: [String: Any]) {
+        self.name = dict["name"] as? String ?? ""
+        self.description = dict["description"] as? String ?? ""
+        self.inputSchema = dict["input_schema"] as? [String: Any] ?? [:]
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case description
+        case inputSchema = "input_schema"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(description, forKey: .description)
+        // inputSchema を JSON として手動エンコード
+        let schemaData = try JSONSerialization.data(withJSONObject: inputSchema)
+        let schemaJSON = try JSONDecoder().decode(JSONValue.self, from: schemaData)
+        try container.encode(schemaJSON, forKey: .inputSchema)
+    }
+}
+
+/// JSON 値の汎用エンコード用
+private enum JSONValue: Codable {
+    case null
+    case bool(Bool)
+    case int(Int)
+    case double(Double)
+    case string(String)
+    case array([JSONValue])
+    case object([String: JSONValue])
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            self = .null
+        } else if let bool = try? container.decode(Bool.self) {
+            self = .bool(bool)
+        } else if let int = try? container.decode(Int.self) {
+            self = .int(int)
+        } else if let double = try? container.decode(Double.self) {
+            self = .double(double)
+        } else if let string = try? container.decode(String.self) {
+            self = .string(string)
+        } else if let array = try? container.decode([JSONValue].self) {
+            self = .array(array)
+        } else if let object = try? container.decode([String: JSONValue].self) {
+            self = .object(object)
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode JSON value")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .null:
+            try container.encodeNil()
+        case .bool(let value):
+            try container.encode(value)
+        case .int(let value):
+            try container.encode(value)
+        case .double(let value):
+            try container.encode(value)
+        case .string(let value):
+            try container.encode(value)
+        case .array(let value):
+            try container.encode(value)
+        case .object(let value):
+            try container.encode(value)
+        }
+    }
+}
+
+/// Anthropic ツール選択
+private enum AnthropicToolChoice: Encodable {
+    case auto
+    case any
+    case none
+    case tool(String)
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .auto:
+            try container.encode(["type": "auto"])
+        case .any:
+            try container.encode(["type": "any"])
+        case .none:
+            // Anthropic では "none" は存在しないので auto と同等に
+            try container.encode(["type": "auto"])
+        case .tool(let name):
+            try container.encode(["type": "tool", "name": name])
         }
     }
 }
@@ -257,6 +400,54 @@ private struct AnthropicResponseBody: Decodable {
 private struct AnthropicContentBlock: Decodable {
     let type: String
     let text: String?
+    // tool_use 用フィールド
+    let id: String?
+    let name: String?
+    let input: [String: Any]?
+
+    enum CodingKeys: String, CodingKey {
+        case type, text, id, name, input
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decode(String.self, forKey: .type)
+        text = try container.decodeIfPresent(String.self, forKey: .text)
+        id = try container.decodeIfPresent(String.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        // input は任意の JSON なので手動でデコード
+        if let inputData = try? container.decodeIfPresent(AnyCodable.self, forKey: .input) {
+            input = inputData.value as? [String: Any]
+        } else {
+            input = nil
+        }
+    }
+}
+
+/// 任意の JSON 値をデコードするためのラッパー
+private struct AnyCodable: Decodable {
+    let value: Any
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            value = NSNull()
+        } else if let bool = try? container.decode(Bool.self) {
+            value = bool
+        } else if let int = try? container.decode(Int.self) {
+            value = int
+        } else if let double = try? container.decode(Double.self) {
+            value = double
+        } else if let string = try? container.decode(String.self) {
+            value = string
+        } else if let array = try? container.decode([AnyCodable].self) {
+            value = array.map { $0.value }
+        } else if let dict = try? container.decode([String: AnyCodable].self) {
+            value = dict.mapValues { $0.value }
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode value")
+        }
+    }
 }
 
 /// Anthropic 使用量

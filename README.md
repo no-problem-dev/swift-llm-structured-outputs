@@ -69,6 +69,35 @@ let user: UserInfo = try await client.generate(
 )
 ```
 
+### ツールコール
+
+LLM にどのツール（関数）を呼び出すべきか計画させることができます。詳細は[ツールコールガイド](documentation/tool-calling.md)を参照してください。
+
+```swift
+@Tool("指定された都市の天気を取得する")
+struct GetWeather {
+    @ToolArgument("都市名")
+    var location: String
+
+    func call() async throws -> String {
+        return "東京: 晴れ、22°C"
+    }
+}
+
+let tools = ToolSet { GetWeather.self }
+
+let plan = try await client.planToolCalls(
+    prompt: "東京の天気を教えて",
+    model: .sonnet,
+    tools: tools
+)
+
+for call in plan.toolCalls {
+    let result = try await tools.execute(toolNamed: call.name, with: call.arguments)
+    print(result.stringValue)
+}
+```
+
 ## インストール
 
 ```swift
@@ -93,6 +122,7 @@ dependencies: [
 |--------|------|
 | [はじめに](documentation/getting-started.md) | インストールと基本的な使い方 |
 | [プロンプト構築](documentation/prompt-building.md) | DSL を使ったプロンプト構築 |
+| [ツールコール](documentation/tool-calling.md) | LLM に外部関数を呼び出させる |
 | [プロバイダー](documentation/providers.md) | 各プロバイダーとモデルの詳細 |
 | [会話](documentation/conversation.md) | マルチターン会話の実装 |
 
@@ -114,6 +144,7 @@ dependencies: [
 | 会話機能 | `Conversation` によるマルチターン会話 |
 | イベントストリーム | `chatStream()` によるストリーミング応答 |
 | プロンプト DSL | `Prompt { }` ビルダーによるプロンプト構築 |
+| ツールコール | `@Tool` によるツール定義、`planToolCalls()` による計画 |
 | **プロバイダー比較** | Claude/GPT/Gemini の並列比較、レスポンス時間・トークン計測 |
 
 ### プロバイダー比較デモ
