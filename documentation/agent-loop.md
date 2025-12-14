@@ -181,9 +181,7 @@ do {
 |-------------|---------|
 | Anthropic (Claude) | ✅ 対応 |
 | OpenAI (GPT) | ✅ 対応 |
-| Google (Gemini) | ❌ 非対応（API制限） |
-
-> **注意**: Gemini API はツール呼び出しと JSON 構造化出力の同時使用をサポートしていません。
+| Google (Gemini) | ✅ 対応 |
 
 ## planToolCalls との違い
 
