@@ -51,7 +51,9 @@ public struct ToolCallInfo: Sendable {
 
     /// ツール引数を指定の型にデコード
     public func decodeInput<T: Decodable>(as type: T.Type) throws -> T {
-        try JSONDecoder().decode(type, from: input)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(type, from: input)
     }
 
     public init(id: String, name: String, input: Data) {

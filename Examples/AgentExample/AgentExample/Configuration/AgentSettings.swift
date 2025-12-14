@@ -26,6 +26,7 @@ final class AgentSettings {
         static let selectedProvider = "agentexample.selectedProvider"
         static let claudeModelOption = "agentexample.claudeModelOption"
         static let gptModelOption = "agentexample.gptModelOption"
+        static let geminiModelOption = "agentexample.geminiModelOption"
         static let maxSteps = "agentexample.maxSteps"
         static let maxTokens = "agentexample.maxTokens"
     }
@@ -47,6 +48,11 @@ final class AgentSettings {
             _gptModelOption = gpt
         }
 
+        if let geminiRaw = UserDefaults.standard.string(forKey: Keys.geminiModelOption),
+           let gemini = GeminiModelOption(rawValue: geminiRaw) {
+            _geminiModelOption = gemini
+        }
+
         if UserDefaults.standard.object(forKey: Keys.maxSteps) != nil {
             _maxSteps = UserDefaults.standard.integer(forKey: Keys.maxSteps)
         }
@@ -62,6 +68,7 @@ final class AgentSettings {
     enum Provider: String, CaseIterable, Identifiable {
         case anthropic = "Anthropic (Claude)"
         case openai = "OpenAI (GPT)"
+        case gemini = "Google (Gemini)"
 
         var id: String { rawValue }
 
@@ -69,6 +76,7 @@ final class AgentSettings {
             switch self {
             case .anthropic: return "Claude"
             case .openai: return "GPT"
+            case .gemini: return "Gemini"
             }
         }
 
@@ -76,6 +84,7 @@ final class AgentSettings {
             switch self {
             case .anthropic: return APIKeyManager.hasAnthropicKey
             case .openai: return APIKeyManager.hasOpenAIKey
+            case .gemini: return APIKeyManager.hasGeminiKey
             }
         }
     }
@@ -142,6 +151,31 @@ final class AgentSettings {
         }
     }
 
+    /// Gemini モデル選択肢
+    enum GeminiModelOption: String, CaseIterable, Identifiable {
+        case pro25 = "Gemini 2.5 Pro（最高性能）"
+        case flash25 = "Gemini 2.5 Flash（高速）"
+        case flash25Lite = "Gemini 2.5 Flash-Lite（軽量）"
+
+        var id: String { rawValue }
+
+        var model: GeminiModel {
+            switch self {
+            case .pro25: return .pro25
+            case .flash25: return .flash25
+            case .flash25Lite: return .flash25Lite
+            }
+        }
+
+        var shortName: String {
+            switch self {
+            case .pro25: return "2.5 Pro"
+            case .flash25: return "2.5 Flash"
+            case .flash25Lite: return "2.5 Flash-Lite"
+            }
+        }
+    }
+
     /// 選択中の Claude モデル
     var claudeModelOption: ClaudeModelOption {
         get { _claudeModelOption }
@@ -161,6 +195,16 @@ final class AgentSettings {
         }
     }
     private var _gptModelOption: GPTModelOption = .gpt4o
+
+    /// 選択中の Gemini モデル
+    var geminiModelOption: GeminiModelOption {
+        get { _geminiModelOption }
+        set {
+            _geminiModelOption = newValue
+            UserDefaults.standard.set(newValue.rawValue, forKey: Keys.geminiModelOption)
+        }
+    }
+    private var _geminiModelOption: GeminiModelOption = .flash25
 
     // MARK: - Agent Configuration
 
@@ -191,6 +235,7 @@ final class AgentSettings {
         switch selectedProvider {
         case .anthropic: return claudeModelOption.shortName
         case .openai: return gptModelOption.shortName
+        case .gemini: return geminiModelOption.shortName
         }
     }
 
@@ -216,6 +261,12 @@ final class AgentSettings {
     func createOpenAIClient() -> OpenAIClient? {
         guard let apiKey = APIKeyManager.openAIKey else { return nil }
         return OpenAIClient(apiKey: apiKey)
+    }
+
+    /// Gemini クライアントを作成
+    func createGeminiClient() -> GeminiClient? {
+        guard let apiKey = APIKeyManager.geminiKey else { return nil }
+        return GeminiClient(apiKey: apiKey)
     }
 
     /// AgentConfiguration を作成

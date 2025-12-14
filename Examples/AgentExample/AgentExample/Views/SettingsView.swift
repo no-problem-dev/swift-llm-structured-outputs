@@ -15,9 +15,11 @@ struct SettingsView: View {
 
     @State private var anthropicKey = ""
     @State private var openAIKey = ""
+    @State private var geminiKey = ""
     @State private var braveSearchKey = ""
     @State private var showingAnthropicKey = false
     @State private var showingOpenAIKey = false
+    @State private var showingGeminiKey = false
     @State private var showingBraveSearchKey = false
 
     var body: some View {
@@ -42,7 +44,7 @@ struct SettingsView: View {
             } header: {
                 Text("プロバイダー")
             } footer: {
-                Text("エージェントループはAnthropicまたはOpenAIで利用可能です。")
+                Text("エージェントループはAnthropic、OpenAI、Geminiで利用可能です。")
             }
 
             // MARK: - モデル選択
@@ -56,12 +58,21 @@ struct SettingsView: View {
                             Text(option.rawValue).tag(option)
                         }
                     }
-                } else {
+                } else if settings.selectedProvider == .openai {
                     Picker("GPT モデル", selection: Binding(
                         get: { settings.gptModelOption },
                         set: { settings.gptModelOption = $0 }
                     )) {
                         ForEach(AgentSettings.GPTModelOption.allCases) { option in
+                            Text(option.rawValue).tag(option)
+                        }
+                    }
+                } else if settings.selectedProvider == .gemini {
+                    Picker("Gemini モデル", selection: Binding(
+                        get: { settings.geminiModelOption },
+                        set: { settings.geminiModelOption = $0 }
+                    )) {
+                        ForEach(AgentSettings.GeminiModelOption.allCases) { option in
                             Text(option.rawValue).tag(option)
                         }
                     }
@@ -103,6 +114,14 @@ struct SettingsView: View {
                     isSet: APIKeyManager.hasOpenAIKey,
                     onSave: { APIKeyManager.setOpenAIKey($0) }
                 )
+
+                APIKeyRow(
+                    label: "Gemini API Key",
+                    key: $geminiKey,
+                    isVisible: $showingGeminiKey,
+                    isSet: APIKeyManager.hasGeminiKey,
+                    onSave: { APIKeyManager.setGeminiKey($0) }
+                )
             } header: {
                 Text("LLM APIキー")
             } footer: {
@@ -128,6 +147,7 @@ struct SettingsView: View {
             Section {
                 StatusRow(label: "Anthropic", isConfigured: APIKeyManager.hasAnthropicKey)
                 StatusRow(label: "OpenAI", isConfigured: APIKeyManager.hasOpenAIKey)
+                StatusRow(label: "Gemini", isConfigured: APIKeyManager.hasGeminiKey)
                 StatusRow(label: "Brave Search", isConfigured: APIKeyManager.hasBraveSearchKey)
             } header: {
                 Text("APIステータス")
@@ -139,6 +159,7 @@ struct SettingsView: View {
                     APIKeyManager.clearAllKeys()
                     anthropicKey = ""
                     openAIKey = ""
+                    geminiKey = ""
                     braveSearchKey = ""
                 } label: {
                     Label("すべてのAPIキーをクリア", systemImage: "trash")

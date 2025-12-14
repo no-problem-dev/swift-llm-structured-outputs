@@ -297,7 +297,9 @@ private actor AgentLoopRunner<Client: AgentCapableClient, Output: StructuredProt
 
     /// JSONをデコードして完了状態に遷移
     private func decodeAndComplete(_ text: String) throws -> AgentStep<Output> {
-        let output = try JSONDecoder().decode(Output.self, from: Data(text.utf8))
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let output = try decoder.decode(Output.self, from: Data(text.utf8))
         phase = .completed
         Task { await context.markCompleted() }
         return .finalResponse(output)

@@ -11,10 +11,13 @@ import LLMStructuredOutputs
 /// リサーチエージェント用ツールセット
 ///
 /// Web検索、ページ取得、天気、計算、時刻取得の5つのツールを提供します。
+/// ToolConfigurationと連携して、ユーザーが選択したツールのみを含むToolSetを生成できます。
 enum ResearchToolSet {
 
+    // MARK: - ToolSet Creation
+
     /// すべてのツールを含むToolSetを作成
-    static var tools: ToolSet {
+    static var allTools: ToolSet {
         ToolSet {
             WebSearchTool.self
             FetchWebPageTool.self
@@ -24,7 +27,49 @@ enum ResearchToolSet {
         }
     }
 
+    /// 後方互換性のためのエイリアス
+    @MainActor
+    static var tools: ToolSet {
+        configuredTools
+    }
+
+    /// ToolConfigurationに基づいて選択されたツールのみを含むToolSetを作成
+    @MainActor
+    static var configuredTools: ToolSet {
+        let config = ToolConfiguration.shared
+        return buildToolSet(enabledTools: config.enabledTools)
+    }
+
+    /// 指定されたツール識別子のセットからToolSetを作成
+    static func buildToolSet(enabledTools: Set<ToolIdentifier>) -> ToolSet {
+        var toolSet = ToolSet()
+
+        for tool in enabledTools {
+            // APIキー要件を満たさないツールはスキップ
+            guard tool.isAvailable else { continue }
+
+            switch tool {
+            case .webSearch:
+                toolSet = toolSet.appending(WebSearchTool.self)
+            case .fetchWebPage:
+                toolSet = toolSet.appending(FetchWebPageTool.self)
+            case .weather:
+                toolSet = toolSet.appending(WeatherTool.self)
+            case .calculator:
+                toolSet = toolSet.appending(CalculatorTool.self)
+            case .currentTime:
+                toolSet = toolSet.appending(CurrentTimeTool.self)
+            }
+        }
+
+        return toolSet
+    }
+
+    // MARK: - Legacy Support (Deprecated)
+
     /// ツールの説明一覧（UI表示用）
+    /// - Note: ToolIdentifierを直接使用することを推奨
+    @available(*, deprecated, message: "Use ToolIdentifier.allCases instead")
     static let descriptions: [(name: String, description: String, icon: String)] = [
         ("web_search_tool", "Webを検索", "magnifyingglass"),
         ("fetch_web_page", "Webページを取得", "doc.text"),
