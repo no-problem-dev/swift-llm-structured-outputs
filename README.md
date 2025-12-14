@@ -47,6 +47,28 @@ print(user.name)  // "山田太郎"
 print(user.age)   // 35
 ```
 
+### プロンプト DSL
+
+構造化されたプロンプトを DSL で構築できます：
+
+```swift
+let prompt = Prompt {
+    PromptComponent.role("データ分析の専門家")
+    PromptComponent.objective("ユーザー情報を抽出する")
+    PromptComponent.instruction("名前は敬称を除いて抽出")
+    PromptComponent.constraint("推測はしない")
+    PromptComponent.example(
+        input: "佐藤花子さん（28）は東京在住",
+        output: #"{"name": "佐藤花子", "age": 28}"#
+    )
+}
+
+let user: UserInfo = try await client.generate(
+    prompt: prompt,
+    model: .sonnet
+)
+```
+
 ## インストール
 
 ```swift
@@ -70,6 +92,7 @@ dependencies: [
 | ガイド | 説明 |
 |--------|------|
 | [はじめに](documentation/getting-started.md) | インストールと基本的な使い方 |
+| [プロンプト構築](documentation/prompt-building.md) | DSL を使ったプロンプト構築 |
 | [プロバイダー](documentation/providers.md) | 各プロバイダーとモデルの詳細 |
 | [会話](documentation/conversation.md) | マルチターン会話の実装 |
 
