@@ -1,6 +1,7 @@
 # 会話
 
-`Conversation` クラスは、型安全な構造化出力を維持しながら、LLM とのマルチターン会話を管理する便利な方法を提供します。
+`Conversation` は、型安全な構造化出力を維持しながら、LLM とのマルチターン会話を管理する Actor です。
+Actor として実装されているため、並行アクセスに対して安全であり、二重送信も自動的に防止されます。
 
 ## 基本的な使い方
 
@@ -11,7 +12,7 @@ import LLMStructuredOutputs
 
 let client = AnthropicClient(apiKey: "sk-ant-...")
 
-var conversation = Conversation(
+let conversation = Conversation(
     client: client,
     model: .sonnet,
     systemPrompt: "あなたは親切な料理アシスタントです"
@@ -54,18 +55,18 @@ let tips: CookingTips = try await conversation.send("初心者向けのコツは
 ### メッセージの追跡
 
 ```swift
-// 会話内のすべてのメッセージを取得
-let messages = conversation.messages
+// 会話内のすべてのメッセージを取得（Actor なので await が必要）
+let messages = await conversation.messages
 
 // ターン数（ユーザー・アシスタントのペア）を取得
-let turns = conversation.turnCount
+let turns = await conversation.turnCount
 ```
 
 ### トークン使用量
 
 ```swift
-// すべてのターンの合計トークン使用量を追跡
-let totalUsage = conversation.totalUsage
+// すべてのターンの合計トークン使用量を追跡（Actor なので await が必要）
+let totalUsage = await conversation.totalUsage
 print("入力トークン: \(totalUsage.inputTokens)")
 print("出力トークン: \(totalUsage.outputTokens)")
 print("合計トークン: \(totalUsage.totalTokens)")
@@ -74,8 +75,8 @@ print("合計トークン: \(totalUsage.totalTokens)")
 ### 会話のクリア
 
 ```swift
-// 会話をリセットして最初からやり直す
-conversation.clear()
+// 会話をリセットして最初からやり直す（Actor なので await が必要）
+await conversation.clear()
 ```
 
 ## 既存のメッセージで開始
@@ -88,7 +89,7 @@ let existingMessages: [LLMMessage] = [
     .assistant("{\"name\": \"パリ\", \"country\": \"フランス\"}")
 ]
 
-var conversation = Conversation(
+let conversation = Conversation(
     client: client,
     model: .sonnet,
     messages: existingMessages
@@ -178,7 +179,7 @@ let rawText = response.rawText
 レスポンスのランダム性を制御:
 
 ```swift
-var conversation = Conversation(
+let conversation = Conversation(
     client: client,
     model: .sonnet,
     temperature: 0.7  // 0.0 = 確定的、1.0 = 創造的
@@ -190,7 +191,7 @@ var conversation = Conversation(
 レスポンスの長さを制限:
 
 ```swift
-var conversation = Conversation(
+let conversation = Conversation(
     client: client,
     model: .sonnet,
     maxTokens: 500
@@ -199,23 +200,23 @@ var conversation = Conversation(
 
 ## 型安全性
 
-`Conversation` クラスはクライアント型に対してジェネリックであり、モデルの互換性を保証します:
+`Conversation` はクライアント型に対してジェネリックであり、モデルの互換性を保証します:
 
 ```swift
 // Anthropic クライアントを使用 - ClaudeModel のみ許可
-var anthropicConv = Conversation(
+let anthropicConv = Conversation(
     client: AnthropicClient(apiKey: "..."),
     model: .sonnet  // ✅ ClaudeModel
 )
 
 // OpenAI クライアントを使用 - GPTModel のみ許可
-var openaiConv = Conversation(
+let openaiConv = Conversation(
     client: OpenAIClient(apiKey: "..."),
     model: .gpt4o  // ✅ GPTModel
 )
 
 // Gemini クライアントを使用 - GeminiModel のみ許可
-var geminiConv = Conversation(
+let geminiConv = Conversation(
     client: GeminiClient(apiKey: "..."),
     model: .flash25  // ✅ GeminiModel
 )
@@ -223,7 +224,8 @@ var geminiConv = Conversation(
 
 ## 並行処理
 
-`Conversation` は `Sendable` であり、非同期コンテキスト間で安全に使用できます:
+`Conversation` は Actor として実装されており、並行アクセスに対して安全です。
+複数の Task から同じ会話インスタンスにアクセスしても、状態の一貫性が保証されます:
 
 ```swift
 let conversation = Conversation(
@@ -231,12 +233,127 @@ let conversation = Conversation(
     model: .sonnet
 )
 
-// 並行コンテキストで安全に使用
+// 複数の Task から安全にアクセス可能
 Task {
-    var conv = conversation
-    let result: MyType = try await conv.send("こんにちは")
+    let result: MyType = try await conversation.send("こんにちは")
+}
+
+// 二重送信は自動的に防止される（ConversationError.alreadySending がスロー）
+```
+
+### 二重送信の防止
+
+同じ会話で複数のリクエストを同時に送信しようとすると、`ConversationError.alreadySending` がスローされます:
+
+```swift
+do {
+    let result: MyType = try await conversation.send("質問")
+} catch ConversationError.alreadySending {
+    print("前のリクエストが完了するまで待ってください")
 }
 ```
+
+## イベントストリーム
+
+`eventStream` を使用すると、会話中に発生するイベントを AsyncSequence として購読できます。
+メッセージの送受信だけでなく、エラーや会話のクリアなど、すべてのイベントをリアルタイムで監視できます。
+
+### ConversationEvent
+
+会話イベントは以下の種類があります：
+
+| イベント | 説明 |
+|----------|------|
+| `.userMessage(LLMMessage)` | ユーザーメッセージが送信された |
+| `.assistantMessage(LLMMessage)` | アシスタントからの応答を受信した |
+| `.error(Error)` | API エラーが発生した |
+| `.cleared` | 会話がクリアされた |
+
+### 基本的な使い方
+
+```swift
+let conversation = Conversation(
+    client: client,
+    model: .sonnet
+)
+
+// バックグラウンドでイベントを監視
+Task {
+    for await event in await conversation.eventStream {
+        switch event {
+        case .userMessage(let message):
+            print("👤 User: \(message.content)")
+        case .assistantMessage(let message):
+            print("🤖 Assistant: \(message.content)")
+        case .error(let error):
+            print("❌ Error: \(error)")
+        case .cleared:
+            print("🗑️ Conversation cleared")
+        }
+    }
+}
+
+// メッセージを送信するとイベントが流れる
+let result: CityInfo = try await conversation.send("日本の首都は？")
+```
+
+### エラーハンドリング
+
+イベントストリームを使用すると、`send` メソッドの `try-catch` とは別に、エラーを監視できます：
+
+```swift
+Task {
+    for await event in await conversation.eventStream {
+        if case .error(let error) = event {
+            // エラーをログに記録、UI に表示など
+            logger.error("会話エラー: \(error)")
+        }
+    }
+}
+
+// send はエラーをスローするが、ストリームでも同じエラーを受け取れる
+do {
+    let result: MyType = try await conversation.send("質問")
+} catch {
+    // エラー処理
+}
+```
+
+### UI 連携の例
+
+SwiftUI でリアルタイムに会話を表示する例：
+
+```swift
+@MainActor
+class ConversationViewModel: ObservableObject {
+    @Published var events: [ConversationEvent] = []
+
+    private let conversation: Conversation<AnthropicClient>
+
+    init(client: AnthropicClient) {
+        self.conversation = Conversation(client: client, model: .sonnet)
+        startMonitoring()
+    }
+
+    private func startMonitoring() {
+        Task {
+            for await event in await conversation.eventStream {
+                events.append(event)
+            }
+        }
+    }
+
+    func send(_ prompt: String) async throws -> SomeResponse {
+        try await conversation.send(prompt)
+    }
+}
+```
+
+### 注意事項
+
+- 1つの `Conversation` につき1つのストリームのみ有効です
+- 新しいストリームを作成すると、以前のストリームは自動的に終了します
+- ストリームは `send` や `clear` の呼び出しに応じてイベントを発行します
 
 ## ベストプラクティス
 

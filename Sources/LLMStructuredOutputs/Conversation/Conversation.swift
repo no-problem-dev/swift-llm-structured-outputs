@@ -1,18 +1,39 @@
 import Foundation
 
+// MARK: - ConversationEvent
+
+/// 会話イベント
+///
+/// 会話中に発生するすべてのイベントを表現します。
+/// メッセージの送受信やエラーを統一的に扱うことができます。
+public enum ConversationEvent: Sendable {
+    /// ユーザーメッセージが送信された
+    case userMessage(LLMMessage)
+
+    /// アシスタントからの応答を受信した
+    case assistantMessage(LLMMessage)
+
+    /// エラーが発生した
+    case error(Error)
+
+    /// 会話がクリアされた
+    case cleared
+}
+
 // MARK: - Conversation
 
-/// 会話セッションを管理する型
+/// 会話セッションを管理する Actor
 ///
 /// 会話履歴とトークン使用量を自動的に追跡し、
 /// マルチターンの会話を簡潔に実装できます。
+/// Actor として実装されているため、並行アクセスに対して安全です。
 ///
 /// ## 使用例
 ///
 /// ```swift
 /// let client = AnthropicClient(apiKey: "...")
 ///
-/// var conv = Conversation(
+/// let conv = Conversation(
 ///     client: client,
 ///     model: .sonnet,
 ///     systemPrompt: "あなたは親切なアシスタントです。"
@@ -27,14 +48,36 @@ import Foundation
 /// print(population.count)  // 13960000
 ///
 /// // トークン使用量を確認
-/// print(conv.totalUsage.totalTokens)  // 累計トークン数
-/// print(conv.messages.count)  // 4 (user, assistant, user, assistant)
+/// print(await conv.totalUsage.totalTokens)  // 累計トークン数
+/// print(await conv.messages.count)  // 4 (user, assistant, user, assistant)
 /// ```
 ///
-/// ## 注意事項
-/// - この型は `struct` であるため、`send` メソッドは `mutating` です
-/// - 並行処理で使用する場合は、適切な同期が必要です
-public struct Conversation<Client: StructuredLLMClient>: Sendable where Client.Model: Sendable {
+/// ## イベントストリーム
+///
+/// `eventStream` を使用すると、会話中のイベント（メッセージ、エラー等）を
+/// AsyncSequence として購読できます：
+///
+/// ```swift
+/// // バックグラウンドでイベントを監視
+/// Task {
+///     for await event in conv.eventStream {
+///         switch event {
+///         case .userMessage(let message):
+///             print("👤 User: \(message.content)")
+///         case .assistantMessage(let message):
+///             print("🤖 Assistant: \(message.content)")
+///         case .error(let error):
+///             print("❌ Error: \(error)")
+///         case .cleared:
+///             print("🗑️ Conversation cleared")
+///         }
+///     }
+/// }
+///
+/// // メッセージを送信すると、ストリームにイベントが流れる
+/// let result: CityInfo = try await conv.send("日本の首都は？")
+/// ```
+public actor Conversation<Client: StructuredLLMClient> where Client.Model: Sendable {
     /// LLM クライアント
     private let client: Client
 
@@ -59,6 +102,12 @@ public struct Conversation<Client: StructuredLLMClient>: Sendable where Client.M
     ///
     /// この会話セッションで使用されたトークンの合計。
     public private(set) var totalUsage: TokenUsage
+
+    /// 送信中フラグ（二重送信防止）
+    private var isSending: Bool = false
+
+    /// イベントストリームの継続（AsyncStream 用）
+    private var eventContinuation: AsyncStream<ConversationEvent>.Continuation?
 
     // MARK: - Initializers
 
@@ -122,32 +171,49 @@ public struct Conversation<Client: StructuredLLMClient>: Sendable where Client.M
     ///
     /// - Parameter prompt: ユーザーメッセージ
     /// - Returns: 指定された型にデコードされた構造化出力
+    /// - Throws: `ConversationError.alreadySending` - 既に送信中の場合
     /// - Throws: `LLMError` - API エラー、デコードエラーなど
-    public mutating func send<T: StructuredProtocol>(
+    public func send<T: StructuredProtocol>(
         _ prompt: String
     ) async throws -> T {
+        guard !isSending else {
+            throw ConversationError.alreadySending
+        }
+        isSending = true
+        defer { isSending = false }
+
         // ユーザーメッセージを追加
-        messages.append(.user(prompt))
+        let userMessage = LLMMessage.user(prompt)
+        messages.append(userMessage)
+        emit(.userMessage(userMessage))
 
-        // API リクエスト
-        let response: ChatResponse<T> = try await client.chat(
-            messages: messages,
-            model: model,
-            systemPrompt: systemPrompt,
-            temperature: temperature,
-            maxTokens: maxTokens
-        )
+        do {
+            // API リクエスト
+            let response: ChatResponse<T> = try await client.chat(
+                messages: messages,
+                model: model,
+                systemPrompt: systemPrompt,
+                temperature: temperature,
+                maxTokens: maxTokens
+            )
 
-        // アシスタントメッセージを追加
-        messages.append(response.assistantMessage)
+            // アシスタントメッセージを追加
+            messages.append(response.assistantMessage)
+            emit(.assistantMessage(response.assistantMessage))
 
-        // トークン使用量を累積
-        totalUsage = TokenUsage(
-            inputTokens: totalUsage.inputTokens + response.usage.inputTokens,
-            outputTokens: totalUsage.outputTokens + response.usage.outputTokens
-        )
+            // トークン使用量を累積
+            totalUsage = TokenUsage(
+                inputTokens: totalUsage.inputTokens + response.usage.inputTokens,
+                outputTokens: totalUsage.outputTokens + response.usage.outputTokens
+            )
 
-        return response.result
+            return response.result
+        } catch {
+            // エラー時はユーザーメッセージを削除してロールバック
+            messages.removeLast()
+            emit(.error(error))
+            throw error
+        }
     }
 
     /// 詳細な応答を含むメッセージを送信
@@ -156,40 +222,59 @@ public struct Conversation<Client: StructuredLLMClient>: Sendable where Client.M
     ///
     /// - Parameter prompt: ユーザーメッセージ
     /// - Returns: 構造化出力と会話継続情報を含む `ChatResponse`
+    /// - Throws: `ConversationError.alreadySending` - 既に送信中の場合
     /// - Throws: `LLMError` - API エラー、デコードエラーなど
-    public mutating func sendWithDetails<T: StructuredProtocol>(
+    public func sendWithDetails<T: StructuredProtocol>(
         _ prompt: String
     ) async throws -> ChatResponse<T> {
+        guard !isSending else {
+            throw ConversationError.alreadySending
+        }
+        isSending = true
+        defer { isSending = false }
+
         // ユーザーメッセージを追加
-        messages.append(.user(prompt))
+        let userMessage = LLMMessage.user(prompt)
+        messages.append(userMessage)
+        emit(.userMessage(userMessage))
 
-        // API リクエスト
-        let response: ChatResponse<T> = try await client.chat(
-            messages: messages,
-            model: model,
-            systemPrompt: systemPrompt,
-            temperature: temperature,
-            maxTokens: maxTokens
-        )
+        do {
+            // API リクエスト
+            let response: ChatResponse<T> = try await client.chat(
+                messages: messages,
+                model: model,
+                systemPrompt: systemPrompt,
+                temperature: temperature,
+                maxTokens: maxTokens
+            )
 
-        // アシスタントメッセージを追加
-        messages.append(response.assistantMessage)
+            // アシスタントメッセージを追加
+            messages.append(response.assistantMessage)
+            emit(.assistantMessage(response.assistantMessage))
 
-        // トークン使用量を累積
-        totalUsage = TokenUsage(
-            inputTokens: totalUsage.inputTokens + response.usage.inputTokens,
-            outputTokens: totalUsage.outputTokens + response.usage.outputTokens
-        )
+            // トークン使用量を累積
+            totalUsage = TokenUsage(
+                inputTokens: totalUsage.inputTokens + response.usage.inputTokens,
+                outputTokens: totalUsage.outputTokens + response.usage.outputTokens
+            )
 
-        return response
+            return response
+        } catch {
+            // エラー時はユーザーメッセージを削除してロールバック
+            messages.removeLast()
+            emit(.error(error))
+            throw error
+        }
     }
 
     /// 会話履歴をクリア
     ///
     /// 会話履歴とトークン使用量をリセットして新しい会話を開始できます。
-    public mutating func clear() {
+    /// イベントストリームに `.cleared` イベントが送信されます。
+    public func clear() {
         messages = []
         totalUsage = TokenUsage(inputTokens: 0, outputTokens: 0)
+        emit(.cleared)
     }
 
     /// 会話のターン数を取得
@@ -197,5 +282,81 @@ public struct Conversation<Client: StructuredLLMClient>: Sendable where Client.M
     /// ユーザーとアシスタントのメッセージペア数を返します。
     public var turnCount: Int {
         messages.count / 2
+    }
+
+    // MARK: - Event Stream
+
+    /// 会話イベントを購読する AsyncStream
+    ///
+    /// メッセージの送受信、エラー、会話のクリアなど、
+    /// 会話中に発生するすべてのイベントがリアルタイムで流れます。
+    ///
+    /// ## 使用例
+    ///
+    /// ```swift
+    /// // バックグラウンドでイベントを監視
+    /// Task {
+    ///     for await event in await conv.eventStream {
+    ///         switch event {
+    ///         case .userMessage(let message):
+    ///             print("👤 User: \(message.content)")
+    ///         case .assistantMessage(let message):
+    ///             print("🤖 Assistant: \(message.content)")
+    ///         case .error(let error):
+    ///             print("❌ Error: \(error)")
+    ///         case .cleared:
+    ///             print("🗑️ Conversation cleared")
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// // メッセージを送信するとイベントが流れる
+    /// let result: CityInfo = try await conv.send("日本の首都は？")
+    /// ```
+    ///
+    /// - Note: 1つの Conversation につき1つのストリームのみ有効です。
+    ///   新しいストリームを作成すると、以前のストリームは終了します。
+    public var eventStream: AsyncStream<ConversationEvent> {
+        // 既存のストリームがあれば終了
+        eventContinuation?.finish()
+
+        return AsyncStream { continuation in
+            self.eventContinuation = continuation
+
+            continuation.onTermination = { [weak self] _ in
+                Task { [weak self] in
+                    await self?.clearEventContinuation()
+                }
+            }
+        }
+    }
+
+    /// イベント継続をクリア
+    private func clearEventContinuation() {
+        eventContinuation = nil
+    }
+
+    /// ストリームにイベントを送信
+    private func emit(_ event: ConversationEvent) {
+        eventContinuation?.yield(event)
+    }
+}
+
+// MARK: - ConversationError
+
+/// 会話エラー
+public enum ConversationError: Error, Sendable {
+    /// 既に送信中
+    ///
+    /// 前のリクエストが完了する前に新しいリクエストを送信しようとした場合に発生します。
+    case alreadySending
+}
+
+extension ConversationError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .alreadySending:
+            return "A message is already being sent. Please wait for the current request to complete."
+        }
     }
 }
