@@ -7,6 +7,51 @@
 
 ## [未リリース]
 
+## [1.0.10] - 2025-12-15
+
+### 追加
+
+- **自動リトライ機能**: APIレート制限（429エラー）および5xxサーバーエラー時の自動リトライ
+  - 指数バックオフ + ジッターによる待機時間計算
+  - 各プロバイダーのレート制限ヘッダー解析（OpenAI/Anthropic/Gemini対応）
+  - `RetryConfiguration`: リトライ設定（`.default`, `.disabled`, `.aggressive`, `.conservative`）
+  - `RetryEvent` / `RetryEventHandler`: リトライイベント通知コールバック
+
+- **Gemini エージェントループ対応**: Geminiプロバイダーでのエージェントループ実行をサポート
+  - Gemini特有の終了判定（関数呼び出し時のfinishReason処理）に対応
+
+- **エージェント終了ポリシー**: エージェントループの終了判定を拡張
+  - `StandardTerminationPolicy`: 標準的な終了判定
+  - `DuplicateDetectionPolicy`: 重複ツール呼び出し検出
+
+- **エージェント実行制御**: 実行ライフサイクル管理機能
+  - `AgentExecutionController`: 開始/キャンセル/状態管理
+  - エージェント実行のキャンセル機能
+
+- **ドキュメント**
+  - documentation/agent-loop-internals.md: エージェントループ内部実装ガイド
+
+### 変更
+
+- **エージェントループのsystemPrompt**: `String?` から `Prompt?` 型に変更
+  - Prompt DSLで構築したプロンプトを直接渡せるように改善
+  - `ExpressibleByStringLiteral` により文字列リテラルも引き続き使用可能
+
+- **エージェントループのフェーズ管理**: 複数のブール値フラグを `LoopPhase` enumに統合
+  - 状態の排他性をコンパイル時に保証
+  - リトライ回数をassociated valueで管理
+
+- **AgentExampleアプリの大幅改善**
+  - カテゴリ別構造化出力型（ResearchReport, CalculationReport, TemporalReport, MultiToolReport, ReasoningReport）
+  - 新規ツール追加（UnitConverterTool, RandomGeneratorTool, StringManipulationTool）
+  - ToolSelectionView: グリッド形式のツール選択UI
+  - ExecutionProgressBanner: フェーズ別進行状況バナーとリアルタイム経過時間表示
+
+### 修正
+
+- **OpenAI構造化出力**: メッセージ配列がassistantで終わる場合のエラーを修正
+- **snake_caseデコード**: AgentStepSequence, AgentTypes, LLMProviderでのsnake_case対応
+
 ## [1.0.9] - 2025-12-14
 
 ### 追加
@@ -192,7 +237,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.9...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.10...HEAD
+[1.0.10]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.9...v1.0.10
 [1.0.9]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.6...v1.0.7
