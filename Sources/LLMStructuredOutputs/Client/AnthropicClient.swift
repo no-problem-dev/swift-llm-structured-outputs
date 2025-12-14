@@ -38,7 +38,7 @@ import FoundationNetworking
 /// - `.sonnet` - Claude Sonnet 4.5（バランス型）
 /// - `.haiku` - Claude Haiku 4.5（高速・低コスト）
 /// - `.opus4_1` - Claude Opus 4.1
-public struct AnthropicClient: StructuredLLMClient {
+public struct AnthropicClient: StructuredLLMClient, AgentCapableClient {
     public typealias Model = ClaudeModel
 
     private let provider: AnthropicProvider
@@ -325,5 +325,27 @@ public struct AnthropicClient: StructuredLLMClient {
             model: response.model,
             rawText: rawText
         )
+    }
+
+    // MARK: - AgentCapableClient
+
+    public func executeAgentStep(
+        messages: [LLMMessage],
+        model: ClaudeModel,
+        systemPrompt: String?,
+        tools: ToolSet,
+        toolChoice: ToolChoice?,
+        responseSchema: JSONSchema?
+    ) async throws -> LLMResponse {
+        let request = LLMRequest(
+            model: .claude(model),
+            messages: messages,
+            systemPrompt: systemPrompt,
+            responseSchema: responseSchema,
+            tools: tools.isEmpty ? nil : tools,
+            toolChoice: tools.isEmpty ? nil : (toolChoice ?? .auto)
+        )
+
+        return try await provider.send(request)
     }
 }

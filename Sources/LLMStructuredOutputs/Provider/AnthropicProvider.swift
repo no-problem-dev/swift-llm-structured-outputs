@@ -86,10 +86,7 @@ internal struct AnthropicProvider: LLMProvider {
     private func buildRequestBody(from request: LLMRequest) throws -> AnthropicRequestBody {
         // メッセージを変換
         let messages = request.messages.map { message in
-            AnthropicMessage(
-                role: message.role == .user ? "user" : "assistant",
-                content: message.content
-            )
+            convertToAnthropicMessage(message)
         }
 
         // 構造化出力の設定（Anthropic APIでサポートされていない制約を除去）
@@ -129,6 +126,30 @@ internal struct AnthropicProvider: LLMProvider {
         case .tool(let name):
             return .tool(name)
         }
+    }
+
+    /// LLMMessage を Anthropic メッセージ形式に変換
+    private func convertToAnthropicMessage(_ message: LLMMessage) -> AnthropicMessage {
+        let role = message.role == .user ? "user" : "assistant"
+
+        // コンテンツブロックを変換
+        var contentBlocks: [AnthropicMessageContent] = []
+
+        for content in message.contents {
+            switch content {
+            case .text(let text):
+                contentBlocks.append(.text(text))
+
+            case .toolUse(let id, let name, let input):
+                contentBlocks.append(.toolUse(id: id, name: name, input: input))
+
+            case .toolResult(let toolCallId, _, let resultContent, let isError):
+                // Anthropic APIではnameは不要（toolUseIdで関連付け）
+                contentBlocks.append(.toolResult(toolUseId: toolCallId, content: resultContent, isError: isError))
+            }
+        }
+
+        return AnthropicMessage(role: role, content: contentBlocks)
     }
 
     /// HTTPリクエストを実行
@@ -376,7 +397,70 @@ private enum AnthropicToolChoice: Encodable {
 /// Anthropic メッセージ
 private struct AnthropicMessage: Encodable {
     let role: String
-    let content: String
+    let content: [AnthropicMessageContent]
+
+    enum CodingKeys: String, CodingKey {
+        case role
+        case content
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(role, forKey: .role)
+        try container.encode(content, forKey: .content)
+    }
+}
+
+/// Anthropic メッセージコンテンツ
+private enum AnthropicMessageContent: Encodable {
+    /// テキストコンテンツ
+    case text(String)
+
+    /// ツール呼び出し（アシスタント）
+    case toolUse(id: String, name: String, input: Data)
+
+    /// ツール結果（ユーザー）
+    case toolResult(toolUseId: String, content: String, isError: Bool)
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+
+        switch self {
+        case .text(let text):
+            try container.encode(["type": "text", "text": text])
+
+        case .toolUse(let id, let name, let input):
+            // input を辞書に変換
+            let inputDict: [String: Any]
+            if let dict = try? JSONSerialization.jsonObject(with: input) as? [String: Any] {
+                inputDict = dict
+            } else {
+                inputDict = [:]
+            }
+            // JSONValue を使ってエンコード
+            let inputData = try JSONSerialization.data(withJSONObject: inputDict)
+            let inputJSON = try JSONDecoder().decode(JSONValue.self, from: inputData)
+
+            let dict: [String: JSONValue] = [
+                "type": .string("tool_use"),
+                "id": .string(id),
+                "name": .string(name),
+                "input": inputJSON
+            ]
+            try container.encode(dict)
+
+        case .toolResult(let toolUseId, let resultContent, let isError):
+            var dict: [String: JSONValue] = [
+                "type": .string("tool_result"),
+                "tool_use_id": .string(toolUseId),
+                "content": .string(resultContent)
+            ]
+            if isError {
+                dict["is_error"] = .bool(true)
+            }
+            try container.encode(dict)
+        }
+    }
 }
 
 /// Anthropic 出力フォーマット設定

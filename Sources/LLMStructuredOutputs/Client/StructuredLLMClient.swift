@@ -197,3 +197,137 @@ extension StructuredLLMClient {
         )
     }
 }
+
+// MARK: - AgentCapable Protocol
+
+/// エージェントループをサポートするクライアントのプロトコル
+///
+/// このプロトコルは内部使用を想定しており、エージェントループの実装に必要な
+/// 低レベルのメソッドを提供します。
+public protocol AgentCapableClient: StructuredLLMClient {
+    /// エージェントステップを実行
+    ///
+    /// メッセージ履歴、ツール、オプションの構造化出力スキーマを含むリクエストを送信します。
+    ///
+    /// - Parameters:
+    ///   - messages: メッセージ履歴
+    ///   - model: 使用するモデル
+    ///   - systemPrompt: システムプロンプト
+    ///   - tools: 使用可能なツール
+    ///   - toolChoice: ツール選択設定
+    ///   - responseSchema: 期待する出力スキーマ（最終出力用）
+    /// - Returns: LLM レスポンス
+    func executeAgentStep(
+        messages: [LLMMessage],
+        model: Model,
+        systemPrompt: String?,
+        tools: ToolSet,
+        toolChoice: ToolChoice?,
+        responseSchema: JSONSchema?
+    ) async throws -> LLMResponse
+}
+
+// MARK: - AgentCapableClient Default Implementations
+
+extension AgentCapableClient {
+    /// エージェントループを実行し、各ステップを AsyncSequence として返す
+    ///
+    /// LLM がツールを選択・実行し、最終的な構造化出力を生成するまでループします。
+    /// 各ステップ（思考、ツール呼び出し、ツール結果、最終出力）が順次返されます。
+    ///
+    /// ## 使用例
+    ///
+    /// ```swift
+    /// @Tool("天気を取得する")
+    /// struct GetWeather {
+    ///     @ToolArgument("場所")
+    ///     var location: String
+    ///
+    ///     func call() async throws -> String {
+    ///         return "晴れ、25°C"
+    ///     }
+    /// }
+    ///
+    /// let tools = ToolSet {
+    ///     GetWeather.self
+    /// }
+    ///
+    /// @Structured("天気レポート")
+    /// struct WeatherReport {
+    ///     @StructuredField("場所")
+    ///     var location: String
+    ///     @StructuredField("天気")
+    ///     var weather: String
+    /// }
+    ///
+    /// for try await step in client.runAgent(
+    ///     prompt: "東京の天気を教えて",
+    ///     model: .sonnet,
+    ///     tools: tools
+    /// ) as AgentStepSequence<AnthropicClient, WeatherReport> {
+    ///     switch step {
+    ///     case .thinking(let response):
+    ///         print("思考: \(response.textContent ?? "")")
+    ///     case .toolCall(let info):
+    ///         print("ツール呼び出し: \(info.name)")
+    ///     case .toolResult(let info):
+    ///         print("結果: \(info.content)")
+    ///     case .finalResponse(let report):
+    ///         print("最終出力: \(report.location) - \(report.weather)")
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - prompt: ユーザープロンプト
+    ///   - model: 使用するモデル
+    ///   - tools: 使用可能なツールセット
+    ///   - systemPrompt: システムプロンプト（オプション）
+    ///   - configuration: エージェント設定（オプション、デフォルト: 最大10ステップ）
+    /// - Returns: 各ステップを返す AsyncSequence
+    public func runAgent<Output: StructuredProtocol>(
+        prompt: String,
+        model: Model,
+        tools: ToolSet,
+        systemPrompt: String? = nil,
+        configuration: AgentConfiguration = .default
+    ) -> AgentStepSequence<Self, Output> {
+        runAgent(
+            messages: [.user(prompt)],
+            model: model,
+            tools: tools,
+            systemPrompt: systemPrompt,
+            configuration: configuration
+        )
+    }
+
+    /// 会話履歴を含むエージェントループを実行
+    ///
+    /// - Parameters:
+    ///   - messages: メッセージ履歴
+    ///   - model: 使用するモデル
+    ///   - tools: 使用可能なツールセット
+    ///   - systemPrompt: システムプロンプト（オプション）
+    ///   - configuration: エージェント設定（オプション）
+    /// - Returns: 各ステップを返す AsyncSequence
+    public func runAgent<Output: StructuredProtocol>(
+        messages: [LLMMessage],
+        model: Model,
+        tools: ToolSet,
+        systemPrompt: String? = nil,
+        configuration: AgentConfiguration = .default
+    ) -> AgentStepSequence<Self, Output> {
+        let context = AgentContext(
+            systemPrompt: systemPrompt,
+            tools: tools,
+            initialMessages: messages,
+            configuration: configuration
+        )
+
+        return AgentStepSequence<Self, Output>(
+            client: self,
+            model: model,
+            context: context
+        )
+    }
+}
