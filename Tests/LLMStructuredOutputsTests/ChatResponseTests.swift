@@ -307,6 +307,21 @@ final class ChatResponseTests: XCTestCase {
         }
     }
 
+    func testConversationEventError() {
+        let error = LLMError.networkError(URLError(.badServerResponse))
+        let event = ConversationEvent.error(error)
+
+        if case .error(let e) = event {
+            if case .networkError = e {
+                // Success
+            } else {
+                XCTFail("Expected networkError")
+            }
+        } else {
+            XCTFail("Expected error event")
+        }
+    }
+
     func testConversationEventIsSendable() {
         func takeSendable<T: Sendable>(_ value: T) {}
 
@@ -432,6 +447,57 @@ final class ChatResponseTests: XCTestCase {
         } else {
             XCTFail("Expected usageUpdated event")
         }
+    }
+
+    func testEventStreamReceivesErrorEvent() async {
+        let history = ConversationHistory()
+
+        let collector = EventCollector()
+
+        let monitorTask = Task {
+            for await event in history.eventStream {
+                await collector.append(event)
+                if case .error = event { break }
+            }
+        }
+
+        // Give the stream time to set up
+        try? await Task.sleep(nanoseconds: 10_000_000)
+
+        // Emit error
+        let error = LLMError.serverError(500, "Internal Server Error")
+        await history.emitError(error)
+
+        // Wait for the monitor task
+        await monitorTask.value
+
+        let events = await collector.events
+        XCTAssertEqual(events.count, 1)
+
+        if case .error(let e) = events[0] {
+            if case .serverError(let statusCode, let message) = e {
+                XCTAssertEqual(statusCode, 500)
+                XCTAssertEqual(message, "Internal Server Error")
+            } else {
+                XCTFail("Expected serverError")
+            }
+        } else {
+            XCTFail("Expected error event")
+        }
+    }
+
+    func testEmitErrorMethod() async {
+        let history = ConversationHistory()
+
+        // emitError should not affect messages or usage
+        let error = LLMError.networkError(URLError(.notConnectedToInternet))
+        await history.emitError(error)
+
+        let messages = await history.getMessages()
+        let usage = await history.getTotalUsage()
+
+        XCTAssertTrue(messages.isEmpty)
+        XCTAssertEqual(usage.totalTokens, 0)
     }
 }
 

@@ -172,6 +172,7 @@ let result: AnalysisResult = try await client.chat(
 | `.assistantMessage(LLMMessage)` | アシスタント応答が追加された |
 | `.usageUpdated(TokenUsage)` | トークン使用量が更新された |
 | `.cleared` | 履歴がクリアされた |
+| `.error(LLMError)` | API呼び出しでエラーが発生した |
 
 ### 基本的な使い方
 
@@ -190,6 +191,8 @@ Task {
             print("📊 Tokens: \(usage.totalTokens)")
         case .cleared:
             print("🗑️ History cleared")
+        case .error(let error):
+            print("❌ Error: \(error.localizedDescription)")
         }
     }
 }
@@ -238,6 +241,9 @@ struct ConversationView: View {
             case .cleared:
                 messages = []
                 totalTokens = 0
+            case .error(let error):
+                // エラー発生時の処理（UIにエラー表示など）
+                print("Error: \(error.localizedDescription)")
             }
         }
     }

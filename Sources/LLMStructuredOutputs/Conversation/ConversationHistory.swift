@@ -31,6 +31,8 @@ import Foundation
 ///             print("Total tokens: \(usage.totalTokens)")
 ///         case .cleared:
 ///             print("History cleared")
+///         case .error(let error):
+///             print("Error: \(error)")
 ///         }
 ///     }
 /// }
@@ -136,6 +138,10 @@ public actor ConversationHistory: ConversationHistoryProtocol {
         messages = []
         totalUsage = TokenUsage(inputTokens: 0, outputTokens: 0)
         emit(.cleared)
+    }
+
+    public func emitError(_ error: LLMError) {
+        emit(.error(error))
     }
 
     // MARK: - Private Methods
