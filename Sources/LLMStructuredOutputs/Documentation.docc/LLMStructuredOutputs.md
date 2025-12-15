@@ -104,8 +104,8 @@ let user: UserInfo = try await client.generate(
 - ``AgentConfiguration``
 - ``AgentContext``
 - ``AgentError``
-- ``ToolCallInfo``
-- ``ToolResultInfo``
+- ``ToolCall``
+- ``ToolResponse``
 
 ### エラー
 

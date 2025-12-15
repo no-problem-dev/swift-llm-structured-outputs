@@ -250,7 +250,7 @@ continueWithTools?
 
 | Decision | 説明 | 次のアクション |
 |----------|------|----------------|
-| `continueWithTools([ToolCallInfo])` | ツール呼び出しを処理してループ継続 | ツール実行 → 次ステップ |
+| `continueWithTools([ToolCall])` | ツール呼び出しを処理してループ継続 | ツール実行 → 次ステップ |
 | `continueWithThinking` | 思考プロセスを返してループ継続 | `.thinking` を返す |
 | `terminateWithOutput(String)` | テキストをデコードして終了 | `.finalResponse` を返す |
 | `terminateImmediately(TerminationReason)` | 即座にループ終了 | `nil` を返す |
@@ -321,7 +321,7 @@ continueWithTools?
 
 ### ツールエラーの扱い
 
-ツール実行エラーは `ToolResultInfo` に `isError: true` で格納され、LLM に伝播させてリカバリを試行します。
+ツール実行エラーは `ToolResponse` に `isError: true` で格納され、LLM に伝播させてリカバリを試行します。
 
 ## 設定パラメータ
 

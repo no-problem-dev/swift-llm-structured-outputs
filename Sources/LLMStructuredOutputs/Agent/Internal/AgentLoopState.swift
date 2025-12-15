@@ -22,10 +22,10 @@ internal struct ToolCallRecord: Sendable {
         self.timestamp = timestamp
     }
 
-    /// ToolCallInfo から作成
-    init(from callInfo: ToolCallInfo) {
-        self.name = callInfo.name
-        self.inputHash = callInfo.input.hashValue
+    /// ToolCall から作成
+    init(from call: ToolCall) {
+        self.name = call.name
+        self.inputHash = call.arguments.hashValue
         self.timestamp = Date()
     }
 }
@@ -132,13 +132,13 @@ internal actor AgentLoopStateManager: AgentLoopContext {
     }
 
     /// ツール呼び出しを履歴に記録
-    func recordToolCall(_ call: ToolCallInfo) {
+    func recordToolCall(_ call: ToolCall) {
         let record = ToolCallRecord(from: call)
         toolCallHistory.append(record)
     }
 
     /// 複数のツール呼び出しを履歴に記録
-    func recordToolCalls(_ calls: [ToolCallInfo]) {
+    func recordToolCalls(_ calls: [ToolCall]) {
         for call in calls {
             recordToolCall(call)
         }
