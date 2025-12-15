@@ -144,14 +144,14 @@ public actor AgentContext {
     /// ツール結果を追加
     ///
     /// - Parameter results: ツール実行結果の配列
-    public func addToolResults(_ results: [ToolResultInfo]) {
+    public func addToolResults(_ results: [ToolResponse]) {
         guard !results.isEmpty else { return }
 
         let contents = results.map { result in
             LLMMessage.MessageContent.toolResult(
-                toolCallId: result.toolCallId,
+                toolCallId: result.callId,
                 name: result.name,
-                content: result.content,
+                content: result.output,
                 isError: result.isError
             )
         }
@@ -203,16 +203,16 @@ public actor AgentContext {
         try await tools.execute(toolNamed: name, with: input)
     }
 
-    /// レスポンスからツール呼び出し情報を抽出
+    /// レスポンスからツール呼び出しを抽出
     ///
     /// - Parameter response: LLM レスポンス
-    /// - Returns: ツール呼び出し情報の配列
-    public func extractToolCalls(from response: LLMResponse) -> [ToolCallInfo] {
+    /// - Returns: ツール呼び出しの配列
+    public func extractToolCalls(from response: LLMResponse) -> [ToolCall] {
         response.content.compactMap { block in
             guard case .toolUse(let id, let name, let input) = block else {
                 return nil
             }
-            return ToolCallInfo(id: id, name: name, input: input)
+            return ToolCall(id: id, name: name, arguments: input)
         }
     }
 

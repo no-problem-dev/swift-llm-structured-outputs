@@ -87,11 +87,11 @@ internal actor AgentLoopRunner<Client: AgentCapableClient, Output: StructuredPro
         }
     }
 
-    private func processToolCalls(_ calls: [ToolCallInfo]) async throws -> AgentStep<Output>? {
+    private func processToolCalls(_ calls: [ToolCall]) async throws -> AgentStep<Output>? {
         let config = await context.getConfiguration()
 
         if config.autoExecuteTools {
-            var results: [ToolResultInfo] = []
+            var results: [ToolResponse] = []
 
             for call in calls {
                 await stateManager.recordToolCall(call)
@@ -227,20 +227,20 @@ internal actor AgentLoopRunner<Client: AgentCapableClient, Output: StructuredPro
         }
     }
 
-    private func executeToolSafely(_ call: ToolCallInfo) async -> ToolResultInfo {
+    private func executeToolSafely(_ call: ToolCall) async -> ToolResponse {
         do {
-            let result = try await context.executeTool(named: call.name, with: call.input)
-            return ToolResultInfo(
-                toolCallId: call.id,
+            let result = try await context.executeTool(named: call.name, with: call.arguments)
+            return ToolResponse(
+                callId: call.id,
                 name: call.name,
-                content: result.stringValue,
+                output: result.stringValue,
                 isError: result.isError
             )
         } catch {
-            return ToolResultInfo(
-                toolCallId: call.id,
+            return ToolResponse(
+                callId: call.id,
                 name: call.name,
-                content: "Error: \(error.localizedDescription)",
+                output: "Error: \(error.localizedDescription)",
                 isError: true
             )
         }

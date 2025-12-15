@@ -76,7 +76,9 @@ let user: UserInfo = try await client.generate(
 
 ### 会話
 
-- ``Conversation``
+- ``ConversationHistory``
+- ``ConversationHistoryProtocol``
+- ``ConversationEvent``
 - ``ChatResponse``
 - ``LLMMessage``
 - ``TokenUsage``
@@ -102,8 +104,8 @@ let user: UserInfo = try await client.generate(
 - ``AgentConfiguration``
 - ``AgentContext``
 - ``AgentError``
-- ``ToolCallInfo``
-- ``ToolResultInfo``
+- ``ToolCall``
+- ``ToolResponse``
 
 ### エラー
 

@@ -4,133 +4,145 @@
 
 ## 概要
 
-``Conversation`` クラスは、型安全な構造化出力を受け取りながら、複数の LLM のやり取りでコンテキストを維持する便利な方法を提供します。
+``ConversationHistory`` は、LLM とのマルチターン会話を管理する Actor です。
+履歴はクライアントやモデルから独立しており、異なるプロバイダー間で同じ会話を継続できます。
 
-## 会話の作成
-
-```swift
-var conversation = Conversation(
-    client: AnthropicClient(apiKey: "..."),
-    model: .sonnet,
-    systemPrompt: "あなたは親切なアシスタントです"
-)
-```
-
-## メッセージの送信
-
-`send` メソッドを使用してメッセージを交換:
+## 会話の作成と実行
 
 ```swift
+let history = ConversationHistory()
+let client = AnthropicClient(apiKey: "...")
+
 @Structured
 struct CityInfo {
     var name: String
     var country: String
 }
 
-@Structured
-struct PopulationInfo {
-    var population: Int
-}
+let city: CityInfo = try await client.chat(
+    "日本の首都は？",
+    history: history,
+    model: .sonnet,
+    systemPrompt: "あなたは親切なアシスタントです"
+)
+```
 
+## コンテキストの維持
+
+同じ履歴を使い回すことで、コンテキストが維持されます：
+
+```swift
 // 最初のターン
-let city: CityInfo = try await conversation.send("日本の首都は？")
-print(city.name)  // "東京"
+let city: CityInfo = try await client.chat(
+    "日本の首都は？",
+    history: history,
+    model: .sonnet
+)
 
-// 2番目のターン - コンテキストが維持される
-let pop: PopulationInfo = try await conversation.send("その都市の人口は？")
-print(pop.population)  // 13960000
+// 2番目のターン - 「その都市」が東京を指すことを理解
+let pop: PopulationInfo = try await client.chat(
+    "その都市の人口は？",
+    history: history,
+    model: .sonnet
+)
 ```
 
-## 状態の追跡
+## 異なるプロバイダー間での継続
 
-### メッセージ履歴
+履歴はクライアントから独立しているため、プロバイダーを切り替えられます：
 
 ```swift
-// すべてのメッセージにアクセス
-let messages = conversation.messages
-print("合計メッセージ数: \(messages.count)")
+let history = ConversationHistory()
 
-// 完了したターンの数
-let turns = conversation.turnCount
+// Claude で会話開始
+let claude = AnthropicClient(apiKey: "...")
+let city: CityInfo = try await claude.chat(
+    "日本の首都は？",
+    history: history,
+    model: .sonnet
+)
+
+// 同じ履歴で GPT に切り替え
+let openai = OpenAIClient(apiKey: "...")
+let pop: PopulationInfo = try await openai.chat(
+    "その都市の人口は？",
+    history: history,
+    model: .gpt4o
+)
 ```
 
-### トークン使用量
+## 状態の確認
 
 ```swift
-let usage = conversation.totalUsage
-print("入力トークン: \(usage.inputTokens)")
-print("出力トークン: \(usage.outputTokens)")
+// メッセージ履歴
+let messages = await history.getMessages()
+
+// ターン数
+let turns = await history.turnCount
+
+// トークン使用量
+let usage = await history.getTotalUsage()
 print("合計: \(usage.totalTokens)")
 ```
 
 ## 会話のリセット
 
-会話をクリアして最初からやり直す:
-
 ```swift
-conversation.clear()
+await history.clear()
 ```
 
-## 低レベル API
+## イベントストリーム
 
-より細かい制御が必要な場合は、``ChatResponse`` を直接使用:
+``ConversationEvent`` を購読して、会話の変更をリアルタイムで監視できます：
 
 ```swift
-var messages: [LLMMessage] = []
-messages.append(.user("こんにちは"))
-
-let response: ChatResponse<Greeting> = try await client.chat(
-    messages: messages,
-    model: .sonnet
-)
-
-// アシスタントのレスポンスを履歴に追加
-messages.append(response.assistantMessage)
-
-// 会話を続ける
-messages.append(.user("元気ですか？"))
+Task {
+    for await event in history.eventStream {
+        switch event {
+        case .userMessage(let msg):
+            print("👤 \(msg.content)")
+        case .assistantMessage(let msg):
+            print("🤖 \(msg.content)")
+        case .usageUpdated(let usage):
+            print("📊 \(usage.totalTokens) tokens")
+        case .cleared:
+            print("🗑️ Cleared")
+        case .error(let error):
+            print("❌ \(error.localizedDescription)")
+        }
+    }
+}
 ```
 
-### ChatResponse のプロパティ
-
-| プロパティ | 型 | 説明 |
-|----------|-----|------|
-| `result` | `T` | 構造化出力 |
-| `assistantMessage` | `LLMMessage` | 履歴用 |
-| `usage` | `TokenUsage` | トークン数 |
-| `stopReason` | `StopReason?` | レスポンス終了理由 |
-| `model` | `String` | 使用モデル |
-| `rawText` | `String` | 生レスポンス |
-
-## 設定
+## 設定オプション
 
 ### Temperature
 
 ```swift
-var conversation = Conversation(
-    client: client,
+let result: Recipe = try await client.chat(
+    "創作料理を提案して",
+    history: history,
     model: .sonnet,
-    temperature: 0.7  // 0.0 = 確定的、1.0 = 創造的
+    temperature: 0.8
 )
 ```
 
 ### 最大トークン
 
 ```swift
-var conversation = Conversation(
-    client: client,
+let result: Summary = try await client.chat(
+    "要約して",
+    history: history,
     model: .sonnet,
     maxTokens: 500
 )
 ```
 
-## 並行処理
+## Topics
 
-``Conversation`` は `Sendable` であり、非同期での使用に対応:
+### 関連型
 
-```swift
-Task {
-    var conv = conversation
-    let result: MyType = try await conv.send("こんにちは")
-}
-```
+- ``ConversationHistory``
+- ``ConversationHistoryProtocol``
+- ``ConversationEvent``
+- ``TokenUsage``

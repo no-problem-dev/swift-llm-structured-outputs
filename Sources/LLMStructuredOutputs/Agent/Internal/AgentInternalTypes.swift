@@ -62,8 +62,8 @@ internal enum LoopPhase: Sendable, Equatable {
 /// ツール呼び出しと結果を順次返すためにバッファリングされるイベントです。
 internal enum PendingEvent: Sendable {
     /// ツール呼び出しイベント
-    case toolCall(ToolCallInfo)
+    case toolCall(ToolCall)
 
     /// ツール結果イベント
-    case toolResult(ToolResultInfo)
+    case toolResult(ToolResponse)
 }

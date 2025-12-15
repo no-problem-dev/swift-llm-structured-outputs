@@ -10,16 +10,18 @@ import LLMStructuredOutputs
 
 /// イベントストリームデモ
 ///
-/// `Conversation` の `eventStream` を使ったリアルタイムイベント監視を体験できます。
-/// メッセージの送受信やエラーをAsyncSequenceで購読します。
+/// `ConversationHistory` の `eventStream` を使ったリアルタイムイベント監視を体験できます。
+/// メッセージの送受信やトークン使用量の更新をAsyncStreamで購読します。
 struct EventStreamDemo: View {
     private var settings = AppSettings.shared
 
     @State private var inputText = ""
     @State private var events: [EventLogEntry] = []
     @State private var isLoading = false
-    @State private var conversationMessages: [LLMMessage] = []
     @State private var totalUsage = TokenUsage(inputTokens: 0, outputTokens: 0)
+
+    /// 会話履歴（Actor で保護された状態）
+    @State private var history = ConversationHistory()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -50,8 +52,7 @@ struct EventStreamDemo: View {
                     text: $inputText,
                     isLoading: isLoading,
                     onSend: sendMessage,
-                    onClear: clearEvents,
-                    onSimulateError: simulateError
+                    onClear: clearHistory
                 )
             } else {
                 APIKeyRequiredView(provider: settings.selectedProvider)
@@ -60,6 +61,55 @@ struct EventStreamDemo: View {
         }
         .navigationTitle("イベントストリーム")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            // イベントストリームを購読
+            await subscribeToEvents()
+        }
+    }
+
+    // MARK: - Event Subscription
+
+    @MainActor
+    private func subscribeToEvents() async {
+        for await event in history.eventStream {
+            let timestamp = Date()
+            switch event {
+            case .userMessage(let message):
+                events.append(EventLogEntry(
+                    type: .userMessage,
+                    content: message.content,
+                    timestamp: timestamp
+                ))
+            case .assistantMessage(let message):
+                // JSON をパースして構造化データを取得
+                let structuredData = parseStructuredData(from: message.content)
+                events.append(EventLogEntry(
+                    type: .assistantMessage,
+                    content: structuredData?.summary ?? message.content,
+                    timestamp: timestamp,
+                    structuredData: structuredData
+                ))
+            case .usageUpdated(let usage):
+                totalUsage = usage
+                events.append(EventLogEntry(
+                    type: .usageUpdated,
+                    content: "入力: \(usage.inputTokens), 出力: \(usage.outputTokens), 合計: \(usage.totalTokens)",
+                    timestamp: timestamp
+                ))
+            case .cleared:
+                events.append(EventLogEntry(
+                    type: .cleared,
+                    content: "会話履歴がクリアされました",
+                    timestamp: timestamp
+                ))
+                totalUsage = TokenUsage(inputTokens: 0, outputTokens: 0)
+            }
+        }
+    }
+
+    private func parseStructuredData(from content: String) -> EventStreamOutput? {
+        guard let data = content.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(EventStreamOutput.self, from: data)
     }
 
     // MARK: - Actions
@@ -71,138 +121,73 @@ struct EventStreamDemo: View {
         inputText = ""
         isLoading = true
 
-        // ユーザーメッセージイベントをログに追加
-        let userEvent = EventLogEntry(
-            type: .userMessage,
-            content: message,
-            timestamp: Date()
-        )
-        events.append(userEvent)
-
-        // LLMメッセージリストに追加
-        conversationMessages.append(.user(message))
-
         Task {
             do {
-                let response = try await executeRequest(message: message)
-
-                // アシスタントメッセージイベント
-                let assistantEvent = EventLogEntry(
-                    type: .assistantMessage,
-                    content: response.summary,
-                    timestamp: Date(),
-                    structuredData: response
-                )
-                events.append(assistantEvent)
-
-                // メッセージリストに追加
-                let encoder = JSONEncoder()
-                encoder.outputFormatting = .prettyPrinted
-                if let jsonData = try? encoder.encode(response),
-                   let jsonString = String(data: jsonData, encoding: .utf8) {
-                    conversationMessages.append(.assistant(jsonString))
-                }
-
+                try await executeRequest(message: message)
             } catch {
-                // エラーイベント
-                let errorEvent = EventLogEntry(
+                events.append(EventLogEntry(
                     type: .error,
                     content: error.localizedDescription,
                     timestamp: Date()
-                )
-                events.append(errorEvent)
-
-                // 失敗したユーザーメッセージを削除
-                if !conversationMessages.isEmpty {
-                    conversationMessages.removeLast()
-                }
+                ))
             }
             isLoading = false
         }
     }
 
-    private func executeRequest(message: String) async throws -> EventStreamOutput {
-        let systemPrompt = """
-        ユーザーの入力を分析し、構造化された情報を抽出してください。
-        会話の文脈を考慮して応答してください。
-        """
+    private func executeRequest(message: String) async throws {
+        let systemPrompt = Prompt {
+            PromptComponent.role("情報分析アシスタント")
+            PromptComponent.objective("ユーザーの入力を分析し、構造化された情報を抽出する")
+            PromptComponent.instruction("会話の文脈を考慮して応答する")
+        }
 
         switch settings.selectedProvider {
         case .anthropic:
             guard let client = settings.createAnthropicClient() else {
                 throw EventDemoError.noAPIKey
             }
-            let response: ChatResponse<EventStreamOutput> = try await client.chat(
-                messages: conversationMessages,
+            let _: EventStreamOutput = try await client.chat(
+                message,
+                history: history,
                 model: settings.claudeModelOption.model,
                 systemPrompt: systemPrompt,
                 temperature: settings.temperature,
                 maxTokens: settings.maxTokens
             )
-            totalUsage = TokenUsage(
-                inputTokens: totalUsage.inputTokens + response.usage.inputTokens,
-                outputTokens: totalUsage.outputTokens + response.usage.outputTokens
-            )
-            return response.result
 
         case .openai:
             guard let client = settings.createOpenAIClient() else {
                 throw EventDemoError.noAPIKey
             }
-            let response: ChatResponse<EventStreamOutput> = try await client.chat(
-                messages: conversationMessages,
+            let _: EventStreamOutput = try await client.chat(
+                message,
+                history: history,
                 model: settings.gptModelOption.model,
                 systemPrompt: systemPrompt,
                 temperature: settings.temperature,
                 maxTokens: settings.maxTokens
             )
-            totalUsage = TokenUsage(
-                inputTokens: totalUsage.inputTokens + response.usage.inputTokens,
-                outputTokens: totalUsage.outputTokens + response.usage.outputTokens
-            )
-            return response.result
 
         case .gemini:
             guard let client = settings.createGeminiClient() else {
                 throw EventDemoError.noAPIKey
             }
-            let response: ChatResponse<EventStreamOutput> = try await client.chat(
-                messages: conversationMessages,
+            let _: EventStreamOutput = try await client.chat(
+                message,
+                history: history,
                 model: settings.geminiModelOption.model,
                 systemPrompt: systemPrompt,
                 temperature: settings.temperature,
                 maxTokens: settings.maxTokens
             )
-            totalUsage = TokenUsage(
-                inputTokens: totalUsage.inputTokens + response.usage.inputTokens,
-                outputTokens: totalUsage.outputTokens + response.usage.outputTokens
-            )
-            return response.result
         }
     }
 
-    private func clearEvents() {
-        // クリアイベントを追加
-        let clearEvent = EventLogEntry(
-            type: .cleared,
-            content: "会話履歴がクリアされました",
-            timestamp: Date()
-        )
-        events.append(clearEvent)
-
-        // 会話をリセット
-        conversationMessages = []
-        totalUsage = TokenUsage(inputTokens: 0, outputTokens: 0)
-    }
-
-    private func simulateError() {
-        // エラーシミュレーション用
-        let errorEvent = EventLogEntry(
-            type: .error,
-            content: "シミュレートされたエラー: ネットワーク接続に失敗しました",
-            timestamp: Date()
-        )
-        events.append(errorEvent)
+    private func clearHistory() {
+        Task {
+            await history.clear()
+        }
     }
 }
 
@@ -247,6 +232,7 @@ struct EventLogEntry: Identifiable {
     enum EventType {
         case userMessage
         case assistantMessage
+        case usageUpdated
         case error
         case cleared
 
@@ -254,6 +240,7 @@ struct EventLogEntry: Identifiable {
             switch self {
             case .userMessage: return "arrow.up.circle.fill"
             case .assistantMessage: return "arrow.down.circle.fill"
+            case .usageUpdated: return "chart.bar.fill"
             case .error: return "exclamationmark.triangle.fill"
             case .cleared: return "trash.circle.fill"
             }
@@ -263,6 +250,7 @@ struct EventLogEntry: Identifiable {
             switch self {
             case .userMessage: return .blue
             case .assistantMessage: return .green
+            case .usageUpdated: return .purple
             case .error: return .red
             case .cleared: return .orange
             }
@@ -272,6 +260,7 @@ struct EventLogEntry: Identifiable {
             switch self {
             case .userMessage: return "USER"
             case .assistantMessage: return "ASSISTANT"
+            case .usageUpdated: return "USAGE"
             case .error: return "ERROR"
             case .cleared: return "CLEARED"
             }
@@ -300,13 +289,13 @@ private struct DescriptionSection: View {
                 .font(.headline)
 
             Text("""
-            `Conversation` の `eventStream` を使うと、会話中のイベントを
-            AsyncSequence としてリアルタイムに監視できます。
+            `ConversationHistory` の `eventStream` を使うと、会話中のイベントを
+            AsyncStream としてリアルタイムに監視できます。
 
             イベントの種類：
             • userMessage - ユーザーメッセージ送信
             • assistantMessage - アシスタント応答受信
-            • error - エラー発生
+            • usageUpdated - トークン使用量更新
             • cleared - 会話クリア
             """)
             .font(.caption)
@@ -324,20 +313,30 @@ private struct CodePreview: View {
     var body: some View {
         DisclosureGroup("eventStream の使い方", isExpanded: $isExpanded) {
             Text("""
+            let history = ConversationHistory()
+
+            // イベントストリームを購読
             Task {
-                for await event in conv.eventStream {
+                for await event in history.eventStream {
                     switch event {
                     case .userMessage(let msg):
                         print("👤 \\(msg.content)")
                     case .assistantMessage(let msg):
                         print("🤖 \\(msg.content)")
-                    case .error(let error):
-                        print("❌ \\(error)")
+                    case .usageUpdated(let usage):
+                        print("📊 \\(usage.totalTokens) tokens")
                     case .cleared:
                         print("🗑️ Cleared")
                     }
                 }
             }
+
+            // 会話を実行（イベントは自動発行）
+            let result: MyType = try await client.chat(
+                "質問",
+                history: history,
+                model: .sonnet
+            )
             """)
             .font(.system(.caption2, design: .monospaced))
             .padding(8)
@@ -591,7 +590,6 @@ private struct EventInputView: View {
     let isLoading: Bool
     let onSend: () -> Void
     let onClear: () -> Void
-    let onSimulateError: () -> Void
 
     var body: some View {
         VStack(spacing: 8) {
@@ -602,15 +600,6 @@ private struct EventInputView: View {
                 } label: {
                     Label("クリア", systemImage: "trash")
                         .font(.caption)
-                }
-                .disabled(isLoading)
-
-                Button {
-                    onSimulateError()
-                } label: {
-                    Label("エラー発生", systemImage: "exclamationmark.triangle")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
                 }
                 .disabled(isLoading)
 

@@ -18,8 +18,8 @@ import Foundation
 /// シーケンスから返される `AgentStep<Output>` は以下の4種類です：
 ///
 /// - `.thinking(LLMResponse)`: LLM がテキスト応答を生成中
-/// - `.toolCall(ToolCallInfo)`: LLM がツール呼び出しを要求
-/// - `.toolResult(ToolResultInfo)`: ツール実行結果
+/// - `.toolCall(ToolCall)`: LLM がツール呼び出しを要求
+/// - `.toolResult(ToolResponse)`: ツール実行結果
 /// - `.finalResponse(Output)`: エージェントループ完了、構造化された最終出力
 ///
 /// ## 使用例

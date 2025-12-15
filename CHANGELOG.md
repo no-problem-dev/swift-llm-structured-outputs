@@ -7,6 +7,28 @@
 
 ## [未リリース]
 
+## [1.0.13] - 2025-12-15
+
+### 追加
+
+- **ConversationEvent.error**: 会話イベントにエラーイベントを追加
+  - エラー発生時の通知機能を強化
+  - エラーハンドリングの柔軟性を向上
+
+### 変更
+
+- **ConversationHistory の再設計**: 会話履歴管理の内部実装を刷新
+  - APIの簡素化と使いやすさ向上
+  - ドキュメントの更新
+
+- **JSONSchema の責務分離とアクセス制御の最適化**: スキーマ関連の内部構造を改善
+  - 責務の明確化によりコードの保守性向上
+  - アクセス制御の最適化
+
+- **ToolCall/ToolResponse 型の統合とディレクトリ再編成**: ツール関連型の整理
+  - 型の統合による一貫性向上
+  - ファイル構造の最適化
+
 ## [1.0.12] - 2025-12-15
 
 ### 変更
@@ -282,7 +304,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.12...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.13...HEAD
+[1.0.13]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.12...v1.0.13
 [1.0.12]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.11...v1.0.12
 [1.0.11]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.10...v1.0.11
 [1.0.10]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.9...v1.0.10
@@ -307,3 +330,5 @@
 <!-- Auto-generated on 2025-12-14T22:47:37Z by release workflow -->
 
 <!-- Auto-generated on 2025-12-15T00:06:39Z by release workflow -->
+
+<!-- Auto-generated on 2025-12-15T03:15:02Z by release workflow -->

@@ -115,16 +115,16 @@ internal struct OpenAIProvider: LLMProvider, RetryableProviderProtocol {
         // 構造化出力の設定
         var responseFormat: OpenAIResponseFormat?
         if let schema = request.responseSchema {
-            // OpenAI用にスキーマをサニタイズ
+            // OpenAI用にスキーマを適合
             // - additionalProperties: false を設定
             // - required 配列にすべてのプロパティを含める
-            let sanitizedSchema = schema.sanitizedForOpenAI()
+            let adapter = OpenAISchemaAdapter()
             responseFormat = OpenAIResponseFormat(
                 type: "json_schema",
                 jsonSchema: OpenAIJSONSchemaWrapper(
                     name: "response",
                     strict: true,
-                    schema: sanitizedSchema
+                    schema: adapter.adapt(schema)
                 )
             )
         }

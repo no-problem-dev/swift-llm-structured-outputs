@@ -16,7 +16,7 @@ import Foundation
 ///     case .toolCall(let call):
 ///         print("ツール呼び出し: \(call.name)")
 ///     case .toolResult(let result):
-///         print("ツール結果: \(result.content)")
+///         print("ツール結果: \(result.output)")
 ///     case .finalResponse(let output):
 ///         print("最終結果: \(output)")
 ///     }
@@ -27,64 +27,13 @@ public enum AgentStep<Output: Sendable>: Sendable {
     case thinking(LLMResponse)
 
     /// LLM がツール呼び出しを要求
-    case toolCall(ToolCallInfo)
+    case toolCall(ToolCall)
 
     /// ツール実行結果
-    case toolResult(ToolResultInfo)
+    case toolResult(ToolResponse)
 
     /// エージェントループ完了、最終出力
     case finalResponse(Output)
-}
-
-// MARK: - ToolCallInfo
-
-/// ツール呼び出し情報
-public struct ToolCallInfo: Sendable {
-    /// ツール呼び出しID
-    public let id: String
-
-    /// ツール名
-    public let name: String
-
-    /// ツール引数（JSON データ）
-    public let input: Data
-
-    /// ツール引数を指定の型にデコード
-    public func decodeInput<T: Decodable>(as type: T.Type) throws -> T {
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return try decoder.decode(type, from: input)
-    }
-
-    public init(id: String, name: String, input: Data) {
-        self.id = id
-        self.name = name
-        self.input = input
-    }
-}
-
-// MARK: - ToolResultInfo
-
-/// ツール実行結果情報
-public struct ToolResultInfo: Sendable {
-    /// 対応するツール呼び出しID
-    public let toolCallId: String
-
-    /// ツール名
-    public let name: String
-
-    /// 実行結果
-    public let content: String
-
-    /// エラーかどうか
-    public let isError: Bool
-
-    public init(toolCallId: String, name: String, content: String, isError: Bool = false) {
-        self.toolCallId = toolCallId
-        self.name = name
-        self.content = content
-        self.isError = isError
-    }
 }
 
 // MARK: - AgentConfiguration
