@@ -12,7 +12,7 @@ import LLMStructuredOutputs
 
 /// 比較項目
 @Structured("比較分析の各項目")
-struct ComparisonItem: Equatable, Sendable {
+struct ComparisonItem: Equatable {
     @StructuredField("比較の観点（例: 天気、気温、時差）")
     var aspect: String
 
@@ -30,7 +30,7 @@ struct ComparisonItem: Equatable, Sendable {
 
 /// 複合ツールレポート
 @Structured("複数ツールを使用した総合分析の構造化レポート")
-struct MultiToolReport: Equatable, Sendable {
+struct MultiToolReport: Equatable {
     @StructuredField("レポートのタイトル")
     var title: String
 

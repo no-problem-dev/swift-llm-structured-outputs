@@ -1,5 +1,6 @@
 import XCTest
 @testable import LLMStructuredOutputs
+@testable import LLMClient
 
 /// PromptComponent DSL テスト
 ///

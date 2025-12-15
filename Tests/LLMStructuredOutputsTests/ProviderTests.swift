@@ -1,5 +1,6 @@
 import XCTest
 @testable import LLMStructuredOutputs
+@testable import LLMClient
 
 /// LLM プロバイダー関連のテスト
 final class ProviderTests: XCTestCase {

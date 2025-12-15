@@ -12,7 +12,7 @@ import LLMStructuredOutputs
 
 /// 計算ステップ
 @Structured("計算の各ステップ")
-struct CalculationStep: Equatable, Sendable {
+struct CalculationStep: Equatable {
     @StructuredField("計算式または操作の説明")
     var expression: String
 
@@ -27,7 +27,7 @@ struct CalculationStep: Equatable, Sendable {
 
 /// 計算レポート
 @Structured("計算処理の結果をまとめた構造化レポート")
-struct CalculationReport: Equatable, Sendable {
+struct CalculationReport: Equatable {
     @StructuredField("レポートのタイトル")
     var title: String
 
