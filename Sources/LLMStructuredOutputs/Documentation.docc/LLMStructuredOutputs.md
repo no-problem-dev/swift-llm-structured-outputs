@@ -49,6 +49,7 @@ let user: UserInfo = try await client.generate(
 - <doc:Providers>
 - <doc:Conversations>
 - <doc:AgentLoop>
+- <doc:AgentLoopInternals>
 - <doc:ExampleApp>
 
 ### マクロ
@@ -58,7 +59,7 @@ let user: UserInfo = try await client.generate(
 - ``StructuredEnum(_:)``
 - ``StructuredCase(_:)``
 - ``Tool(_:name:)``
-- ``ToolArgument(_:)``
+- ``ToolArgument(_:_:)``
 
 ### クライアント
 
@@ -72,7 +73,6 @@ let user: UserInfo = try await client.generate(
 - ``ClaudeModel``
 - ``GPTModel``
 - ``GeminiModel``
-- ``LLMModel``
 
 ### 会話
 
@@ -80,7 +80,7 @@ let user: UserInfo = try await client.generate(
 - ``ChatResponse``
 - ``LLMMessage``
 - ``TokenUsage``
-- ``StopReason``
+- ``LLMResponse/StopReason``
 
 ### スキーマ
 

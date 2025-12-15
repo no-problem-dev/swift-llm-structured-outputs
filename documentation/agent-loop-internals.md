@@ -257,20 +257,27 @@ flowchart TD
 flowchart TD
     START([decodeFinalOutput]) --> CHECK_PHASE{phase?}
 
+    %% .toolUse フェーズ
     CHECK_PHASE -->|.toolUse| CHECK_TOOLS{ツールあり?}
     CHECK_TOOLS -->|Yes| TRANSITION[phase = .finalOutput]
-    TRANSITION --> RETURN_THINKING[.thinking を返す<br/>次ステップで構造化出力要求]
+    TRANSITION --> ADD_REQ1[addFinalOutputRequest]
+    ADD_REQ1 --> RETURN_THINKING[.thinking を返す]
 
-    CHECK_TOOLS -->|No| DECODE[JSONデコード試行]
-    CHECK_PHASE -->|.finalOutput| DECODE
+    CHECK_TOOLS -->|No| DECODE_TOOLUSE[JSONデコード試行]
+    DECODE_TOOLUSE -->|成功| SET_COMPLETE1[phase = .completed]
+    SET_COMPLETE1 --> RETURN_FINAL1[.finalResponse を返す]
 
-    DECODE -->|成功| SET_COMPLETE[phase = .completed]
-    SET_COMPLETE --> RETURN_FINAL[.finalResponse を返す]
-    DECODE -->|失敗| CHECK_RETRY{retryCount<br/>< maxDecodeRetries?}
-    CHECK_RETRY -->|Yes| INCREMENT[phase = .finalOutput(retryCount+1)]
-    INCREMENT --> RETURN_THINKING2[.thinking を返す]
+    %% .finalOutput フェーズ
+    CHECK_PHASE -->|.finalOutput| DECODE_FINAL[JSONデコード試行]
+    DECODE_FINAL -->|成功| SET_COMPLETE2[phase = .completed]
+    SET_COMPLETE2 --> RETURN_FINAL2[.finalResponse を返す]
+    DECODE_FINAL -->|失敗| CHECK_RETRY{retryCount<br/>< maxDecodeRetries?}
+    CHECK_RETRY -->|Yes| INCREMENT[retryCount + 1]
+    INCREMENT --> ADD_REQ2[addFinalOutputRequest]
+    ADD_REQ2 --> RETURN_THINKING2[.thinking を返す]
     CHECK_RETRY -->|No| THROW_ERROR[outputDecodingFailed<br/>エラーをスロー]
 
+    %% .completed フェーズ
     CHECK_PHASE -->|.completed| RETURN_NIL[nil を返す]
 ```
 
