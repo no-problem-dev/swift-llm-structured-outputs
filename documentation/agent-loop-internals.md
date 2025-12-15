@@ -1,6 +1,9 @@
 # エージェントループ 内部実装ガイド
 
-このドキュメントでは、`AgentStepSequence` の内部実装フローを詳細に解説します。
+このドキュメントでは、エージェントループの内部実装フローを詳細に解説します。
+
+> **Note**: 外部向け API は `AgentStepStream` プロトコルです。
+> 内部実装の `AgentStepSequence` や `AgentLoopRunner` は直接参照できません。
 
 ## 目次
 
@@ -21,10 +24,11 @@
 ```mermaid
 graph TB
     subgraph "Public API Layer"
-        ASS[AgentStepSequence<br/>AsyncSequence]
+        ASP[AgentStepStream<br/>Protocol]
     end
 
-    subgraph "Execution Layer"
+    subgraph "Internal Implementation Layer"
+        ASS[AgentStepSequence<br/>AsyncSequence]
         ALR[AgentLoopRunner<br/>Actor]
     end
 
@@ -44,6 +48,7 @@ graph TB
         TOOLS[ToolSet]
     end
 
+    ASP --> ASS
     ASS --> ALR
     ALR --> TP
     TP --> STP
@@ -69,18 +74,27 @@ graph TB
 
 ```
 Sources/LLMStructuredOutputs/Agent/
-├── AgentStepSequence.swift      # メインエントリポイント + ループ実行
-├── AgentTerminationPolicy.swift # 終了ポリシープロトコルと実装
-├── AgentLoopState.swift         # 状態管理 Actor
+├── AgentStepStream.swift        # 公開プロトコル
 ├── AgentContext.swift           # メッセージ履歴・ツール管理
-└── AgentTypes.swift             # 型定義（AgentStep, AgentError 等）
+├── AgentTypes.swift             # 型定義（AgentStep, AgentError 等）
+└── Internal/                    # 内部実装
+    ├── AgentStepSequence.swift      # 内部実装の AsyncSequence
+    ├── AgentLoopRunner.swift        # ループ実行 Actor
+    ├── AgentTerminationPolicy.swift # 終了ポリシープロトコルと実装
+    └── AgentLoopState.swift         # 状態管理 Actor
 ```
 
 ### コンポーネント関係図
 
 ```mermaid
 classDiagram
+    class AgentStepStream~Output~ {
+        <<protocol>>
+        +Element = AgentStep~Output~
+    }
+
     class AgentStepSequence~Client,Output~ {
+        <<internal>>
         -client: Client
         -model: Client.Model
         -context: AgentContext
@@ -93,6 +107,7 @@ classDiagram
     }
 
     class AgentLoopRunner~Client,Output~ {
+        <<internal actor>>
         -client: Client
         -model: Client.Model
         -context: AgentContext
@@ -127,6 +142,7 @@ classDiagram
         +executeTool(name, input)
     }
 
+    AgentStepStream <|.. AgentStepSequence : implements
     AgentStepSequence --> AsyncIterator
     AsyncIterator --> AgentLoopRunner
     AgentLoopRunner --> AgentTerminationPolicy
@@ -497,23 +513,22 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    subgraph "LLM リクエスト"
+    subgraph LLM_REQ["LLM リクエスト"]
         SEND[sendRequest]
         SEND -->|LLMError| WRAP_LLM[AgentError.llmError でラップ]
     end
 
-    subgraph "ステップ管理"
+    subgraph STEP_MGR["ステップ管理"]
         INCREMENT[incrementStep]
         INCREMENT -->|上限超過| MAX_STEPS[AgentError.maxStepsExceeded]
     end
 
-    subgraph "ツール実行"
+    subgraph TOOL_EXEC["ツール実行"]
         EXEC[executeToolSafely]
-        EXEC -->|エラー| SAFE_RESULT[ToolResultInfo に<br/>isError: true で格納]
-        Note over SAFE_RESULT: ツールエラーは<br/>LLM に伝播させて<br/>リカバリを試行
+        EXEC -->|エラー| SAFE_RESULT["ToolResultInfo に<br/>isError: true で格納<br/>(LLM にリカバリを試行させる)"]
     end
 
-    subgraph "出力デコード"
+    subgraph OUTPUT_DEC["出力デコード"]
         DECODE[decodeFinalOutput]
         DECODE -->|失敗| DECODE_ERROR[AgentError.outputDecodingFailed]
     end

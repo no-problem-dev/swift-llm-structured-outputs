@@ -1,6 +1,9 @@
 # エージェントループ 内部実装ガイド
 
-``AgentStepSequence`` の内部実装フローを詳細に解説します。
+エージェントループの内部実装フローを詳細に解説します。
+
+> Note: 外部向け API は ``AgentStepStream`` プロトコルです。
+> 内部実装の `AgentStepSequence` や `AgentLoopRunner` は直接参照できません。
 
 ## 概要
 
@@ -8,7 +11,8 @@
 
 | レイヤー | コンポーネント | 役割 |
 |---------|---------------|------|
-| Public API | ``AgentStepSequence`` | AsyncSequence としてステップを提供 |
+| Public API | ``AgentStepStream`` (Protocol) | AsyncSequence としてステップを提供 |
+| Internal | `AgentStepSequence` | 内部実装の AsyncSequence |
 | Execution | `AgentLoopRunner` (Actor) | ループ実行の制御 |
 | Policy | `AgentTerminationPolicy` | 終了条件の判定 |
 | State | ``AgentContext``, `AgentLoopStateManager` | 状態管理 |
@@ -26,31 +30,36 @@
 
 ```
 Sources/LLMStructuredOutputs/Agent/
-├── AgentStepSequence.swift      # メインエントリポイント + ループ実行
-├── AgentTerminationPolicy.swift # 終了ポリシープロトコルと実装
-├── AgentLoopState.swift         # 状態管理 Actor
+├── AgentStepStream.swift        # 公開プロトコル
 ├── AgentContext.swift           # メッセージ履歴・ツール管理
-└── AgentTypes.swift             # 型定義（AgentStep, AgentError 等）
+├── AgentTypes.swift             # 型定義（AgentStep, AgentError 等）
+└── Internal/                    # 内部実装
+    ├── AgentStepSequence.swift      # 内部実装の AsyncSequence
+    ├── AgentLoopRunner.swift        # ループ実行 Actor
+    ├── AgentTerminationPolicy.swift # 終了ポリシープロトコルと実装
+    └── AgentLoopState.swift         # 状態管理 Actor
 ```
 
 ### コンポーネント関係
 
 ```
-AgentStepSequence<Client, Output>
+AgentStepStream<Output> (Protocol)    ← 公開 API
     │
-    └─▶ AsyncIterator
+    └─▶ AgentStepSequence<Client, Output> (internal)
             │
-            └─▶ AgentLoopRunner<Client, Output> (Actor)
+            └─▶ AsyncIterator
                     │
-                    ├─▶ AgentTerminationPolicy (Protocol)
-                    │       ├─▶ StandardTerminationPolicy
-                    │       └─▶ DuplicateDetectionPolicy
-                    │
-                    ├─▶ AgentLoopStateManager (Actor)
-                    │       └─ currentStep, toolCallHistory
-                    │
-                    └─▶ AgentContext (Actor)
-                            └─ messages, tools
+                    └─▶ AgentLoopRunner<Client, Output> (Actor)
+                            │
+                            ├─▶ AgentTerminationPolicy (Protocol)
+                            │       ├─▶ StandardTerminationPolicy
+                            │       └─▶ DuplicateDetectionPolicy
+                            │
+                            ├─▶ AgentLoopStateManager (Actor)
+                            │       └─ currentStep, toolCallHistory
+                            │
+                            └─▶ AgentContext (Actor)
+                                    └─ messages, tools
 ```
 
 ## メインループフロー
@@ -337,7 +346,7 @@ continueWithTools?
 
 ### 型
 
-- ``AgentStepSequence``
+- ``AgentStepStream``
 - ``AgentStep``
 - ``AgentConfiguration``
 - ``AgentContext``

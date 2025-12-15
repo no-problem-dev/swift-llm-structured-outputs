@@ -98,7 +98,7 @@ let user: UserInfo = try await client.generate(
 ### エージェント
 
 - ``AgentStep``
-- ``AgentStepSequence``
+- ``AgentStepStream``
 - ``AgentConfiguration``
 - ``AgentContext``
 - ``AgentError``
