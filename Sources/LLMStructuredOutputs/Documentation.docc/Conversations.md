@@ -107,6 +107,8 @@ Task {
             print("📊 \(usage.totalTokens) tokens")
         case .cleared:
             print("🗑️ Cleared")
+        case .error(let error):
+            print("❌ \(error.localizedDescription)")
         }
     }
 }

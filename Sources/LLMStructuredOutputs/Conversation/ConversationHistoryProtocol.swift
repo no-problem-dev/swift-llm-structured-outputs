@@ -92,6 +92,14 @@ public protocol ConversationHistoryProtocol: Actor, Sendable {
     /// イベントストリームに `.cleared` を通知します。
     func clear()
 
+    /// エラーイベントを発火
+    ///
+    /// API 呼び出しでエラーが発生した場合に、
+    /// イベントストリームに `.error` を通知します。
+    ///
+    /// - Parameter error: 発生したエラー
+    func emitError(_ error: LLMError)
+
     // MARK: - Event Stream
 
     /// イベントストリーム
@@ -113,6 +121,8 @@ public protocol ConversationHistoryProtocol: Actor, Sendable {
     ///             updateTokenCounter(usage)
     ///         case .cleared:
     ///             resetUI()
+    ///         case .error(let error):
+    ///             showError(error)
     ///         }
     ///     }
     /// }
