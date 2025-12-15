@@ -19,7 +19,7 @@
 
 - **Swift Macro DSL** - `@Structured`、`@StructuredField`、`@StructuredEnum` で構造化出力の型を定義
 - **コンパイル時型安全** - プロバイダーとモデルの組み合わせをコンパイル時にチェック
-- **会話継続** - `Conversation` クラスによるコンテキスト維持とトークン使用量追跡
+- **会話継続** - `ConversationHistory` によるコンテキスト維持とトークン使用量追跡
 - **制約サポート** - 最小/最大値、文字数制限、正規表現パターンなど
 
 ## クイックスタート
@@ -161,7 +161,7 @@ dependencies: [
 | 基本的な構造化出力 | `@Structured` による型定義、`generate()` による出力生成 |
 | フィールド制約 | `.minimum()`, `.maximum()`, `.pattern()` 等の制約 |
 | 列挙型サポート | `@StructuredEnum` による enum 出力 |
-| 会話機能 | `Conversation` によるマルチターン会話 |
+| 会話機能 | `ConversationHistory` によるマルチターン会話 |
 | イベントストリーム | `chatStream()` によるストリーミング応答 |
 | プロンプト DSL | `Prompt { }` ビルダーによるプロンプト構築 |
 | ツールコール | `@Tool` によるツール定義、`planToolCalls()` による計画 |
