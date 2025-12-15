@@ -79,13 +79,13 @@ let tools = ToolSet {
     Calculator.self
 }
 
-let agentSequence: AgentStepSequence<AnthropicClient, WeatherReport> = client.runAgent(
+let agentStream: some AgentStepStream<WeatherReport> = client.runAgent(
     prompt: "東京の天気を調べて、気温を華氏に変換してレポートを作成して",
     model: .sonnet,
     tools: tools
 )
 
-for try await step in agentSequence {
+for try await step in agentStream {
     switch step {
     case .thinking(let response):
         print("💭 思考中...")
@@ -142,7 +142,7 @@ let config = AgentConfiguration(
     autoExecuteTools: true  // ツール自動実行（デフォルト: true）
 )
 
-let sequence: AgentStepSequence<AnthropicClient, WeatherReport> = client.runAgent(
+let stream: some AgentStepStream<WeatherReport> = client.runAgent(
     prompt: "...",
     model: .sonnet,
     tools: tools,

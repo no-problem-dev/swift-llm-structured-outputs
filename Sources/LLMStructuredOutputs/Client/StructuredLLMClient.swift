@@ -260,11 +260,13 @@ extension AgentCapableClient {
     ///     var weather: String
     /// }
     ///
-    /// for try await step in client.runAgent(
+    /// let stream: some AgentStepStream<WeatherReport> = client.runAgent(
     ///     prompt: "東京の天気を教えて",
     ///     model: .sonnet,
     ///     tools: tools
-    /// ) as AgentStepSequence<AnthropicClient, WeatherReport> {
+    /// )
+    ///
+    /// for try await step in stream {
     ///     switch step {
     ///     case .thinking(let response):
     ///         print("思考: \(response.textContent ?? "")")
@@ -291,7 +293,7 @@ extension AgentCapableClient {
         tools: ToolSet,
         systemPrompt: Prompt? = nil,
         configuration: AgentConfiguration = .default
-    ) -> AgentStepSequence<Self, Output> {
+    ) -> some AgentStepStream<Output> {
         runAgent(
             messages: [.user(prompt)],
             model: model,
@@ -316,7 +318,7 @@ extension AgentCapableClient {
         tools: ToolSet,
         systemPrompt: Prompt? = nil,
         configuration: AgentConfiguration = .default
-    ) -> AgentStepSequence<Self, Output> {
+    ) -> some AgentStepStream<Output> {
         let context = AgentContext(
             systemPrompt: systemPrompt,
             tools: tools,
@@ -327,7 +329,8 @@ extension AgentCapableClient {
         return AgentStepSequence<Self, Output>(
             client: self,
             model: model,
-            context: context
+            context: context,
+            configuration: configuration
         )
     }
 }

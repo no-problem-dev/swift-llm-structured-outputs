@@ -7,6 +7,28 @@
 
 ## [未リリース]
 
+## [1.0.12] - 2025-12-15
+
+### 変更
+
+- **AgentStepStreamプロトコルの導入**: エージェントステップのストリーミング処理を抽象化
+  - `AgentStepStream`プロトコル: `AsyncSequence`と`AsyncStream`を統一的に扱うインターフェース
+  - `AgentStepSequence`の拡張により既存コードとの後方互換性を維持
+  - Agentモジュールの再編成とファイル構造の整理
+
+- **AgentContextの改善**: `configurationSync` workaroundを削除
+  - Swift 6準拠のクリーンな実装に移行
+  - コードの簡素化と保守性向上
+
+### 修正
+
+- **サンプルアプリの更新**: AgentStepStreamプロトコルに対応
+  - AgentExampleアプリのエージェント実行コードを更新
+
+### ドキュメント
+
+- **AgentStepStreamドキュメント追加**: 新プロトコルの使用方法と移行ガイド
+
 ## [1.0.11] - 2025-12-15
 
 ### 追加
@@ -260,7 +282,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.11...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.12...HEAD
+[1.0.12]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.11...v1.0.12
 [1.0.11]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.10...v1.0.11
 [1.0.10]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.9...v1.0.10
 [1.0.9]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.8...v1.0.9
@@ -282,3 +305,5 @@
 <!-- Auto-generated on 2025-12-14T06:19:39Z by release workflow -->
 
 <!-- Auto-generated on 2025-12-14T22:47:37Z by release workflow -->
+
+<!-- Auto-generated on 2025-12-15T00:06:39Z by release workflow -->
