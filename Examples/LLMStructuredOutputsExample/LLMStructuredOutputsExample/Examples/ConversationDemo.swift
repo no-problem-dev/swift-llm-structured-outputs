@@ -10,14 +10,20 @@ import LLMStructuredOutputs
 
 /// マルチターン会話デモ
 ///
-/// `Conversation` Actor を使ったマルチターン会話を体験できます。
+/// `ConversationHistory` Actor と `client.chat(_:history:model:)` を使った
+/// マルチターン会話を体験できます。
 /// 会話履歴が自動追跡され、文脈を理解した応答が得られます。
 struct ConversationDemo: View {
     private var settings = AppSettings.shared
 
     @State private var inputText = ""
-    @State private var conversationState = ConversationState()
+    @State private var displayMessages: [ChatMessage] = []
+    @State private var totalUsage = TokenUsage(inputTokens: 0, outputTokens: 0)
+    @State private var turnCount = 0
     @State private var isLoading = false
+
+    /// 会話履歴（Actor で保護された状態）
+    @State private var history = ConversationHistory()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,11 +35,14 @@ struct ConversationDemo: View {
                     Divider()
 
                     // MARK: - 会話履歴
-                    ConversationHistoryView(state: conversationState)
+                    ConversationHistoryView(
+                        messages: displayMessages,
+                        turnCount: turnCount
+                    )
 
                     // MARK: - トークン使用量
-                    if conversationState.totalUsage.totalTokens > 0 {
-                        TokenUsageSummary(usage: conversationState.totalUsage)
+                    if totalUsage.totalTokens > 0 {
+                        TokenUsageSummary(usage: totalUsage)
                     }
                 }
                 .padding()
@@ -57,6 +66,45 @@ struct ConversationDemo: View {
         }
         .navigationTitle("マルチターン会話")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            // イベントストリームを購読して UI を更新
+            await subscribeToEvents()
+        }
+    }
+
+    // MARK: - Event Subscription
+
+    @MainActor
+    private func subscribeToEvents() async {
+        for await event in history.eventStream {
+            switch event {
+            case .userMessage(let message):
+                displayMessages.append(
+                    ChatMessage(role: .user, content: message.content)
+                )
+            case .assistantMessage(let message):
+                // JSON をパースして構造化データを取得
+                let structuredData = parseStructuredData(from: message.content)
+                displayMessages.append(
+                    ChatMessage(
+                        role: .assistant,
+                        content: structuredData?.summary ?? message.content,
+                        structuredData: structuredData
+                    )
+                )
+            case .usageUpdated(let usage):
+                totalUsage = usage
+            case .cleared:
+                displayMessages = []
+                totalUsage = TokenUsage(inputTokens: 0, outputTokens: 0)
+                turnCount = 0
+            }
+        }
+    }
+
+    private func parseStructuredData(from content: String) -> ConversationOutput? {
+        guard let data = content.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(ConversationOutput.self, from: data)
     }
 
     // MARK: - Actions
@@ -68,116 +116,90 @@ struct ConversationDemo: View {
         inputText = ""
         isLoading = true
 
-        // ユーザーメッセージを即座に表示
-        conversationState.messages.append(
-            ChatMessage(role: .user, content: message)
-        )
-
         Task {
             do {
-                let response = try await executeConversation(message: message)
-                conversationState.messages.append(
-                    ChatMessage(role: .assistant, content: response.content, structuredData: response.data)
-                )
-                conversationState.totalUsage = TokenUsage(
-                    inputTokens: conversationState.totalUsage.inputTokens + response.usage.inputTokens,
-                    outputTokens: conversationState.totalUsage.outputTokens + response.usage.outputTokens
-                )
+                try await executeConversation(message: message)
+                turnCount = await history.turnCount
             } catch {
-                conversationState.messages.append(
-                    ChatMessage(role: .error, content: error.localizedDescription)
-                )
+                await MainActor.run {
+                    displayMessages.append(
+                        ChatMessage(role: .error, content: error.localizedDescription)
+                    )
+                }
             }
-            isLoading = false
+            await MainActor.run {
+                isLoading = false
+            }
         }
     }
 
-    private func executeConversation(message: String) async throws -> ConversationResponse {
-        // 会話履歴からLLMMessageを構築
-        let llmMessages = conversationState.messages.compactMap { msg -> LLMMessage? in
-            switch msg.role {
-            case .user:
-                return .user(msg.content)
-            case .assistant:
-                // 構造化データがあればそれを含める
-                if let data = msg.structuredData {
-                    let encoder = JSONEncoder()
-                    encoder.outputFormatting = .prettyPrinted
-                    if let jsonData = try? encoder.encode(data),
-                       let jsonString = String(data: jsonData, encoding: .utf8) {
-                        return .assistant(jsonString)
-                    }
-                }
-                return .assistant(msg.content)
-            case .error:
-                return nil
-            }
+    private func executeConversation(message: String) async throws {
+        let systemPrompt = Prompt {
+            PromptComponent.role("情報抽出の専門家")
+            PromptComponent.objective("ユーザーからの質問や情報に基づいて、構造化されたデータを抽出・生成する")
+            PromptComponent.instruction("会話の文脈を理解し、前の回答を踏まえた応答をする")
+            PromptComponent.instruction("「その人の」「さっきの」などの指示語は、会話履歴から適切に解釈する")
         }
-
-        let systemPrompt = """
-        あなたは情報抽出の専門家です。ユーザーからの質問や情報に基づいて、
-        構造化されたデータを抽出・生成します。
-
-        会話の文脈を理解し、前の回答を踏まえた応答をしてください。
-        例えば「その人の」「さっきの」などの指示語は、会話履歴から適切に解釈してください。
-        """
 
         switch settings.selectedProvider {
         case .anthropic:
             guard let client = settings.createAnthropicClient() else {
-                throw NSError(domain: "ConversationDemo", code: 1, userInfo: [NSLocalizedDescriptionKey: "APIキーが設定されていません"])
+                throw ConversationDemoError.noAPIKey
             }
-            let response: ChatResponse<ConversationOutput> = try await client.chat(
-                messages: llmMessages,
+            let _: ConversationOutput = try await client.chat(
+                message,
+                history: history,
                 model: settings.claudeModelOption.model,
                 systemPrompt: systemPrompt,
                 temperature: settings.temperature,
                 maxTokens: settings.maxTokens
             )
-            return ConversationResponse(
-                content: response.result.summary,
-                data: response.result,
-                usage: response.usage
-            )
 
         case .openai:
             guard let client = settings.createOpenAIClient() else {
-                throw NSError(domain: "ConversationDemo", code: 1, userInfo: [NSLocalizedDescriptionKey: "APIキーが設定されていません"])
+                throw ConversationDemoError.noAPIKey
             }
-            let response: ChatResponse<ConversationOutput> = try await client.chat(
-                messages: llmMessages,
+            let _: ConversationOutput = try await client.chat(
+                message,
+                history: history,
                 model: settings.gptModelOption.model,
                 systemPrompt: systemPrompt,
                 temperature: settings.temperature,
                 maxTokens: settings.maxTokens
             )
-            return ConversationResponse(
-                content: response.result.summary,
-                data: response.result,
-                usage: response.usage
-            )
 
         case .gemini:
             guard let client = settings.createGeminiClient() else {
-                throw NSError(domain: "ConversationDemo", code: 1, userInfo: [NSLocalizedDescriptionKey: "APIキーが設定されていません"])
+                throw ConversationDemoError.noAPIKey
             }
-            let response: ChatResponse<ConversationOutput> = try await client.chat(
-                messages: llmMessages,
+            let _: ConversationOutput = try await client.chat(
+                message,
+                history: history,
                 model: settings.geminiModelOption.model,
                 systemPrompt: systemPrompt,
                 temperature: settings.temperature,
                 maxTokens: settings.maxTokens
             )
-            return ConversationResponse(
-                content: response.result.summary,
-                data: response.result,
-                usage: response.usage
-            )
         }
     }
 
     private func clearConversation() {
-        conversationState = ConversationState()
+        Task {
+            await history.clear()
+        }
+    }
+}
+
+// MARK: - Error
+
+enum ConversationDemoError: LocalizedError {
+    case noAPIKey
+
+    var errorDescription: String? {
+        switch self {
+        case .noAPIKey:
+            return "APIキーが設定されていません"
+        }
     }
 }
 
@@ -244,12 +266,6 @@ struct ExtractedStatistic {
     var unit: String?
 }
 
-/// 会話の状態
-struct ConversationState {
-    var messages: [ChatMessage] = []
-    var totalUsage: TokenUsage = TokenUsage(inputTokens: 0, outputTokens: 0)
-}
-
 /// チャットメッセージ
 struct ChatMessage: Identifiable {
     let id = UUID()
@@ -264,13 +280,6 @@ struct ChatMessage: Identifiable {
     }
 }
 
-/// 会話応答
-struct ConversationResponse {
-    let content: String
-    let data: ConversationOutput
-    let usage: TokenUsage
-}
-
 // MARK: - DescriptionSection
 
 private struct DescriptionSection: View {
@@ -280,14 +289,17 @@ private struct DescriptionSection: View {
                 .font(.headline)
 
             Text("""
-            `Conversation` Actor を使うと、会話履歴が自動追跡され、
-            文脈を理解したマルチターン会話が実現できます。
+            `ConversationHistory` Actor と `client.chat(_:history:model:)` を使うと、
+            会話履歴が自動追跡され、文脈を理解したマルチターン会話が実現できます。
 
             「山田太郎さんは35歳のエンジニアです」と入力した後、
             「その人の職業は？」と聞くと、文脈から回答します。
             """)
             .font(.caption)
             .foregroundStyle(.secondary)
+
+            // コード例
+            CodePreviewSection()
 
             // サンプル会話例
             VStack(alignment: .leading, spacing: 4) {
@@ -306,10 +318,44 @@ private struct DescriptionSection: View {
     }
 }
 
+private struct CodePreviewSection: View {
+    @State private var isExpanded = false
+
+    var body: some View {
+        DisclosureGroup("推奨パターンのコード例", isExpanded: $isExpanded) {
+            Text("""
+            // 履歴を作成（Actor で保護）
+            let history = ConversationHistory()
+
+            // 会話を実行（履歴は自動更新）
+            let result: CityInfo = try await client.chat(
+                "日本の首都は？",
+                history: history,
+                model: .sonnet
+            )
+
+            // 同じ履歴で会話を継続
+            let pop: PopulationInfo = try await client.chat(
+                "その都市の人口は？",
+                history: history,
+                model: .sonnet
+            )
+            """)
+            .font(.system(.caption2, design: .monospaced))
+            .padding(8)
+            .background(Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+}
+
 // MARK: - ConversationHistoryView
 
 private struct ConversationHistoryView: View {
-    let state: ConversationState
+    let messages: [ChatMessage]
+    let turnCount: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -319,18 +365,18 @@ private struct ConversationHistoryView: View {
 
                 Spacer()
 
-                if !state.messages.isEmpty {
-                    Text("\(state.messages.filter { $0.role != .error }.count / 2) ターン")
+                if !messages.isEmpty {
+                    Text("\(turnCount) ターン")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            if state.messages.isEmpty {
+            if messages.isEmpty {
                 EmptyConversationView()
             } else {
                 VStack(spacing: 12) {
-                    ForEach(state.messages) { message in
+                    ForEach(messages) { message in
                         MessageBubble(message: message)
                     }
                 }
