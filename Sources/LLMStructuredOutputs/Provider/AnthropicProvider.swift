@@ -104,9 +104,10 @@ internal struct AnthropicProvider: LLMProvider, RetryableProviderProtocol {
         // 構造化出力の設定（Anthropic APIでサポートされていない制約を除去）
         var outputFormat: AnthropicOutputFormat?
         if let schema = request.responseSchema {
+            let adapter = AnthropicSchemaAdapter()
             outputFormat = AnthropicOutputFormat(
                 type: "json_schema",
-                schema: schema.sanitizedForAnthropic()
+                schema: adapter.adapt(schema)
             )
         }
 
