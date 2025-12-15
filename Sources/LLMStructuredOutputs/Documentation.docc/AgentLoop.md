@@ -39,13 +39,13 @@ struct GetWeather {
 let client = AnthropicClient(apiKey: "...")
 let tools = ToolSet { GetWeather.self }
 
-let sequence: AgentStepSequence<AnthropicClient, WeatherReport> = client.runAgent(
+let stream: some AgentStepStream<WeatherReport> = client.runAgent(
     prompt: "東京の天気を調べてレポートを作成して",
     model: .sonnet,
     tools: tools
 )
 
-for try await step in sequence {
+for try await step in stream {
     switch step {
     case .thinking:
         print("思考中...")
@@ -83,7 +83,7 @@ for try await step in sequence {
 ### 型
 
 - ``AgentStep``
-- ``AgentStepSequence``
+- ``AgentStepStream``
 - ``AgentConfiguration``
 - ``AgentContext``
 - ``AgentError``

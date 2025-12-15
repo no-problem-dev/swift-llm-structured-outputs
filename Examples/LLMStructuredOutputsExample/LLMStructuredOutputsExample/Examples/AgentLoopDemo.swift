@@ -103,7 +103,7 @@ struct AgentLoopDemo: View {
     }
 
     private func runAnthropicAgent(client: AnthropicClient, tools: ToolSet) async throws {
-        let agentSequence: AgentStepSequence<AnthropicClient, WeatherReport> = client.runAgent(
+        let agentStream: some AgentStepStream<WeatherReport> = client.runAgent(
             prompt: inputText,
             model: settings.claudeModelOption.model,
             tools: tools,
@@ -112,7 +112,7 @@ struct AgentLoopDemo: View {
 
         var finalResult: WeatherReport?
 
-        for try await step in agentSequence {
+        for try await step in agentStream {
             let stepInfo = processStep(step)
             await MainActor.run {
                 steps.append(stepInfo)
@@ -131,7 +131,7 @@ struct AgentLoopDemo: View {
     }
 
     private func runOpenAIAgent(client: OpenAIClient, tools: ToolSet) async throws {
-        let agentSequence: AgentStepSequence<OpenAIClient, WeatherReport> = client.runAgent(
+        let agentStream: some AgentStepStream<WeatherReport> = client.runAgent(
             prompt: inputText,
             model: settings.gptModelOption.model,
             tools: tools,
@@ -140,7 +140,7 @@ struct AgentLoopDemo: View {
 
         var finalResult: WeatherReport?
 
-        for try await step in agentSequence {
+        for try await step in agentStream {
             let stepInfo = processStep(step)
             await MainActor.run {
                 steps.append(stepInfo)
@@ -159,7 +159,7 @@ struct AgentLoopDemo: View {
     }
 
     private func runGeminiAgent(client: GeminiClient, tools: ToolSet) async throws {
-        let agentSequence: AgentStepSequence<GeminiClient, WeatherReport> = client.runAgent(
+        let agentStream: some AgentStepStream<WeatherReport> = client.runAgent(
             prompt: inputText,
             model: settings.geminiModelOption.model,
             tools: tools,
@@ -168,7 +168,7 @@ struct AgentLoopDemo: View {
 
         var finalResult: WeatherReport?
 
-        for try await step in agentSequence {
+        for try await step in agentStream {
             let stepInfo = processStep(step)
             await MainActor.run {
                 steps.append(stepInfo)
@@ -682,13 +682,13 @@ private struct CodeExampleSection: View {
         // LLMが必要なツールを順次選択・実行します
         let client = AnthropicClient(apiKey: "...")
 
-        let agentSequence: AgentStepSequence<AnthropicClient, WeatherReport> = client.runAgent(
+        let agentStream: some AgentStepStream<WeatherReport> = client.runAgent(
             prompt: "東京の天気を調べて、気温を華氏に変換してレポートを作成して",
             model: .sonnet,
             tools: tools
         )
 
-        for try await step in agentSequence {
+        for try await step in agentStream {
             switch step {
             case .thinking(let response):
                 print("💭 思考中...")
