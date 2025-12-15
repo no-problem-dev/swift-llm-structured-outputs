@@ -49,10 +49,10 @@ for try await step in stream {
     switch step {
     case .thinking:
         print("思考中...")
-    case .toolCall(let info):
-        print("ツール: \(info.name)")
-    case .toolResult(let info):
-        print("結果: \(info.content)")
+    case .toolCall(let call):
+        print("ツール: \(call.name)")
+    case .toolResult(let result):
+        print("結果: \(result.output)")
     case .finalResponse(let report):
         print("完了: \(report.location)")
     }
@@ -88,7 +88,7 @@ for try await step in stream {
 - ``AgentContext``
 - ``AgentError``
 
-### 情報
+### ツール関連
 
-- ``ToolCallInfo``
-- ``ToolResultInfo``
+- ``ToolCall``
+- ``ToolResponse``

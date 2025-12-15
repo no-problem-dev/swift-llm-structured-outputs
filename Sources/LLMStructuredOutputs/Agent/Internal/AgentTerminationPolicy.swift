@@ -7,7 +7,7 @@ import Foundation
 /// `AgentTerminationPolicy` が LLM レスポンスを評価した結果を表します。
 internal enum TerminationDecision: Sendable {
     /// ツール呼び出しを処理してループを継続
-    case continueWithTools([ToolCallInfo])
+    case continueWithTools([ToolCall])
 
     /// テキスト応答を処理してループを継続（次のステップで再評価）
     case continueWithThinking
@@ -236,7 +236,7 @@ internal struct DuplicateDetectionPolicy: AgentTerminationPolicy {
             }
 
             // 2. 同一入力の重複チェック
-            let inputHash = call.input.hashValue
+            let inputHash = call.arguments.hashValue
             let duplicateCount = await context.countDuplicateToolCalls(
                 name: call.name,
                 inputHash: inputHash
@@ -336,12 +336,12 @@ internal enum TerminationPolicyFactory {
 
 extension LLMResponse {
     /// ツール呼び出し情報を抽出
-    internal func extractToolCalls() -> [ToolCallInfo] {
+    internal func extractToolCalls() -> [ToolCall] {
         content.compactMap { block in
             guard case .toolUse(let id, let name, let input) = block else {
                 return nil
             }
-            return ToolCallInfo(id: id, name: name, input: input)
+            return ToolCall(id: id, name: name, arguments: input)
         }
     }
 

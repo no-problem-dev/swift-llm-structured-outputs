@@ -32,94 +32,94 @@ final class AgentTests: XCTestCase {
         _ = requireSendable(config)
     }
 
-    // MARK: - ToolCallInfo Tests
+    // MARK: - ToolCall Tests
 
-    func testToolCallInfoInit() {
-        let input = "{\"location\":\"Tokyo\"}".data(using: .utf8)!
-        let info = ToolCallInfo(id: "call_123", name: "get_weather", input: input)
+    func testToolCallInit() {
+        let arguments = "{\"location\":\"Tokyo\"}".data(using: .utf8)!
+        let call = ToolCall(id: "call_123", name: "get_weather", arguments: arguments)
 
-        XCTAssertEqual(info.id, "call_123")
-        XCTAssertEqual(info.name, "get_weather")
-        XCTAssertEqual(info.input, input)
+        XCTAssertEqual(call.id, "call_123")
+        XCTAssertEqual(call.name, "get_weather")
+        XCTAssertEqual(call.arguments, arguments)
     }
 
-    func testToolCallInfoDecodeInput() throws {
+    func testToolCallDecodeArguments() throws {
         struct Args: Decodable, Equatable {
             let location: String
         }
 
-        let input = "{\"location\":\"Tokyo\"}".data(using: .utf8)!
-        let info = ToolCallInfo(id: "call_123", name: "get_weather", input: input)
+        let arguments = "{\"location\":\"Tokyo\"}".data(using: .utf8)!
+        let call = ToolCall(id: "call_123", name: "get_weather", arguments: arguments)
 
-        let args = try info.decodeInput(as: Args.self)
+        let args = try call.decodeArguments(as: Args.self)
         XCTAssertEqual(args.location, "Tokyo")
     }
 
-    func testToolCallInfoDecodeInputFailure() {
+    func testToolCallDecodeArgumentsFailure() {
         struct Args: Decodable {
             let invalidField: Int
         }
 
-        let input = "{\"location\":\"Tokyo\"}".data(using: .utf8)!
-        let info = ToolCallInfo(id: "call_123", name: "get_weather", input: input)
+        let arguments = "{\"location\":\"Tokyo\"}".data(using: .utf8)!
+        let call = ToolCall(id: "call_123", name: "get_weather", arguments: arguments)
 
-        XCTAssertThrowsError(try info.decodeInput(as: Args.self))
+        XCTAssertThrowsError(try call.decodeArguments(as: Args.self))
     }
 
-    func testToolCallInfoIsSendable() {
-        let input = "{}".data(using: .utf8)!
-        let info = ToolCallInfo(id: "id", name: "name", input: input)
+    func testToolCallIsSendable() {
+        let arguments = "{}".data(using: .utf8)!
+        let call = ToolCall(id: "id", name: "name", arguments: arguments)
 
         func requireSendable<T: Sendable>(_ value: T) -> T { value }
-        _ = requireSendable(info)
+        _ = requireSendable(call)
     }
 
-    // MARK: - ToolResultInfo Tests
+    // MARK: - ToolResponse Tests
 
-    func testToolResultInfoInit() {
-        let info = ToolResultInfo(
-            toolCallId: "call_123",
+    func testToolResponseInit() {
+        let response = ToolResponse(
+            callId: "call_123",
             name: "get_weather",
-            content: "晴れ、25°C",
+            output: "晴れ、25°C",
             isError: false
         )
 
-        XCTAssertEqual(info.toolCallId, "call_123")
-        XCTAssertEqual(info.name, "get_weather")
-        XCTAssertEqual(info.content, "晴れ、25°C")
-        XCTAssertFalse(info.isError)
+        XCTAssertEqual(response.callId, "call_123")
+        XCTAssertEqual(response.name, "get_weather")
+        XCTAssertEqual(response.output, "晴れ、25°C")
+        XCTAssertFalse(response.isError)
     }
 
-    func testToolResultInfoError() {
-        let info = ToolResultInfo(
-            toolCallId: "call_123",
+    func testToolResponseError() {
+        let response = ToolResponse(
+            callId: "call_123",
             name: "get_weather",
-            content: "API error",
+            output: "API error",
             isError: true
         )
 
-        XCTAssertTrue(info.isError)
+        XCTAssertTrue(response.isError)
     }
 
-    func testToolResultInfoDefaultIsError() {
-        let info = ToolResultInfo(
-            toolCallId: "call_123",
+    func testToolResponseDefaultIsError() {
+        let response = ToolResponse(
+            callId: "call_123",
             name: "get_weather",
-            content: "晴れ"
+            output: "晴れ"
         )
 
-        XCTAssertFalse(info.isError)
+        XCTAssertFalse(response.isError)
     }
 
-    func testToolResultInfoIsSendable() {
-        let info = ToolResultInfo(
-            toolCallId: "id",
+    func testToolResponseIsSendable() {
+        let response = ToolResponse(
+            callId: "id",
             name: "name",
-            content: "content"
+            output: "content"
         )
 
         func requireSendable<T: Sendable>(_ value: T) -> T { value }
-        _ = requireSendable(info)
+        _ = requireSendable(response)
     }
 
     // MARK: - AgentStep Tests
@@ -141,27 +141,27 @@ final class AgentTests: XCTestCase {
     }
 
     func testAgentStepToolCall() {
-        let input = "{}".data(using: .utf8)!
-        let info = ToolCallInfo(id: "call_1", name: "tool", input: input)
-        let step: AgentStep<SimpleOutput> = .toolCall(info)
+        let arguments = "{}".data(using: .utf8)!
+        let call = ToolCall(id: "call_1", name: "tool", arguments: arguments)
+        let step: AgentStep<SimpleOutput> = .toolCall(call)
 
-        if case .toolCall(let i) = step {
-            XCTAssertEqual(i.name, "tool")
+        if case .toolCall(let c) = step {
+            XCTAssertEqual(c.name, "tool")
         } else {
             XCTFail("Expected .toolCall case")
         }
     }
 
     func testAgentStepToolResult() {
-        let info = ToolResultInfo(
-            toolCallId: "call_1",
+        let response = ToolResponse(
+            callId: "call_1",
             name: "tool",
-            content: "result"
+            output: "result"
         )
-        let step: AgentStep<SimpleOutput> = .toolResult(info)
+        let step: AgentStep<SimpleOutput> = .toolResult(response)
 
-        if case .toolResult(let i) = step {
-            XCTAssertEqual(i.content, "result")
+        if case .toolResult(let r) = step {
+            XCTAssertEqual(r.output, "result")
         } else {
             XCTFail("Expected .toolResult case")
         }
@@ -354,8 +354,8 @@ final class AgentTests: XCTestCase {
         )
 
         let results = [
-            ToolResultInfo(toolCallId: "call_1", name: "tool1", content: "result1"),
-            ToolResultInfo(toolCallId: "call_2", name: "tool2", content: "result2", isError: true)
+            ToolResponse(callId: "call_1", name: "tool1", output: "result1"),
+            ToolResponse(callId: "call_2", name: "tool2", output: "result2", isError: true)
         ]
 
         await context.addToolResults(results)
@@ -472,8 +472,8 @@ final class AgentTests: XCTestCase {
     // MARK: - TerminationDecision Tests
 
     func testTerminationDecisionContinueWithTools() {
-        let input = "{}".data(using: .utf8)!
-        let call = ToolCallInfo(id: "call_1", name: "tool", input: input)
+        let arguments = "{}".data(using: .utf8)!
+        let call = ToolCall(id: "call_1", name: "tool", arguments: arguments)
         let decision = TerminationDecision.continueWithTools([call])
 
         if case .continueWithTools(let calls) = decision {
@@ -719,8 +719,8 @@ final class AgentTests: XCTestCase {
 
     func testAgentLoopStateManagerRecordToolCall() async {
         let manager = AgentLoopStateManager(maxSteps: 10)
-        let input = "{\"q\":\"test\"}".data(using: .utf8)!
-        let call = ToolCallInfo(id: "call_1", name: "search", input: input)
+        let arguments = "{\"q\":\"test\"}".data(using: .utf8)!
+        let call = ToolCall(id: "call_1", name: "search", arguments: arguments)
 
         await manager.recordToolCall(call)
 
@@ -736,15 +736,15 @@ final class AgentTests: XCTestCase {
         // 重複カウント
         let duplicateCount = await manager.countDuplicateToolCalls(
             name: "search",
-            inputHash: input.hashValue
+            inputHash: arguments.hashValue
         )
         XCTAssertEqual(duplicateCount, 2)
     }
 
     func testAgentLoopStateManagerSnapshot() async throws {
         let manager = AgentLoopStateManager(maxSteps: 5)
-        let input = "{\"q\":\"test\"}".data(using: .utf8)!
-        let call = ToolCallInfo(id: "call_1", name: "search", input: input)
+        let arguments = "{\"q\":\"test\"}".data(using: .utf8)!
+        let call = ToolCall(id: "call_1", name: "search", arguments: arguments)
 
         _ = try await manager.incrementStep()
         await manager.recordToolCall(call)
@@ -775,8 +775,8 @@ final class AgentTests: XCTestCase {
 
     func testAgentLoopStateManagerReset() async throws {
         let manager = AgentLoopStateManager(maxSteps: 10)
-        let input = "{\"q\":\"test\"}".data(using: .utf8)!
-        let call = ToolCallInfo(id: "call_1", name: "search", input: input)
+        let arguments = "{\"q\":\"test\"}".data(using: .utf8)!
+        let call = ToolCall(id: "call_1", name: "search", arguments: arguments)
 
         _ = try await manager.incrementStep()
         await manager.recordToolCall(call)
@@ -896,14 +896,14 @@ final class AgentTests: XCTestCase {
 
     // MARK: - ToolCallRecord Tests
 
-    func testToolCallRecordFromToolCallInfo() {
-        let input = "{\"q\":\"test\"}".data(using: .utf8)!
-        let callInfo = ToolCallInfo(id: "call_1", name: "search", input: input)
+    func testToolCallRecordFromToolCall() {
+        let arguments = "{\"q\":\"test\"}".data(using: .utf8)!
+        let call = ToolCall(id: "call_1", name: "search", arguments: arguments)
 
-        let record = ToolCallRecord(from: callInfo)
+        let record = ToolCallRecord(from: call)
 
         XCTAssertEqual(record.name, "search")
-        XCTAssertEqual(record.inputHash, input.hashValue)
+        XCTAssertEqual(record.inputHash, arguments.hashValue)
     }
 
     func testToolCallRecordHashable() {
