@@ -72,7 +72,11 @@ for try await step in sequence {
 
 - **Anthropic (Claude)**: 対応
 - **OpenAI (GPT)**: 対応
-- **Google (Gemini)**: 非対応（API制限）
+- **Google (Gemini)**: 対応
+
+## 内部実装
+
+エージェントループの内部動作（フェーズ管理、終了ポリシー、状態管理など）について詳しく知りたい場合は、<doc:AgentLoopInternals> を参照してください。
 
 ## Topics
 

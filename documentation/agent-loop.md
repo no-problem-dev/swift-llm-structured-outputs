@@ -181,9 +181,7 @@ do {
 |-------------|---------|
 | Anthropic (Claude) | ✅ 対応 |
 | OpenAI (GPT) | ✅ 対応 |
-| Google (Gemini) | ❌ 非対応（API制限） |
-
-> **注意**: Gemini API はツール呼び出しと JSON 構造化出力の同時使用をサポートしていません。
+| Google (Gemini) | ✅ 対応 |
 
 ## planToolCalls との違い
 
@@ -196,5 +194,6 @@ do {
 
 ## 次のステップ
 
+- [内部実装ガイド](agent-loop-internals.md) でフェーズ管理、終了ポリシー、状態管理の詳細を確認
 - [ツールコール](tool-calling.md) で手動制御が必要な場合の実装を確認
 - [はじめに](getting-started.md) で基本的なセットアップを確認

@@ -11,9 +11,13 @@ import LLMStructuredOutputs
 /// エージェント実行画面
 struct AgentRunnerView: View {
     @State private var controller = AgentExecutionController()
-    @State private var selectedCategory: ScenarioCategory = .research
-    @State private var selectedScenario: AgentScenario? = AgentScenario.scenarios(for: .research).first
-    @State private var inputText = AgentScenario.scenarios(for: .research).first?.prompt ?? ""
+    @State private var selectedScenarioID: String = ScenarioRegistry.allScenarios.first?.id ?? ""
+    @State private var selectedSampleScenario: SampleScenario?
+    @State private var inputText = ""
+
+    private var selectedScenarioInfo: ScenarioInfo? {
+        ScenarioRegistry.scenario(for: selectedScenarioID)
+    }
 
     var body: some View {
         ScrollView {
@@ -27,8 +31,8 @@ struct AgentRunnerView: View {
                 Divider()
 
                 ScenarioSection(
-                    selectedCategory: $selectedCategory,
-                    selectedScenario: $selectedScenario,
+                    selectedScenarioID: $selectedScenarioID,
+                    selectedSampleScenario: $selectedSampleScenario,
                     inputText: $inputText
                 )
 
@@ -37,7 +41,7 @@ struct AgentRunnerView: View {
                 ExecutionControlSection(
                     controller: controller,
                     inputText: inputText,
-                    selectedCategory: selectedCategory
+                    selectedScenarioID: selectedScenarioID
                 )
 
                 if !controller.state.isIdle {
@@ -52,6 +56,14 @@ struct AgentRunnerView: View {
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle("エージェント")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            // 初期シナリオの設定
+            if let firstScenario = selectedScenarioInfo,
+               let firstSample = firstScenario.sampleScenarios.first {
+                selectedSampleScenario = firstSample
+                inputText = firstSample.prompt
+            }
+        }
     }
 }
 
@@ -76,12 +88,16 @@ private struct HeaderSection: View {
 // MARK: - Scenario Section
 
 private struct ScenarioSection: View {
-    @Binding var selectedCategory: ScenarioCategory
-    @Binding var selectedScenario: AgentScenario?
+    @Binding var selectedScenarioID: String
+    @Binding var selectedSampleScenario: SampleScenario?
     @Binding var inputText: String
 
-    private var scenariosForCategory: [AgentScenario] {
-        AgentScenario.scenarios(for: selectedCategory)
+    private var scenarios: [ScenarioInfo] {
+        ScenarioRegistry.allScenarios
+    }
+
+    private var sampleScenariosForCategory: [SampleScenario] {
+        ScenarioRegistry.sampleScenarios(for: selectedScenarioID)
     }
 
     var body: some View {
@@ -94,28 +110,28 @@ private struct ScenarioSection: View {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(ScenarioCategory.allCases) { category in
+                        ForEach(scenarios) { scenario in
                             Button {
-                                selectedCategory = category
-                                if let firstScenario = AgentScenario.scenarios(for: category).first {
-                                    selectedScenario = firstScenario
-                                    inputText = firstScenario.prompt
+                                selectedScenarioID = scenario.id
+                                if let firstSample = scenario.sampleScenarios.first {
+                                    selectedSampleScenario = firstSample
+                                    inputText = firstSample.prompt
                                 }
                             } label: {
                                 HStack(spacing: 4) {
-                                    Image(systemName: category.icon)
+                                    Image(systemName: scenario.icon)
                                         .font(.caption)
-                                    Text(category.rawValue)
+                                    Text(scenario.displayName)
                                         .font(.subheadline.bold())
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
                                 .background(
-                                    selectedCategory == category
+                                    selectedScenarioID == scenario.id
                                         ? Color.accentColor
                                         : Color(.systemGray5)
                                 )
-                                .foregroundStyle(selectedCategory == category ? .white : .primary)
+                                .foregroundStyle(selectedScenarioID == scenario.id ? .white : .primary)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                             .buttonStyle(.plain)
@@ -132,28 +148,28 @@ private struct ScenarioSection: View {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(scenariosForCategory) { scenario in
+                        ForEach(sampleScenariosForCategory) { sample in
                             Button {
-                                selectedScenario = scenario
-                                inputText = scenario.prompt
+                                selectedSampleScenario = sample
+                                inputText = sample.prompt
                             } label: {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(scenario.name)
+                                    Text(sample.name)
                                         .font(.subheadline.bold())
-                                    Text(scenario.description)
+                                    Text(sample.description)
                                         .font(.caption2)
-                                        .foregroundStyle(selectedScenario?.id == scenario.id ? .white.opacity(0.8) : .secondary)
+                                        .foregroundStyle(selectedSampleScenario?.id == sample.id ? .white.opacity(0.8) : .secondary)
                                         .lineLimit(2)
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
                                 .frame(width: 160, alignment: .leading)
                                 .background(
-                                    selectedScenario?.id == scenario.id
+                                    selectedSampleScenario?.id == sample.id
                                         ? Color.accentColor
                                         : Color(.systemGray5)
                                 )
-                                .foregroundStyle(selectedScenario?.id == scenario.id ? .white : .primary)
+                                .foregroundStyle(selectedSampleScenario?.id == sample.id ? .white : .primary)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                             .buttonStyle(.plain)
@@ -193,7 +209,7 @@ private struct InputSection: View {
 private struct ExecutionControlSection: View {
     let controller: AgentExecutionController
     let inputText: String
-    let selectedCategory: ScenarioCategory
+    let selectedScenarioID: String
 
     var settings = AgentSettings.shared
     var toolConfig = ToolConfiguration.shared
@@ -215,7 +231,7 @@ private struct ExecutionControlSection: View {
             } else {
                 StartButton(
                     canExecute: canExecute,
-                    onStart: { controller.start(prompt: inputText, category: selectedCategory) }
+                    onStart: { controller.start(scenarioID: selectedScenarioID, prompt: inputText) }
                 )
             }
         }

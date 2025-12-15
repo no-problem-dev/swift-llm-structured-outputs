@@ -7,6 +7,29 @@
 
 ## [未リリース]
 
+## [1.0.11] - 2025-12-15
+
+### 追加
+
+- **DocC ドキュメント**: AgentLoopInternals.md（エージェントループ内部実装ガイド）
+  - MermaidをテキストとASCII図で代替したDocC対応版
+  - フェーズ管理、終了ポリシー、状態管理の詳細解説
+
+### 変更
+
+- **AgentExampleアプリのリファクタリング**: AgentScenarioTypeプロトコルによるシナリオ抽象化
+  - シナリオ定義の統一化と拡張性向上
+  - コードの重複削減
+
+### 修正
+
+- **DocCビルド警告の修正**
+  - シンボルリンクの不整合を修正（ToolArgument, StopReason等）
+  - Topics循環参照を解消
+  - internal型への参照をコード表記に変更
+
+- **Mermaid図の修正**: decodeFinalOutput()フローの複数パス同一ノード接続問題を解消
+
 ## [1.0.10] - 2025-12-15
 
 ### 追加
@@ -237,7 +260,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.10...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.11...HEAD
+[1.0.11]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.10...v1.0.11
 [1.0.10]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.9...v1.0.10
 [1.0.9]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.7...v1.0.8
@@ -256,3 +280,5 @@
 <!-- Auto-generated on 2025-12-14T03:13:27Z by release workflow -->
 
 <!-- Auto-generated on 2025-12-14T06:19:39Z by release workflow -->
+
+<!-- Auto-generated on 2025-12-14T22:47:37Z by release workflow -->

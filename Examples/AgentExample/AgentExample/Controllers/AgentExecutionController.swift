@@ -3,6 +3,7 @@
 //  AgentExample
 //
 //  エージェント実行制御
+//  AgentScenarioType プロトコルによるジェネリック実行
 //
 
 import Foundation
@@ -37,8 +38,17 @@ final class AgentExecutionController {
 
     // MARK: - Public Methods
 
-    /// エージェントを実行開始
-    func start(prompt: String, category: ScenarioCategory) {
+    /// シナリオを指定してエージェントを実行開始（ジェネリック版）
+    ///
+    /// - Parameters:
+    ///   - scenario: 実行するシナリオの型
+    ///   - prompt: ユーザーのプロンプト
+    ///   - transform: 出力を AgentResult に変換するクロージャ
+    func start<S: AgentScenarioType>(
+        scenario: S.Type,
+        prompt: String,
+        transform: @escaping (S.Output) -> AgentResult
+    ) {
         guard runningTask == nil else { return }
 
         state = .loading
@@ -47,7 +57,29 @@ final class AgentExecutionController {
         let tools = ResearchToolSet.configuredTools
 
         runningTask = Task {
-            await executeAgent(prompt: prompt, category: category, tools: tools)
+            await executeScenario(scenario: scenario, prompt: prompt, tools: tools, transform: transform)
+        }
+    }
+
+    /// シナリオIDを指定してエージェントを実行開始
+    ///
+    /// - Parameters:
+    ///   - scenarioID: シナリオのID
+    ///   - prompt: ユーザーのプロンプト
+    func start(scenarioID: String, prompt: String) {
+        switch scenarioID {
+        case ResearchScenario.id:
+            start(scenario: ResearchScenario.self, prompt: prompt) { .research($0) }
+        case CalculationScenario.id:
+            start(scenario: CalculationScenario.self, prompt: prompt) { .calculation($0) }
+        case TemporalScenario.id:
+            start(scenario: TemporalScenario.self, prompt: prompt) { .temporal($0) }
+        case MultiToolScenario.id:
+            start(scenario: MultiToolScenario.self, prompt: prompt) { .multiTool($0) }
+        case ReasoningScenario.id:
+            start(scenario: ReasoningScenario.self, prompt: prompt) { .reasoning($0) }
+        default:
+            state = .error("不明なシナリオID: \(scenarioID)")
         }
     }
 
@@ -81,9 +113,14 @@ final class AgentExecutionController {
         toolConfig.hasUsableTools
     }
 
-    // MARK: - Private Methods
+    // MARK: - Private Methods - Scenario Execution
 
-    private func executeAgent(prompt: String, category: ScenarioCategory, tools: ToolSet) async {
+    private func executeScenario<S: AgentScenarioType>(
+        scenario: S.Type,
+        prompt: String,
+        tools: ToolSet,
+        transform: @escaping (S.Output) -> AgentResult
+    ) async {
         do {
             switch settings.selectedProvider {
             case .anthropic:
@@ -92,7 +129,14 @@ final class AgentExecutionController {
                     runningTask = nil
                     return
                 }
-                try await runAgent(client: client, model: settings.claudeModelOption.model, prompt: prompt, category: category, tools: tools)
+                try await runScenario(
+                    scenario: scenario,
+                    client: client,
+                    model: settings.claudeModelOption.model,
+                    prompt: prompt,
+                    tools: tools,
+                    transform: transform
+                )
 
             case .openai:
                 guard let client = settings.createOpenAIClient() else {
@@ -100,7 +144,14 @@ final class AgentExecutionController {
                     runningTask = nil
                     return
                 }
-                try await runAgent(client: client, model: settings.gptModelOption.model, prompt: prompt, category: category, tools: tools)
+                try await runScenario(
+                    scenario: scenario,
+                    client: client,
+                    model: settings.gptModelOption.model,
+                    prompt: prompt,
+                    tools: tools,
+                    transform: transform
+                )
 
             case .gemini:
                 guard let client = settings.createGeminiClient() else {
@@ -108,7 +159,14 @@ final class AgentExecutionController {
                     runningTask = nil
                     return
                 }
-                try await runAgent(client: client, model: settings.geminiModelOption.model, prompt: prompt, category: category, tools: tools)
+                try await runScenario(
+                    scenario: scenario,
+                    client: client,
+                    model: settings.geminiModelOption.model,
+                    prompt: prompt,
+                    tools: tools,
+                    transform: transform
+                )
             }
         } catch is CancellationError {
             if state.isLoading {
@@ -121,93 +179,18 @@ final class AgentExecutionController {
         runningTask = nil
     }
 
-    private func runAgent<Client: AgentCapableClient>(
-        client: Client,
-        model: Client.Model,
-        prompt: String,
-        category: ScenarioCategory,
-        tools: ToolSet
-    ) async throws where Client.Model: Sendable {
-        let config = settings.createAgentConfiguration()
-
-        switch category {
-        case .research:
-            let systemPrompt = AgentPrompt.forResearch()
-            try await runTypedAgent(
-                client: client,
-                model: model,
-                prompt: prompt,
-                tools: tools,
-                systemPrompt: systemPrompt,
-                config: config
-            ) { (report: ResearchReport) in
-                .research(report)
-            }
-
-        case .calculation:
-            let systemPrompt = AgentPrompt.forCalculation()
-            try await runTypedAgent(
-                client: client,
-                model: model,
-                prompt: prompt,
-                tools: tools,
-                systemPrompt: systemPrompt,
-                config: config
-            ) { (report: CalculationReport) in
-                .calculation(report)
-            }
-
-        case .temporal:
-            let systemPrompt = AgentPrompt.forTemporal()
-            try await runTypedAgent(
-                client: client,
-                model: model,
-                prompt: prompt,
-                tools: tools,
-                systemPrompt: systemPrompt,
-                config: config
-            ) { (report: TemporalReport) in
-                .temporal(report)
-            }
-
-        case .multiTool:
-            let systemPrompt = AgentPrompt.forMultiTool()
-            try await runTypedAgent(
-                client: client,
-                model: model,
-                prompt: prompt,
-                tools: tools,
-                systemPrompt: systemPrompt,
-                config: config
-            ) { (report: MultiToolReport) in
-                .multiTool(report)
-            }
-
-        case .reasoning:
-            let systemPrompt = AgentPrompt.forReasoning()
-            try await runTypedAgent(
-                client: client,
-                model: model,
-                prompt: prompt,
-                tools: tools,
-                systemPrompt: systemPrompt,
-                config: config
-            ) { (report: ReasoningReport) in
-                .reasoning(report)
-            }
-        }
-    }
-
-    private func runTypedAgent<Client: AgentCapableClient, Output: StructuredProtocol>(
+    private func runScenario<S: AgentScenarioType, Client: AgentCapableClient>(
+        scenario: S.Type,
         client: Client,
         model: Client.Model,
         prompt: String,
         tools: ToolSet,
-        systemPrompt: Prompt,
-        config: AgentConfiguration,
-        transform: @escaping (Output) -> AgentResult
+        transform: @escaping (S.Output) -> AgentResult
     ) async throws where Client.Model: Sendable {
-        let agentSequence: AgentStepSequence<Client, Output> = client.runAgent(
+        let config = settings.createAgentConfiguration()
+        let systemPrompt = S.systemPrompt()
+
+        let agentSequence: AgentStepSequence<Client, S.Output> = client.runAgent(
             prompt: prompt,
             model: model,
             tools: tools,
@@ -215,7 +198,7 @@ final class AgentExecutionController {
             configuration: config
         )
 
-        var finalResult: Output?
+        var finalResult: S.Output?
 
         for try await step in agentSequence {
             try Task.checkCancellation()
@@ -234,6 +217,8 @@ final class AgentExecutionController {
             state = .error("最終レスポンスが取得できませんでした")
         }
     }
+
+    // MARK: - Private Methods - Step Processing
 
     private func processStep<Output>(_ step: AgentStep<Output>) -> AgentStepInfo {
         switch step {
