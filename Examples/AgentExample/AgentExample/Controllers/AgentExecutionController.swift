@@ -190,7 +190,7 @@ final class AgentExecutionController {
         let config = settings.createAgentConfiguration()
         let systemPrompt = S.systemPrompt()
 
-        let agentSequence: AgentStepSequence<Client, S.Output> = client.runAgent(
+        let agentStream: some AgentStepStream<S.Output> = client.runAgent(
             prompt: prompt,
             model: model,
             tools: tools,
@@ -200,7 +200,7 @@ final class AgentExecutionController {
 
         var finalResult: S.Output?
 
-        for try await step in agentSequence {
+        for try await step in agentStream {
             try Task.checkCancellation()
 
             let stepInfo = processStep(step)
