@@ -13,7 +13,7 @@ Type-safe structured output generation for Swift LLM clients
 
 - **Type-safe Structured Outputs** - Automatic JSON Schema generation via Swift macros
 - **Multi-provider Support** - Claude (Anthropic), GPT (OpenAI), and Gemini (Google)
-- **Conversation Continuation** - State management and multi-turn conversations with `Conversation` class
+- **Conversation Continuation** - State management and multi-turn conversations with `ConversationHistory`
 - **Swift Concurrency** - Full async/await and Sendable support
 - **Zero Dependencies** - Only swift-syntax required (for macro implementation)
 
@@ -53,18 +53,23 @@ print(user.age)   // 35
 ### 3. Continue Conversations
 
 ```swift
-var conversation = Conversation(
-    client: client,
+let history = ConversationHistory()
+
+// First question
+let cityInfo: CityInfo = try await client.chat(
+    "What is the capital of Japan?",
+    history: history,
     model: .sonnet,
     systemPrompt: "You are a helpful assistant"
 )
-
-// First question
-let cityInfo: CityInfo = try await conversation.send("What is the capital of Japan?")
 print(cityInfo.name)  // "Tokyo"
 
 // Continue conversation (context is maintained)
-let population: PopulationInfo = try await conversation.send("What is its population?")
+let population: PopulationInfo = try await client.chat(
+    "What is its population?",
+    history: history,
+    model: .sonnet
+)
 print(population.count)  // 13960000
 ```
 
@@ -230,25 +235,32 @@ enum Priority: String {
 
 ## Conversation Continuation
 
-Use the `Conversation` class to manage multi-turn conversations.
+Use `ConversationHistory` to manage multi-turn conversations.
 
 ```swift
-var conversation = Conversation(
-    client: AnthropicClient(apiKey: "..."),
+let history = ConversationHistory()
+let client = AnthropicClient(apiKey: "...")
+
+// Sequential questions (context is maintained)
+let recipe: Recipe = try await client.chat(
+    "How do I make pasta?",
+    history: history,
     model: .sonnet,
     systemPrompt: "You are a cooking expert"
 )
 
-// Sequential questions (context is maintained)
-let recipe: Recipe = try await conversation.send("How do I make pasta?")
-let tips: CookingTips = try await conversation.send("Any tips for beginners?")
+let tips: CookingTips = try await client.chat(
+    "Any tips for beginners?",
+    history: history,
+    model: .sonnet
+)
 
 // Check usage
-print("Turns: \(conversation.turnCount)")
-print("Total tokens: \(conversation.totalUsage.totalTokens)")
+print("Turns: \(await history.turnCount)")
+print("Total tokens: \(await history.getTotalUsage().totalTokens)")
 
 // Reset conversation
-conversation.clear()
+await history.clear()
 ```
 
 ## Requirements
@@ -267,7 +279,7 @@ An iOS example app is included in `Examples/LLMStructuredOutputsExample`. Try al
 | Basic Structured Output | `@Structured` type definition, `generate()` output |
 | Field Constraints | `.minimum()`, `.maximum()`, `.pattern()` constraints |
 | Enum Support | `@StructuredEnum` enum output |
-| Conversation | `Conversation` multi-turn conversations |
+| Conversation | `ConversationHistory` multi-turn conversations |
 | Event Stream | `chatStream()` streaming responses |
 | Prompt DSL | `Prompt { }` builder for prompt construction |
 | Tool Calling | `@Tool` definition, `planToolCalls()` planning |
