@@ -236,7 +236,8 @@ extension LLMToolRegistrable {
         ]
 
         // スキーマを辞書に変換
-        if let schemaData = try? inputSchema.sanitizedForAnthropic().toJSONData(),
+        let adapter = AnthropicSchemaAdapter()
+        if let schemaData = try? adapter.adapt(inputSchema).toJSONData(),
            let schemaDict = try? JSONSerialization.jsonObject(with: schemaData) as? [String: Any] {
             result["input_schema"] = schemaDict
         }
@@ -265,7 +266,8 @@ extension LLMToolRegistrable {
         ]
 
         // スキーマを辞書に変換
-        if let schemaData = try? inputSchema.sanitizedForOpenAI().toJSONData(),
+        let adapter = OpenAISchemaAdapter()
+        if let schemaData = try? adapter.adapt(inputSchema).toJSONData(),
            let schemaDict = try? JSONSerialization.jsonObject(with: schemaData) as? [String: Any] {
             functionDict["parameters"] = schemaDict
         }
@@ -292,7 +294,8 @@ extension LLMToolRegistrable {
         ]
 
         // スキーマを辞書に変換
-        if let schemaData = try? inputSchema.sanitizedForGemini().toJSONData(),
+        let adapter = GeminiSchemaAdapter()
+        if let schemaData = try? adapter.adapt(inputSchema).toJSONData(),
            let schemaDict = try? JSONSerialization.jsonObject(with: schemaData) as? [String: Any] {
             result["parameters"] = schemaDict
         }

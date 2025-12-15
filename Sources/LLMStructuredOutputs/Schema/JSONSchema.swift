@@ -1,68 +1,126 @@
 import Foundation
 
+// MARK: - JSONSchema
+
 /// JSON Schema の Swift 表現
 ///
-/// LLMのStructured Output機能で使用されるJSON Schemaを表現します。
-/// Anthropic/OpenAI両方のAPIで使用可能な形式でエンコードされます。
+/// LLM の Structured Output 機能で使用される JSON Schema を表現します。
+/// 各プロバイダー（Anthropic, OpenAI, Gemini）の API で使用可能な形式でエンコードされます。
+///
+/// ## 概要
+///
+/// JSON Schema は構造化データの形式を定義するための標準規格です。
+/// このライブラリでは、LLM からの出力を型安全に取得するために使用されます。
+///
+/// ## 使用例
+///
+/// ```swift
+/// // 基本的なスキーマの作成
+/// let nameSchema = JSONSchema.string(description: "名前")
+///
+/// // オブジェクトスキーマの作成
+/// let userSchema = JSONSchema.object(
+///     description: "ユーザー情報",
+///     properties: [
+///         "name": .string(description: "名前"),
+///         "age": .integer(minimum: 0, maximum: 150)
+///     ],
+///     required: ["name", "age"]
+/// )
+///
+/// // JSON データに変換
+/// let jsonData = try userSchema.toJSONData()
+/// ```
+///
+/// ## プロバイダー対応
+///
+/// 各 LLM プロバイダーは JSON Schema のサポート範囲が異なります。
+/// このライブラリでは、プロバイダーごとにスキーマを自動的に適合させるため、
+/// ユーザーが直接プロバイダー固有の変換を意識する必要はありません。
 public struct JSONSchema: Sendable, Encodable, Equatable {
-    public let type: SchemaType
+    /// スキーマの型
+    public let type: JSONSchemaType
+
+    /// スキーマの説明
     public let description: String?
+
+    /// オブジェクト型のプロパティ定義
     public let properties: [String: JSONSchema]?
+
+    /// 必須プロパティ名のリスト
     public let required: [String]?
+
+    /// 配列型の要素スキーマ
     public let items: Box<JSONSchema>?
+
+    /// 追加プロパティを許可するかどうか
     public let additionalProperties: Bool?
 
-    // 配列制約
+    // MARK: - 配列制約
+
+    /// 最小要素数
     public let minItems: Int?
+
+    /// 最大要素数
     public let maxItems: Int?
 
-    // 数値制約
+    // MARK: - 数値制約
+
+    /// 最小値（この値を含む）
     public let minimum: Int?
+
+    /// 最大値（この値を含む）
     public let maximum: Int?
+
+    /// 最小値（この値を含まない）
     public let exclusiveMinimum: Int?
+
+    /// 最大値（この値を含まない）
     public let exclusiveMaximum: Int?
 
-    // 文字列制約
+    // MARK: - 文字列制約
+
+    /// 最小文字数
     public let minLength: Int?
+
+    /// 最大文字数
     public let maxLength: Int?
+
+    /// 正規表現パターン
     public let pattern: String?
 
-    // 列挙・フォーマット
+    // MARK: - 列挙・フォーマット
+
+    /// 許可される値のリスト
     public let `enum`: [String]?
+
+    /// 文字列フォーマット（例: "email", "uri", "date-time"）
     public let format: String?
 
-    /// JSON Schemaの型
-    public enum SchemaType: String, Sendable, Encodable, Equatable {
-        case object
-        case array
-        case string
-        case integer
-        case number
-        case boolean
-        case null
-    }
+    // MARK: - Initializer
 
-    /// 再帰的な構造をサポートするためのBox型
-    public final class Box<T: Sendable & Encodable & Equatable>: @unchecked Sendable, Encodable, Equatable {
-        public let value: T
-
-        public init(_ value: T) {
-            self.value = value
-        }
-
-        public func encode(to encoder: Encoder) throws {
-            try value.encode(to: encoder)
-        }
-
-        public static func == (lhs: Box<T>, rhs: Box<T>) -> Bool {
-            lhs.value == rhs.value
-        }
-    }
-
-    // MARK: - Initializers
-
+    /// JSONSchema を初期化
+    ///
+    /// - Parameters:
+    ///   - type: スキーマの型
+    ///   - description: スキーマの説明
+    ///   - properties: オブジェクト型のプロパティ定義
+    ///   - required: 必須プロパティ名のリスト
+    ///   - items: 配列型の要素スキーマ
+    ///   - additionalProperties: 追加プロパティを許可するかどうか
+    ///   - minItems: 最小要素数
+    ///   - maxItems: 最大要素数
+    ///   - minimum: 最小値（この値を含む）
+    ///   - maximum: 最大値（この値を含む）
+    ///   - exclusiveMinimum: 最小値（この値を含まない）
+    ///   - exclusiveMaximum: 最大値（この値を含まない）
+    ///   - minLength: 最小文字数
+    ///   - maxLength: 最大文字数
+    ///   - pattern: 正規表現パターン
+    ///   - enum: 許可される値のリスト
+    ///   - format: 文字列フォーマット
     public init(
-        type: SchemaType,
+        type: JSONSchemaType,
         description: String? = nil,
         properties: [String: JSONSchema]? = nil,
         required: [String]? = nil,
@@ -98,350 +156,26 @@ public struct JSONSchema: Sendable, Encodable, Equatable {
         self.enum = `enum`
         self.format = format
     }
-
-    // MARK: - Convenience Factory Methods
-
-    /// 文字列型のスキーマを作成
-    public static func string(
-        description: String? = nil,
-        minLength: Int? = nil,
-        maxLength: Int? = nil,
-        pattern: String? = nil,
-        format: String? = nil,
-        enum enumValues: [String]? = nil
-    ) -> JSONSchema {
-        JSONSchema(
-            type: .string,
-            description: description,
-            minLength: minLength,
-            maxLength: maxLength,
-            pattern: pattern,
-            enum: enumValues,
-            format: format
-        )
-    }
-
-    /// 整数型のスキーマを作成
-    public static func integer(
-        description: String? = nil,
-        minimum: Int? = nil,
-        maximum: Int? = nil,
-        exclusiveMinimum: Int? = nil,
-        exclusiveMaximum: Int? = nil
-    ) -> JSONSchema {
-        JSONSchema(
-            type: .integer,
-            description: description,
-            minimum: minimum,
-            maximum: maximum,
-            exclusiveMinimum: exclusiveMinimum,
-            exclusiveMaximum: exclusiveMaximum
-        )
-    }
-
-    /// 数値型のスキーマを作成
-    public static func number(
-        description: String? = nil,
-        minimum: Int? = nil,
-        maximum: Int? = nil
-    ) -> JSONSchema {
-        JSONSchema(
-            type: .number,
-            description: description,
-            minimum: minimum,
-            maximum: maximum
-        )
-    }
-
-    /// 真偽値型のスキーマを作成
-    public static func boolean(description: String? = nil) -> JSONSchema {
-        JSONSchema(type: .boolean, description: description)
-    }
-
-    /// null型のスキーマを作成
-    public static func null(description: String? = nil) -> JSONSchema {
-        JSONSchema(type: .null, description: description)
-    }
-
-    /// 配列型のスキーマを作成
-    public static func array(
-        description: String? = nil,
-        items: JSONSchema,
-        minItems: Int? = nil,
-        maxItems: Int? = nil
-    ) -> JSONSchema {
-        JSONSchema(
-            type: .array,
-            description: description,
-            items: items,
-            minItems: minItems,
-            maxItems: maxItems
-        )
-    }
-
-    /// オブジェクト型のスキーマを作成
-    public static func object(
-        description: String? = nil,
-        properties: [String: JSONSchema],
-        required: [String]? = nil,
-        additionalProperties: Bool = false
-    ) -> JSONSchema {
-        JSONSchema(
-            type: .object,
-            description: description,
-            properties: properties,
-            required: required,
-            additionalProperties: additionalProperties
-        )
-    }
-
-    /// 列挙型のスキーマを作成
-    public static func `enum`(
-        _ values: [String],
-        description: String? = nil
-    ) -> JSONSchema {
-        JSONSchema(
-            type: .string,
-            description: description,
-            enum: values
-        )
-    }
-
-    // MARK: - Encodable
-
-    private enum CodingKeys: String, CodingKey {
-        case type
-        case description
-        case properties
-        case required
-        case items
-        case additionalProperties
-        case minItems
-        case maxItems
-        case minimum
-        case maximum
-        case exclusiveMinimum
-        case exclusiveMaximum
-        case minLength
-        case maxLength
-        case pattern
-        case `enum`
-        case format
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-
-        try container.encode(type, forKey: .type)
-
-        if let description {
-            try container.encode(description, forKey: .description)
-        }
-        if let properties {
-            try container.encode(properties, forKey: .properties)
-        }
-        if let required {
-            try container.encode(required, forKey: .required)
-        }
-        if let items {
-            try container.encode(items, forKey: .items)
-        }
-        if let additionalProperties {
-            try container.encode(additionalProperties, forKey: .additionalProperties)
-        }
-        if let minItems {
-            try container.encode(minItems, forKey: .minItems)
-        }
-        if let maxItems {
-            try container.encode(maxItems, forKey: .maxItems)
-        }
-        if let minimum {
-            try container.encode(minimum, forKey: .minimum)
-        }
-        if let maximum {
-            try container.encode(maximum, forKey: .maximum)
-        }
-        if let exclusiveMinimum {
-            try container.encode(exclusiveMinimum, forKey: .exclusiveMinimum)
-        }
-        if let exclusiveMaximum {
-            try container.encode(exclusiveMaximum, forKey: .exclusiveMaximum)
-        }
-        if let minLength {
-            try container.encode(minLength, forKey: .minLength)
-        }
-        if let maxLength {
-            try container.encode(maxLength, forKey: .maxLength)
-        }
-        if let pattern {
-            try container.encode(pattern, forKey: .pattern)
-        }
-        if let `enum` {
-            try container.encode(`enum`, forKey: .enum)
-        }
-        if let format {
-            try container.encode(format, forKey: .format)
-        }
-    }
 }
 
-// MARK: - JSON String Conversion
+// MARK: - Convenience Properties
 
 extension JSONSchema {
-    /// JSON文字列としてエンコード
-    public func toJSONString(prettyPrinted: Bool = false) throws -> String {
-        let encoder = JSONEncoder()
-        if prettyPrinted {
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        } else {
-            encoder.outputFormatting = .sortedKeys
+    /// オブジェクト型かどうか
+    public var isObject: Bool { type == .object }
+
+    /// 配列型かどうか
+    public var isArray: Bool { type == .array }
+
+    /// プリミティブ型かどうか
+    ///
+    /// string, integer, number, boolean, null のいずれかの場合に `true` を返します。
+    public var isPrimitive: Bool {
+        switch type {
+        case .string, .integer, .number, .boolean, .null:
+            return true
+        case .object, .array:
+            return false
         }
-        let data = try encoder.encode(self)
-        guard let string = String(data: data, encoding: .utf8) else {
-            throw JSONSchemaError.encodingFailed
-        }
-        return string
-    }
-
-    /// JSONデータとしてエンコード
-    public func toJSONData() throws -> Data {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .sortedKeys
-        return try encoder.encode(self)
-    }
-}
-
-/// JSONSchemaに関連するエラー
-public enum JSONSchemaError: Error, Sendable {
-    case encodingFailed
-}
-
-// MARK: - Provider-Specific Sanitization
-
-extension JSONSchema {
-    /// Anthropic API用にスキーマをサニタイズ
-    ///
-    /// Anthropic APIはJSON Schemaの一部の制約をサポートしていません：
-    /// - `maxItems`: 未サポート
-    /// - `minItems`: 0と1以外の値は未サポート
-    /// - `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`: 未サポート
-    /// - `minLength`, `maxLength`: 未サポート
-    ///
-    /// このメソッドはサポートされていない制約を除去したスキーマを返します。
-    public func sanitizedForAnthropic() -> JSONSchema {
-        // サニタイズされたminItems（0または1のみ許可）
-        let sanitizedMinItems: Int? = if let minItems, minItems <= 1 {
-            minItems
-        } else {
-            nil
-        }
-
-        // プロパティを再帰的にサニタイズ
-        let sanitizedProperties = properties?.mapValues { $0.sanitizedForAnthropic() }
-
-        // itemsを再帰的にサニタイズ
-        let sanitizedItems = items?.value.sanitizedForAnthropic()
-
-        return JSONSchema(
-            type: type,
-            description: description,
-            properties: sanitizedProperties,
-            required: required,
-            items: sanitizedItems,
-            additionalProperties: additionalProperties,
-            minItems: sanitizedMinItems,
-            maxItems: nil,  // Anthropicは maxItems をサポートしない
-            minimum: nil,   // Anthropicは minimum をサポートしない
-            maximum: nil,   // Anthropicは maximum をサポートしない
-            exclusiveMinimum: nil,
-            exclusiveMaximum: nil,
-            minLength: nil, // Anthropicは minLength をサポートしない
-            maxLength: nil, // Anthropicは maxLength をサポートしない
-            pattern: pattern,
-            enum: `enum`,
-            format: format
-        )
-    }
-
-    /// OpenAI API用にスキーマをサニタイズ
-    ///
-    /// OpenAI Structured Outputsは以下の制約があります：
-    /// - `additionalProperties: false` が必須
-    /// - `required` 配列にすべてのプロパティを含める必要がある
-    /// - オプショナルフィールドは型を `["original_type", "null"]` のunion型で表現
-    /// - `format`, `minLength`, `maxLength`, `pattern` は未サポート
-    /// - `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` は未サポート
-    ///
-    /// このメソッドは既存のスキーマからオプショナル情報を推論できないため、
-    /// すべてのプロパティを required として扱い、`additionalProperties: false` を設定します。
-    /// オプショナルフィールドのサポートはマクロ側で別途対応が必要です。
-    public func sanitizedForOpenAI() -> JSONSchema {
-        // プロパティを再帰的にサニタイズ
-        let sanitizedProperties = properties?.mapValues { $0.sanitizedForOpenAI() }
-
-        // itemsを再帰的にサニタイズ
-        let sanitizedItems = items?.value.sanitizedForOpenAI()
-
-        // OpenAIでは required 配列にすべてのプロパティキーを含める必要がある
-        let allRequired: [String]?
-        if let props = sanitizedProperties {
-            allRequired = Array(props.keys).sorted()
-        } else {
-            allRequired = required
-        }
-
-        return JSONSchema(
-            type: type,
-            description: description,
-            properties: sanitizedProperties,
-            required: allRequired,
-            items: sanitizedItems,
-            additionalProperties: type == .object ? false : additionalProperties, // オブジェクト型では必ず false
-            minItems: minItems,
-            maxItems: maxItems,
-            minimum: nil,           // OpenAIは minimum をサポートしない
-            maximum: nil,           // OpenAIは maximum をサポートしない
-            exclusiveMinimum: nil,  // OpenAIは exclusiveMinimum をサポートしない
-            exclusiveMaximum: nil,  // OpenAIは exclusiveMaximum をサポートしない
-            minLength: nil,         // OpenAIは minLength をサポートしない
-            maxLength: nil,         // OpenAIは maxLength をサポートしない
-            pattern: nil,           // OpenAIは pattern をサポートしない
-            enum: `enum`,
-            format: nil             // OpenAIは format をサポートしない
-        )
-    }
-
-    /// Gemini API用にスキーマをサニタイズ
-    ///
-    /// Gemini APIはJSON Schemaの一部の機能をサポートしていない場合があります：
-    /// - `additionalProperties`: 一部のAPIバージョンでサポートされていない可能性
-    ///
-    /// このメソッドは互換性のないフィールドを除去したスキーマを返します。
-    public func sanitizedForGemini() -> JSONSchema {
-        // プロパティを再帰的にサニタイズ
-        let sanitizedProperties = properties?.mapValues { $0.sanitizedForGemini() }
-
-        // itemsを再帰的にサニタイズ
-        let sanitizedItems = items?.value.sanitizedForGemini()
-
-        return JSONSchema(
-            type: type,
-            description: description,
-            properties: sanitizedProperties,
-            required: required,
-            items: sanitizedItems,
-            additionalProperties: nil, // Geminiでは additionalProperties を除去
-            minItems: minItems,
-            maxItems: maxItems,
-            minimum: minimum,
-            maximum: maximum,
-            exclusiveMinimum: exclusiveMinimum,
-            exclusiveMaximum: exclusiveMaximum,
-            minLength: minLength,
-            maxLength: maxLength,
-            pattern: pattern,
-            enum: `enum`,
-            format: format
-        )
     }
 }

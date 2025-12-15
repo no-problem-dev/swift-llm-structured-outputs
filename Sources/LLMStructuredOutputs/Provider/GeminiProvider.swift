@@ -110,11 +110,11 @@ internal struct GeminiProvider: LLMProvider, RetryableProviderProtocol {
 
         // 構造化出力の設定
         if let schema = request.responseSchema {
-            // Gemini用にスキーマをサニタイズ
+            // Gemini用にスキーマを適合
             // - additionalProperties を除去（一部APIバージョンで未サポート）
-            let sanitizedSchema = schema.sanitizedForGemini()
+            let adapter = GeminiSchemaAdapter()
             generationConfig.responseMimeType = "application/json"
-            generationConfig.responseSchema = sanitizedSchema
+            generationConfig.responseSchema = adapter.adapt(schema)
         }
 
         // ツール設定
