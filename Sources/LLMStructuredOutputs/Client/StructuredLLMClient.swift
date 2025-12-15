@@ -329,7 +329,8 @@ extension AgentCapableClient {
         return AgentStepSequence<Self, Output>(
             client: self,
             model: model,
-            context: context
+            context: context,
+            configuration: configuration
         )
     }
 }

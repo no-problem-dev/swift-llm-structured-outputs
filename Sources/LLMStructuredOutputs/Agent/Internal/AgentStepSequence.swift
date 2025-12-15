@@ -13,11 +13,11 @@ internal struct AgentStepSequence<Client: AgentCapableClient, Output: Structured
     let context: AgentContext
     private let runner: AgentLoopRunner<Client, Output>
 
-    init(client: Client, model: Client.Model, context: AgentContext) {
+    init(client: Client, model: Client.Model, context: AgentContext, configuration: AgentConfiguration) {
         self.client = client
         self.model = model
         self.context = context
-        self.runner = AgentLoopRunner(client: client, model: model, context: context)
+        self.runner = AgentLoopRunner(client: client, model: model, context: context, configuration: configuration)
     }
 
     func makeAsyncIterator() -> AsyncIterator {

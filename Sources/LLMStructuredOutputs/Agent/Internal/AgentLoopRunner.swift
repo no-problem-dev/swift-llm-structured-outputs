@@ -17,14 +17,12 @@ internal actor AgentLoopRunner<Client: AgentCapableClient, Output: StructuredPro
     private let maxDecodeRetries: Int = 2
     private var isCancelled: Bool = false
 
-    init(client: Client, model: Client.Model, context: AgentContext) {
+    init(client: Client, model: Client.Model, context: AgentContext, configuration: AgentConfiguration) {
         self.client = client
         self.model = model
         self.context = context
-
-        let config = context.configurationSync
-        self.stateManager = AgentLoopStateManager(configuration: config)
-        self.terminationPolicy = TerminationPolicyFactory.make(from: config)
+        self.stateManager = AgentLoopStateManager(configuration: configuration)
+        self.terminationPolicy = TerminationPolicyFactory.make(from: configuration)
     }
 
     // MARK: - Public Interface

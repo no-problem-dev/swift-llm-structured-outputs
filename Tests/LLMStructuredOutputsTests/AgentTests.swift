@@ -452,9 +452,9 @@ final class AgentTests: XCTestCase {
         XCTAssertFalse(LLMResponse.StopReason.maxTokens.isToolUse)
     }
 
-    // MARK: - AgentContext configurationSync Tests
+    // MARK: - AgentContext Configuration Tests
 
-    func testAgentContextConfigurationSync() async {
+    func testAgentContextConfiguration() async {
         let tools = ToolSet {}
         let config = AgentConfiguration(maxSteps: 5, maxDuplicateToolCalls: 3)
         let context = AgentContext(
@@ -463,9 +463,10 @@ final class AgentTests: XCTestCase {
             configuration: config
         )
 
-        // configurationSync は nonisolated なので同期アクセス可能
-        XCTAssertEqual(context.configurationSync.maxSteps, 5)
-        XCTAssertEqual(context.configurationSync.maxDuplicateToolCalls, 3)
+        // getConfiguration() で設定を取得
+        let retrievedConfig = await context.getConfiguration()
+        XCTAssertEqual(retrievedConfig.maxSteps, 5)
+        XCTAssertEqual(retrievedConfig.maxDuplicateToolCalls, 3)
     }
 
     // MARK: - TerminationDecision Tests
