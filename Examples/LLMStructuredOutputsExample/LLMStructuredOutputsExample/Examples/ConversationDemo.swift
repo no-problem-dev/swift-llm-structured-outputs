@@ -98,6 +98,10 @@ struct ConversationDemo: View {
                 displayMessages = []
                 totalUsage = TokenUsage(inputTokens: 0, outputTokens: 0)
                 turnCount = 0
+            case .error(let error):
+                displayMessages.append(
+                    ChatMessage(role: .error, content: error.localizedDescription)
+                )
             }
         }
     }

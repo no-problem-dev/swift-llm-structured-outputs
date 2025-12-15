@@ -19,28 +19,24 @@ struct CalculatorTool {
 
     func call() async throws -> String {
         // NSExpressionを使って数式を評価
-        do {
-            let sanitizedExpression = sanitize(expression)
-            let nsExpression = NSExpression(format: sanitizedExpression)
+        let sanitizedExpression = sanitize(expression)
+        let nsExpression = NSExpression(format: sanitizedExpression)
 
-            if let result = nsExpression.expressionValue(with: nil, context: nil) {
-                if let doubleResult = result as? Double {
-                    // 整数の場合は小数点以下を省略
-                    if doubleResult.truncatingRemainder(dividingBy: 1) == 0 {
-                        return "\(expression) = \(Int(doubleResult))"
-                    } else {
-                        return String(format: "%@ = %.4f", expression, doubleResult)
-                    }
-                } else if let intResult = result as? Int {
-                    return "\(expression) = \(intResult)"
-                } else if let numberResult = result as? NSNumber {
-                    return "\(expression) = \(numberResult)"
+        if let result = nsExpression.expressionValue(with: nil, context: nil) {
+            if let doubleResult = result as? Double {
+                // 整数の場合は小数点以下を省略
+                if doubleResult.truncatingRemainder(dividingBy: 1) == 0 {
+                    return "\(expression) = \(Int(doubleResult))"
+                } else {
+                    return String(format: "%@ = %.4f", expression, doubleResult)
                 }
+            } else if let intResult = result as? Int {
+                return "\(expression) = \(intResult)"
+            } else if let numberResult = result as? NSNumber {
+                return "\(expression) = \(numberResult)"
             }
-            return "計算できませんでした: \(expression)"
-        } catch {
-            return "計算エラー: \(expression) - \(error.localizedDescription)"
         }
+        return "計算できませんでした: \(expression)"
     }
 
     /// 数式をサニタイズして安全な形式に変換

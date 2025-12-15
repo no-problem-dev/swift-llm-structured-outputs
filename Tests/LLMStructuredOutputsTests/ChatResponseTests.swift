@@ -1,5 +1,7 @@
 import XCTest
 @testable import LLMStructuredOutputs
+@testable import LLMClient
+@testable import LLMConversation
 
 /// ChatResponse と会話継続機能のテスト
 final class ChatResponseTests: XCTestCase {

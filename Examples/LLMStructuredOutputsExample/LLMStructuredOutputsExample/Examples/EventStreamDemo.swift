@@ -103,6 +103,12 @@ struct EventStreamDemo: View {
                     timestamp: timestamp
                 ))
                 totalUsage = TokenUsage(inputTokens: 0, outputTokens: 0)
+            case .error(let error):
+                events.append(EventLogEntry(
+                    type: .error,
+                    content: error.localizedDescription,
+                    timestamp: timestamp
+                ))
             }
         }
     }

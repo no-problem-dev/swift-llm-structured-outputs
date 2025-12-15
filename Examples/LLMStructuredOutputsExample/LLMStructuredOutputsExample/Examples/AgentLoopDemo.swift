@@ -193,10 +193,10 @@ struct AgentLoopDemo: View {
             return AgentStepInfo(type: .thinking, content: text.isEmpty ? "（考え中...）" : String(text.prefix(200)))
 
         case .toolCall(let info):
-            return AgentStepInfo(type: .toolCall, content: info.name, detail: formatToolInput(info.input))
+            return AgentStepInfo(type: .toolCall, content: info.name, detail: formatToolInput(info.arguments))
 
         case .toolResult(let info):
-            return AgentStepInfo(type: .toolResult, content: info.content, isError: info.isError)
+            return AgentStepInfo(type: .toolResult, content: info.output, isError: info.isError)
 
         case .finalResponse(let report):
             return AgentStepInfo(type: .finalResponse, content: "\(report.location): \(report.conditions), \(report.temperature)°\(report.unit)")

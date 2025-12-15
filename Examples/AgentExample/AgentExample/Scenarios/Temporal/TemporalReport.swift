@@ -12,7 +12,7 @@ import LLMStructuredOutputs
 
 /// 時刻情報
 @Structured("特定の場所の時刻情報")
-struct TimeInfo: Equatable, Sendable {
+struct TimeInfo: Equatable {
     @StructuredField("都市名または場所名")
     var location: String
 
@@ -30,7 +30,7 @@ struct TimeInfo: Equatable, Sendable {
 
 /// 時間レポート
 @Structured("時間・日時に関する情報をまとめた構造化レポート")
-struct TemporalReport: Equatable, Sendable {
+struct TemporalReport: Equatable {
     @StructuredField("レポートのタイトル")
     var title: String
 

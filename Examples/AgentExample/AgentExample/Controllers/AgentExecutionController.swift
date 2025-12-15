@@ -233,13 +233,13 @@ final class AgentExecutionController {
             return AgentStepInfo(
                 type: .toolCall,
                 content: info.name,
-                detail: formatToolInput(info.input)
+                detail: formatToolInput(info.arguments)
             )
 
         case .toolResult(let info):
             return AgentStepInfo(
                 type: .toolResult,
-                content: info.content,
+                content: info.output,
                 isError: info.isError
             )
 
