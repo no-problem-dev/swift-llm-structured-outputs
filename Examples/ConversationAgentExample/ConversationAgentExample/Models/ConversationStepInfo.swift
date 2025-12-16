@@ -1,14 +1,14 @@
 import Foundation
 
-struct ConversationStepInfo: Identifiable {
-    let id = UUID()
+struct ConversationStepInfo: Identifiable, Codable {
+    let id: UUID
     let timestamp: Date
     let type: StepType
     let content: String
     let detail: String?
     let isError: Bool
 
-    enum StepType: String {
+    enum StepType: String, Codable {
         case userMessage = "👤"
         case thinking = "🤔"
         case toolCall = "🔧"
@@ -23,6 +23,7 @@ struct ConversationStepInfo: Identifiable {
     }
 
     init(type: StepType, content: String, detail: String? = nil, isError: Bool = false) {
+        self.id = UUID()
         self.timestamp = Date()
         self.type = type
         self.content = content

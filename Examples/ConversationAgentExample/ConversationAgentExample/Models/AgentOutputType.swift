@@ -8,7 +8,7 @@ import LLMStructuredOutputs
 /// 各タイプは以下を提供します：
 /// - システムプロンプト
 /// - UI表示用のプロパティ
-enum AgentOutputType: String, CaseIterable, Identifiable {
+enum AgentOutputType: String, CaseIterable, Identifiable, Codable {
     case research
     case summary
     case comparison
