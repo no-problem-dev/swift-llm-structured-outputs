@@ -5,7 +5,7 @@
 🌐 **[English](README_EN.md)** | 日本語
 
 ![Swift](https://img.shields.io/badge/Swift-6.0+-orange.svg)
-![Platforms](https://img.shields.io/badge/Platforms-iOS%2017%2B%20%7C%20macOS%2014%2B-blue.svg)
+![Platforms](https://img.shields.io/badge/Platforms-iOS%2017%2B%20%7C%20macOS%2014%2B%20%7C%20Linux-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 ## できること
@@ -47,9 +47,9 @@ print(user.name)  // "山田太郎"
 print(user.age)   // 35
 ```
 
-### プロンプト DSL
+### プロンプトビルダー
 
-構造化されたプロンプトを DSL で構築できます：
+構造化されたプロンプトをビルダーで構築できます：
 
 ```swift
 let prompt = Prompt {
@@ -83,6 +83,31 @@ struct GetWeather {
         return "\(location): 晴れ、22°C"
     }
 }
+```
+
+### 会話
+
+`ConversationHistory` でマルチターン会話のコンテキストを維持します：
+
+```swift
+let client = AnthropicClient(apiKey: "...")
+let history = ConversationHistory()
+
+// 最初の会話
+let response1: UserInfo = try await client.chat(
+    prompt: "山田太郎さんは35歳です",
+    model: .sonnet,
+    history: history
+)
+
+// 会話を継続（前のコンテキストを保持）
+let response2: UserInfo = try await client.chat(
+    prompt: "彼の年齢を1歳増やして",
+    model: .sonnet,
+    history: history
+)
+
+print(response2.age)  // 36
 ```
 
 ### エージェントループ
@@ -170,7 +195,7 @@ dependencies: [
 | ガイド | 説明 |
 |--------|------|
 | [はじめに](documentation/getting-started.md) | インストールと基本的な使い方 |
-| [プロンプト構築](documentation/prompt-building.md) | DSL を使ったプロンプト構築 |
+| [プロンプト構築](documentation/prompt-building.md) | ビルダーを使ったプロンプト構築 |
 | [会話](documentation/conversation.md) | マルチターン会話の実装 |
 | [ツールコール](documentation/tool-calling.md) | LLM に外部関数を呼び出させる |
 | [エージェントループ](documentation/agent-loop.md) | ツール自動実行と構造化出力の生成 |
@@ -180,39 +205,6 @@ dependencies: [
 ### 📚 APIリファレンス（DocC）
 
 - [LLMStructuredOutputs](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) - 型安全な構造化出力 API
-
-## サンプルアプリ
-
-`Examples/LLMStructuredOutputsExample` に iOS サンプルアプリを同梱。全機能をインタラクティブに確認できます。
-
-### デモ一覧
-
-| デモ | 確認できる機能 |
-|-----|--------------|
-| 基本的な構造化出力 | `@Structured` による型定義、`generate()` による出力生成 |
-| フィールド制約 | `.minimum()`, `.maximum()`, `.pattern()` 等の制約 |
-| 列挙型サポート | `@StructuredEnum` による enum 出力 |
-| 会話機能 | `ConversationHistory` によるマルチターン会話 |
-| イベントストリーム | `chatStream()` によるストリーミング応答 |
-| プロンプト DSL | `Prompt { }` ビルダーによるプロンプト構築 |
-| ツールコール | `@Tool` によるツール定義、`planToolCalls()` による計画 |
-| エージェントループ | `runAgent()` によるツール自動実行と構造化出力生成 |
-| 会話型エージェント | `ConversationalAgentSession` によるマルチターンエージェント |
-| **プロバイダー比較** | Claude/GPT/Gemini の並列比較、レスポンス時間・トークン計測 |
-
-### プロバイダー比較デモ
-
-3大プロバイダーの構造化出力品質を比較検証：
-
-- **モデル選択**: 各プロバイダーのモデルを個別に選択
-- **テストケース**: 5カテゴリ・14種類（情報抽出、推論、構造、品質、言語）
-- **カスタム入力**: 任意のプロンプトで比較テスト実行
-- **計測項目**: レスポンス時間、トークン使用量、出力 JSON
-
-```bash
-# サンプルアプリを開く
-open Examples/LLMStructuredOutputsExample/LLMStructuredOutputsExample.xcodeproj
-```
 
 ## 対応プロバイダー
 
@@ -224,9 +216,14 @@ open Examples/LLMStructuredOutputsExample/LLMStructuredOutputsExample.xcodeproj
 
 ## 要件
 
+### Apple プラットフォーム
 - iOS 17.0+ / macOS 14.0+
 - Swift 6.0+
 - Xcode 16+
+
+### Linux
+- Swift 6.0+
+- Docker 対応（`Dockerfile` 同梱）
 
 ## ライセンス
 
