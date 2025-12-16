@@ -148,10 +148,7 @@ public struct KeyPoint {
     @StructuredField("The key point statement")
     public var point: String
 
-    @StructuredField(
-        "Importance level from 1 (low) to 5 (critical)",
-        .minimum(1), .maximum(5)
-    )
+    @StructuredField("Importance level from 1 (low) to 5 (critical)")
     public var importance: Int
 
     @StructuredField("Supporting evidence or quote from the source")
@@ -215,7 +212,7 @@ public struct TaskPlan {
 @Structured("A single step in a task plan")
 public struct TaskStep {
 
-    @StructuredField("Step number in sequence", .minimum(1))
+    @StructuredField("Step number in sequence (starting from 1)")
     public var stepNumber: Int
 
     @StructuredField("Description of what to do in this step")
@@ -266,10 +263,7 @@ public struct ComparisonItem {
     @StructuredField("Disadvantages or weaknesses")
     public var cons: [String]
 
-    @StructuredField(
-        "Overall score from 1 (poor) to 10 (excellent)",
-        .minimum(1), .maximum(10)
-    )
+    @StructuredField("Overall score from 1 (poor) to 10 (excellent)")
     public var score: Int
 }
 
@@ -336,10 +330,7 @@ public struct CodeReview {
     @StructuredField("Positive aspects of the code")
     public var strengths: [String]?
 
-    @StructuredField(
-        "Overall quality score from 1 (poor) to 10 (excellent)",
-        .minimum(1), .maximum(10)
-    )
+    @StructuredField("Overall quality score from 1 (poor) to 10 (excellent)")
     public var qualityScore: Int
 }
 

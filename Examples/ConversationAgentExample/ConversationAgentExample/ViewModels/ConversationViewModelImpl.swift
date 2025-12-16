@@ -28,7 +28,13 @@ final class ConversationViewModelImpl: ConversationViewModel {
     // MARK: - Bindable Properties
 
     var selectedOutputType: AgentOutputType {
-        didSet { sessionData.outputType = selectedOutputType }
+        didSet {
+            sessionData.outputType = selectedOutputType
+            // まだ会話が始まっていない場合はセッションを再作成
+            if steps.isEmpty && session != nil {
+                recreateSession()
+            }
+        }
     }
 
     var interactiveMode: Bool {
@@ -74,6 +80,14 @@ final class ConversationViewModelImpl: ConversationViewModel {
 
     func createSessionIfNeeded() {
         guard session == nil else { return }
+        createSession()
+    }
+
+    /// セッションを再作成（設定変更時）
+    private func recreateSession() {
+        eventMonitorTask?.cancel()
+        eventMonitorTask = nil
+        session = nil
         createSession()
     }
 
