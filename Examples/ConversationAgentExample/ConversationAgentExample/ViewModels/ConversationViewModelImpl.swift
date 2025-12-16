@@ -196,6 +196,9 @@ final class ConversationViewModelImpl: ConversationViewModel {
     // MARK: - Persistence
 
     func save() async throws {
+        // 会話がない場合は保存しない
+        guard !steps.isEmpty else { return }
+
         sessionData.steps = steps
         sessionData.updatedAt = Date()
         sessionData.updateTitleFromFirstMessage()
