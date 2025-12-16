@@ -4,9 +4,9 @@ import LLMClient
 import FoundationNetworking
 #endif
 
-// MARK: - AnthropicClient + ToolCapableClient
+// MARK: - AnthropicClient + ToolCallableClient
 
-extension AnthropicClient: ToolCapableClient {
+extension AnthropicClient: ToolCallableClient {
     /// ツール呼び出しを計画する（会話履歴付き）
     ///
     /// Anthropic Claude API を使用してツール呼び出しを計画します。

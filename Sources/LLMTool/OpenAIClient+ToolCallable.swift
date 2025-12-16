@@ -4,9 +4,9 @@ import LLMClient
 import FoundationNetworking
 #endif
 
-// MARK: - OpenAIClient + ToolCapableClient
+// MARK: - OpenAIClient + ToolCallableClient
 
-extension OpenAIClient: ToolCapableClient {
+extension OpenAIClient: ToolCallableClient {
     /// ツール呼び出しを計画する（会話履歴付き）
     ///
     /// OpenAI GPT API を使用してツール呼び出しを計画します。
