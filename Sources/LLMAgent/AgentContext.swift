@@ -186,12 +186,12 @@ public actor AgentContext {
 
     // MARK: - Tool Helpers
 
-    /// ツール名からツール型を検索
+    /// ツール名からツールを検索
     ///
     /// - Parameter name: ツール名
-    /// - Returns: 見つかったツール型、なければ nil
-    public func findToolType(named name: String) -> (any LLMToolRegistrable.Type)? {
-        tools.toolType(named: name)
+    /// - Returns: 見つかったツール、なければ nil
+    public func findTool(named name: String) -> (any Tool)? {
+        tools.tool(named: name)
     }
 
     /// ツールを実行

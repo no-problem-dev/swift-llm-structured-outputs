@@ -6,14 +6,14 @@ import LLMTool
 
 /// ユーザーに質問して追加情報を得るためのツール
 ///
-/// このツールを `ToolSet` に追加すると、AI がユーザーに質問できるようになります。
+/// このツールが有効な場合、AI はユーザーに質問できるようになります。
 /// AI がこのツールを呼び出すと、セッションは一時停止し、
-/// `provideAnswer()` が呼ばれるまでユーザーの回答を待ちます。
+/// `reply(_:)` が呼ばれるまでユーザーの回答を待ちます。
 ///
-/// ## 使用例
+/// ## 推奨: interactiveMode を使用
 ///
 /// ```swift
-/// // 対話モード: AskUserTool を追加
+/// // interactiveMode: true で AskUserTool が自動追加される
 /// let session = ConversationalAgentSession(
 ///     client: client,
 ///     systemPrompt: Prompt {
@@ -21,18 +21,21 @@ import LLMTool
 ///         "情報が不足している場合は、ask_user ツールでユーザーに質問してください。"
 ///     },
 ///     tools: ToolSet {
-///         WebSearchTool.self
-///         AskUserTool.self  // ← これを追加
-///     }
+///         WebSearchTool()
+///     },
+///     interactiveMode: true  // ← AskUserTool が自動追加される
 /// )
+/// ```
 ///
-/// // ストリームを処理
+/// ## ストリームの処理例
+///
+/// ```swift
 /// for try await step in session.run("調査して", model: .sonnet) {
 ///     switch step {
-///     case .askingUser(let question):
-///         // UIでユーザー入力を待つ
+///     case .awaitingUserInput(let question):
+///         // UI でユーザー入力を待つ
 ///         let answer = await showInputDialog(question)
-///         await session.provideAnswer(answer)
+///         await session.reply(answer)
 ///     case .finalResponse(let report):
 ///         showReport(report)
 ///     default:
@@ -43,8 +46,8 @@ import LLMTool
 ///
 /// ## 自動モード vs 対話モード
 ///
-/// - **自動モード**: `AskUserTool` を追加しない → AI は質問せずに最後まで実行
-/// - **対話モード**: `AskUserTool` を追加する → AI は必要に応じて質問できる
+/// - **自動モード** (`interactiveMode: false`): AI は質問せずに最後まで実行
+/// - **対話モード** (`interactiveMode: true`): AI は必要に応じて質問できる
 @Tool("Ask the user a question to gather additional information. Use this tool when you need clarification, lack sufficient information to proceed, or want to confirm the user's intent before taking action.", name: "ask_user")
 public struct AskUserTool {
     @ToolArgument("The question to ask the user. Be specific and clear about what information you need.")

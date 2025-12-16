@@ -12,8 +12,8 @@ import LLMClient
 ///
 /// ```swift
 /// let tools = ToolSet {
-///     GetWeather.self
-///     Calculator.self
+///     GetWeather()
+///     Calculator()
 /// }
 ///
 /// // ツール定義を取得
@@ -39,9 +39,9 @@ public struct ToolDefinition: Sendable, Equatable {
     }
 }
 
-// MARK: - LLMToolRegistrable Extension
+// MARK: - Tool Extension
 
-extension LLMToolRegistrable {
+extension Tool {
     /// ToolDefinition に変換
     public static var definition: ToolDefinition {
         ToolDefinition(

@@ -21,7 +21,7 @@ let session = ConversationalAgentSession(
     systemPrompt: Prompt {
         PromptComponent.role("リサーチアシスタント")
     },
-    tools: ToolSet { WebSearchTool.self }
+    tools: ToolSet { WebSearchTool() }
 )
 
 let stream: some ConversationalAgentStepStream<ResearchResult> = session.run(
@@ -79,7 +79,7 @@ for await event in session.eventStream {
 
 ## インタラクティブモード
 
-``AskUserTool`` を追加すると、AI がユーザーに質問できるようになります：
+`interactiveMode: true` を指定すると、AI がユーザーに質問できるようになります（``AskUserTool`` が自動追加）：
 
 ```swift
 let session = ConversationalAgentSession(
@@ -89,17 +89,17 @@ let session = ConversationalAgentSession(
         PromptComponent.instruction("不明な点は ask_user で質問してください")
     },
     tools: ToolSet {
-        WebSearchTool.self
-        AskUserTool.self  // インタラクティブモードを有効化
-    }
+        WebSearchTool()
+    },
+    interactiveMode: true  // AskUserTool が自動追加される
 )
 
 for try await step in stream {
     switch step {
-    case .askingUser(let question):
+    case .awaitingUserInput(let question):
         // ユーザーに質問を表示
         let answer = getUserInput(question)
-        await session.provideAnswer(answer)
+        await session.reply(answer)
     case .finalResponse(let output):
         print(output)
     default:

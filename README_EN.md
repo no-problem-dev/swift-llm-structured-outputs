@@ -110,7 +110,7 @@ struct GetWeather {
     }
 }
 
-let tools = ToolSet { GetWeather.self }
+let tools = ToolSet { GetWeather() }
 
 let plan = try await client.planToolCalls(
     prompt: "What's the weather in Tokyo?",
@@ -136,7 +136,7 @@ struct WeatherReport {
     @StructuredField("Temperature") var temperature: Int
 }
 
-let tools = ToolSet { GetWeather.self }
+let tools = ToolSet { GetWeather() }
 
 let stream: some AgentStepStream<WeatherReport> = client.runAgent(
     prompt: "Check the weather in Tokyo and create a report",
@@ -162,7 +162,7 @@ Use `ConversationalAgentSession` to run agent loops while maintaining multi-turn
 let session = ConversationalAgentSession(
     client: AnthropicClient(apiKey: "..."),
     systemPrompt: Prompt { PromptComponent.role("Research assistant") },
-    tools: ToolSet { WebSearchTool.self }
+    tools: ToolSet { WebSearchTool() }
 )
 
 let stream: some ConversationalAgentStepStream<ResearchResult> = session.run(

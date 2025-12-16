@@ -53,8 +53,8 @@ final class ToolSetTests: XCTestCase {
 
     func testToolSetCount() {
         let toolSet = ToolSet {
-            AddTool.self
-            ReverseTool.self
+            AddTool()
+            ReverseTool()
         }
 
         XCTAssertEqual(toolSet.count, 2)
@@ -70,9 +70,9 @@ final class ToolSetTests: XCTestCase {
 
     func testToolNames() {
         let toolSet = ToolSet {
-            AddTool.self
-            ReverseTool.self
-            TimeTool.self
+            AddTool()
+            ReverseTool()
+            TimeTool()
         }
 
         let names = toolSet.toolNames
@@ -84,28 +84,28 @@ final class ToolSetTests: XCTestCase {
 
     // MARK: - Tool Lookup Tests
 
-    func testToolTypeLookup() {
+    func testToolLookup() {
         let toolSet = ToolSet {
-            AddTool.self
-            ReverseTool.self
+            AddTool()
+            ReverseTool()
         }
 
-        let addToolType = toolSet.toolType(named: "add_tool")
-        XCTAssertNotNil(addToolType)
-        XCTAssertEqual(addToolType?.toolName, "add_tool")
-        XCTAssertEqual(addToolType?.toolDescription, "加算を実行します")
+        let addTool = toolSet.tool(named: "add_tool")
+        XCTAssertNotNil(addTool)
+        XCTAssertEqual(addTool?.name, "add_tool")
+        XCTAssertEqual(addTool?.description, "加算を実行します")
 
-        let reverseToolType = toolSet.toolType(named: "reverse_tool")
-        XCTAssertNotNil(reverseToolType)
-        XCTAssertEqual(reverseToolType?.toolName, "reverse_tool")
+        let reverseTool = toolSet.tool(named: "reverse_tool")
+        XCTAssertNotNil(reverseTool)
+        XCTAssertEqual(reverseTool?.name, "reverse_tool")
     }
 
-    func testToolTypeLookupNotFound() {
+    func testToolLookupNotFound() {
         let toolSet = ToolSet {
-            AddTool.self
+            AddTool()
         }
 
-        let result = toolSet.toolType(named: "nonexistent_tool")
+        let result = toolSet.tool(named: "nonexistent_tool")
         XCTAssertNil(result)
     }
 
@@ -113,8 +113,8 @@ final class ToolSetTests: XCTestCase {
 
     func testDefinitions() {
         let toolSet = ToolSet {
-            AddTool.self
-            ReverseTool.self
+            AddTool()
+            ReverseTool()
         }
 
         let definitions = toolSet.definitions
@@ -131,7 +131,7 @@ final class ToolSetTests: XCTestCase {
 
     func testDefinitionInputSchema() {
         let toolSet = ToolSet {
-            AddTool.self
+            AddTool()
         }
 
         let definitions = toolSet.definitions
@@ -145,8 +145,8 @@ final class ToolSetTests: XCTestCase {
 
     func testExecuteAddTool() async throws {
         let toolSet = ToolSet {
-            AddTool.self
-            ReverseTool.self
+            AddTool()
+            ReverseTool()
         }
 
         let arguments = """
@@ -160,8 +160,8 @@ final class ToolSetTests: XCTestCase {
 
     func testExecuteReverseTool() async throws {
         let toolSet = ToolSet {
-            AddTool.self
-            ReverseTool.self
+            AddTool()
+            ReverseTool()
         }
 
         let arguments = """
@@ -175,7 +175,7 @@ final class ToolSetTests: XCTestCase {
 
     func testExecuteToolWithoutArguments() async throws {
         let toolSet = ToolSet {
-            TimeTool.self
+            TimeTool()
         }
 
         let arguments = "{}".data(using: .utf8)!
@@ -187,7 +187,7 @@ final class ToolSetTests: XCTestCase {
 
     func testExecuteToolNotFound() async {
         let toolSet = ToolSet {
-            AddTool.self
+            AddTool()
         }
 
         let arguments = "{}".data(using: .utf8)!
@@ -210,50 +210,50 @@ final class ToolSetTests: XCTestCase {
 
     func testToolSetCombination() {
         let toolSet1 = ToolSet {
-            AddTool.self
+            AddTool()
         }
 
         let toolSet2 = ToolSet {
-            ReverseTool.self
+            ReverseTool()
         }
 
         let combined = toolSet1 + toolSet2
 
         XCTAssertEqual(combined.count, 2)
-        XCTAssertNotNil(combined.toolType(named: "add_tool"))
-        XCTAssertNotNil(combined.toolType(named: "reverse_tool"))
+        XCTAssertNotNil(combined.tool(named: "add_tool"))
+        XCTAssertNotNil(combined.tool(named: "reverse_tool"))
     }
 
-    func testToolSetAppendingToolType() {
+    func testToolSetAppendingTool() {
         let toolSet = ToolSet {
-            AddTool.self
+            AddTool()
         }
 
-        let extended = toolSet + ReverseTool.self
+        let extended = toolSet + ReverseTool()
 
         XCTAssertEqual(extended.count, 2)
-        XCTAssertNotNil(extended.toolType(named: "add_tool"))
-        XCTAssertNotNil(extended.toolType(named: "reverse_tool"))
+        XCTAssertNotNil(extended.tool(named: "add_tool"))
+        XCTAssertNotNil(extended.tool(named: "reverse_tool"))
     }
 
     func testToolSetAppendingMethod() {
         let toolSet = ToolSet {
-            AddTool.self
+            AddTool()
         }
 
-        let extended = toolSet.appending(ReverseTool.self)
+        let extended = toolSet.appending(ReverseTool())
 
         XCTAssertEqual(extended.count, 2)
     }
 
     func testToolSetAppendingToolSet() {
         let toolSet1 = ToolSet {
-            AddTool.self
+            AddTool()
         }
 
         let toolSet2 = ToolSet {
-            ReverseTool.self
-            TimeTool.self
+            ReverseTool()
+            TimeTool()
         }
 
         let combined = toolSet1.appending(toolSet2)
@@ -264,7 +264,7 @@ final class ToolSetTests: XCTestCase {
     func testEmptyToolSetCombination() {
         let empty = ToolSet()
         let nonEmpty = ToolSet {
-            AddTool.self
+            AddTool()
         }
 
         let result1 = empty + nonEmpty
@@ -278,8 +278,8 @@ final class ToolSetTests: XCTestCase {
 
     func testDescription() {
         let toolSet = ToolSet {
-            AddTool.self
-            ReverseTool.self
+            AddTool()
+            ReverseTool()
         }
 
         let description = toolSet.description
@@ -299,7 +299,7 @@ final class ToolSetTests: XCTestCase {
 
     func testToAnthropicFormat() {
         let toolSet = ToolSet {
-            AddTool.self
+            AddTool()
         }
 
         let format = toolSet.toAnthropicFormat()
@@ -313,7 +313,7 @@ final class ToolSetTests: XCTestCase {
 
     func testToOpenAIFormat() {
         let toolSet = ToolSet {
-            AddTool.self
+            AddTool()
         }
 
         let format = toolSet.toOpenAIFormat()
@@ -332,7 +332,7 @@ final class ToolSetTests: XCTestCase {
 
     func testToGeminiFormat() {
         let toolSet = ToolSet {
-            AddTool.self
+            AddTool()
         }
 
         let format = toolSet.toGeminiFormat()
@@ -348,7 +348,7 @@ final class ToolSetTests: XCTestCase {
 
     func testSnakeCaseArgumentDecoding() async throws {
         let toolSet = ToolSet {
-            AddTool.self
+            AddTool()
         }
 
         // Snake case format (as sent by LLM)
@@ -366,19 +366,19 @@ final class ToolSetTests: XCTestCase {
         // Use existing test tools to verify prefix handling
         // AddTool = "add_tool", ReverseTool = "reverse_tool", TimeTool = "time_tool"
         let toolSet = ToolSet {
-            AddTool.self
-            ReverseTool.self
-            TimeTool.self
+            AddTool()
+            ReverseTool()
+            TimeTool()
         }
 
         XCTAssertEqual(toolSet.count, 3)
-        XCTAssertNotNil(toolSet.toolType(named: "add_tool"))
-        XCTAssertNotNil(toolSet.toolType(named: "reverse_tool"))
-        XCTAssertNotNil(toolSet.toolType(named: "time_tool"))
+        XCTAssertNotNil(toolSet.tool(named: "add_tool"))
+        XCTAssertNotNil(toolSet.tool(named: "reverse_tool"))
+        XCTAssertNotNil(toolSet.tool(named: "time_tool"))
 
         // Verify they can all be looked up correctly without confusion
-        let addType = toolSet.toolType(named: "add_tool")
-        let reverseType = toolSet.toolType(named: "reverse_tool")
-        XCTAssertNotEqual(addType?.toolName, reverseType?.toolName)
+        let addTool = toolSet.tool(named: "add_tool")
+        let reverseTool = toolSet.tool(named: "reverse_tool")
+        XCTAssertNotEqual(addTool?.name, reverseTool?.name)
     }
 }

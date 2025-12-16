@@ -433,7 +433,7 @@ func runAnthropicTests(runner: TestRunner) async {
     // Test 7: Tool Calling - Single Tool
     await runToolTest(name: "Tool Calling - Weather", runner: runner) {
         let tools = ToolSet {
-            GetWeatherTool.self
+            GetWeatherTool()
         }
 
         return try await client.planToolCalls(
@@ -447,9 +447,9 @@ func runAnthropicTests(runner: TestRunner) async {
     // Test 8: Tool Calling - Multiple Tools
     await runToolTest(name: "Tool Calling - Multiple Tools", runner: runner) {
         let tools = ToolSet {
-            GetWeatherTool.self
-            CalculatorTool.self
-            CurrentTimeTool.self
+            GetWeatherTool()
+            CalculatorTool()
+            CurrentTimeTool()
         }
 
         return try await client.planToolCalls(
@@ -463,7 +463,7 @@ func runAnthropicTests(runner: TestRunner) async {
     // Test 9: Tool Calling - Required
     await runToolTest(name: "Tool Calling - Required", runner: runner) {
         let tools = ToolSet {
-            CalculatorTool.self
+            CalculatorTool()
         }
 
         return try await client.planToolCalls(
@@ -574,7 +574,7 @@ func runOpenAITests(runner: TestRunner) async {
     // Test 7: Tool Calling - Single Tool
     await runToolTest(name: "Tool Calling - Weather", runner: runner) {
         let tools = ToolSet {
-            GetWeatherTool.self
+            GetWeatherTool()
         }
 
         return try await client.planToolCalls(
@@ -588,9 +588,9 @@ func runOpenAITests(runner: TestRunner) async {
     // Test 8: Tool Calling - Multiple Tools
     await runToolTest(name: "Tool Calling - Multiple Tools", runner: runner) {
         let tools = ToolSet {
-            GetWeatherTool.self
-            CalculatorTool.self
-            CurrentTimeTool.self
+            GetWeatherTool()
+            CalculatorTool()
+            CurrentTimeTool()
         }
 
         return try await client.planToolCalls(
@@ -604,8 +604,8 @@ func runOpenAITests(runner: TestRunner) async {
     // Test 9: Tool Calling - Specific Tool
     await runToolTest(name: "Tool Calling - Specific Tool", runner: runner) {
         let tools = ToolSet {
-            GetWeatherTool.self
-            CalculatorTool.self
+            GetWeatherTool()
+            CalculatorTool()
         }
 
         return try await client.planToolCalls(
@@ -715,7 +715,7 @@ func runGeminiTests(runner: TestRunner) async {
     // Test 7: Tool Calling - Single Tool
     await runToolTest(name: "Tool Calling - Weather", runner: runner) {
         let tools = ToolSet {
-            GetWeatherTool.self
+            GetWeatherTool()
         }
 
         return try await client.planToolCalls(
@@ -729,9 +729,9 @@ func runGeminiTests(runner: TestRunner) async {
     // Test 8: Tool Calling - Multiple Tools
     await runToolTest(name: "Tool Calling - Multiple Tools", runner: runner) {
         let tools = ToolSet {
-            GetWeatherTool.self
-            CalculatorTool.self
-            CurrentTimeTool.self
+            GetWeatherTool()
+            CalculatorTool()
+            CurrentTimeTool()
         }
 
         return try await client.planToolCalls(
@@ -745,7 +745,7 @@ func runGeminiTests(runner: TestRunner) async {
     // Test 9: Tool Calling - Required
     await runToolTest(name: "Tool Calling - Required", runner: runner) {
         let tools = ToolSet {
-            CurrentTimeTool.self
+            CurrentTimeTool()
         }
 
         return try await client.planToolCalls(
@@ -776,7 +776,7 @@ func runAnthropicAgentTests(runner: TestRunner) async {
     // Agent Test 1: 天気ツールを使ったエージェントループ
     await runAgentTest(name: "Weather Agent Loop", runner: runner) {
         let tools = ToolSet {
-            GetWeatherTool.self
+            GetWeatherTool()
         }
 
         let agentSequence: AgentStepSequence<AnthropicClient, WeatherReport> = client.runAgent(
@@ -815,7 +815,7 @@ func runAnthropicAgentTests(runner: TestRunner) async {
     // Agent Test 2: 計算ツールを使ったエージェントループ
     await runAgentTest(name: "Calculator Agent Loop", runner: runner) {
         let tools = ToolSet {
-            CalculatorTool.self
+            CalculatorTool()
         }
 
         let agentSequence: AgentStepSequence<AnthropicClient, CalculationReport> = client.runAgent(
@@ -865,7 +865,7 @@ func runOpenAIAgentTests(runner: TestRunner) async {
     // Agent Test 1: 天気ツールを使ったエージェントループ
     await runAgentTest(name: "Weather Agent Loop", runner: runner) {
         let tools = ToolSet {
-            GetWeatherTool.self
+            GetWeatherTool()
         }
 
         let agentSequence: AgentStepSequence<OpenAIClient, WeatherReport> = client.runAgent(
@@ -900,7 +900,7 @@ func runOpenAIAgentTests(runner: TestRunner) async {
     // Agent Test 2: 計算ツールを使ったエージェントループ
     await runAgentTest(name: "Calculator Agent Loop", runner: runner) {
         let tools = ToolSet {
-            CalculatorTool.self
+            CalculatorTool()
         }
 
         let agentSequence: AgentStepSequence<OpenAIClient, CalculationReport> = client.runAgent(
@@ -957,7 +957,7 @@ func runGeminiAgentTests(runner: TestRunner) async {
     // Agent Test 1: 天気ツールを使ったエージェントループ
     await runAgentTest(name: "Weather Agent Loop", runner: runner) {
         let tools = ToolSet {
-            GetWeatherTool.self
+            GetWeatherTool()
         }
 
         let agentSequence: AgentStepSequence<GeminiClient, WeatherReport> = client.runAgent(
@@ -992,7 +992,7 @@ func runGeminiAgentTests(runner: TestRunner) async {
     // Agent Test 2: 計算ツールを使ったエージェントループ
     await runAgentTest(name: "Calculator Agent Loop", runner: runner) {
         let tools = ToolSet {
-            CalculatorTool.self
+            CalculatorTool()
         }
 
         let agentSequence: AgentStepSequence<GeminiClient, CalculationReport> = client.runAgent(

@@ -63,15 +63,27 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
 
     // MARK: - Initialization
 
+    /// 会話エージェントセッションを初期化
+    ///
+    /// - Parameters:
+    ///   - client: LLM クライアント
+    ///   - systemPrompt: システムプロンプト（オプション）
+    ///   - tools: 使用するツールセット
+    ///   - interactiveMode: 対話モードを有効にするか（デフォルト: false）
+    ///     `true` の場合、`AskUserTool` が自動的に追加され、
+    ///     AI がユーザーに質問できるようになります。
+    ///   - configuration: エージェント設定（オプション）
     public init(
         client: Client,
         systemPrompt: Prompt? = nil,
         tools: ToolSet,
+        interactiveMode: Bool = false,
         configuration: AgentConfiguration = .default
     ) {
         self.client = client
         self.systemPrompt = systemPrompt
-        self.tools = tools
+        // 対話モードの場合は AskUserTool を自動追加
+        self.tools = interactiveMode ? tools.appending(AskUserTool()) : tools
         self.configuration = configuration
 
         let (stream, continuation) = AsyncStream<ConversationalAgentEvent>.makeStream()

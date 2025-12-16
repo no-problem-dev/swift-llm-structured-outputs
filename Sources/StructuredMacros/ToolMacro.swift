@@ -10,8 +10,8 @@ import SwiftSyntaxMacros
 /// - `Arguments` ネスト型（@ToolArgument プロパティから）
 /// - `arguments` プロパティ
 /// - `init(arguments:)` イニシャライザ
-/// - `execute(with:)` 静的メソッド
-/// - `LLMTool`, `LLMToolRegistrable`, `Sendable` への準拠
+/// - `execute(with:)` インスタンスメソッド
+/// - `Tool`, `Sendable` への準拠
 public struct ToolMacro: MemberMacro, ExtensionMacro {
 
     // MARK: - MemberMacro
@@ -65,15 +65,15 @@ public struct ToolMacro: MemberMacro, ExtensionMacro {
 
         // arguments プロパティ
         members.append("""
-            public let arguments: Arguments
+            public var arguments: Arguments
             """)
 
         // init(arguments:) イニシャライザ
         let initDecl = generateInitializer(arguments: arguments)
         members.append(initDecl)
 
-        // execute(with:) 静的メソッド
-        let executeDecl = generateExecuteMethod(typeName: typeName)
+        // execute(with:) インスタンスメソッド
+        let executeDecl = generateExecuteMethod(typeName: typeName, arguments: arguments)
         members.append(executeDecl)
 
         return members
@@ -93,7 +93,7 @@ public struct ToolMacro: MemberMacro, ExtensionMacro {
         }
 
         let protocolExtension: DeclSyntax = """
-            extension \(type.trimmed): LLMTool, LLMToolRegistrable, Sendable {}
+            extension \(type.trimmed): Tool, Sendable {}
             """
 
         guard let extensionDecl = protocolExtension.as(ExtensionDeclSyntax.self) else {
@@ -293,8 +293,9 @@ public struct ToolMacro: MemberMacro, ExtensionMacro {
 
         var propertiesCode = ""
         for arg in arguments {
+            let defaultValue = defaultValueForType(arg.typeName, isOptional: arg.isOptional, isArray: arg.isArray)
             propertiesCode += "    @StructuredField(\"\(arg.description ?? arg.name)\")\n"
-            propertiesCode += "    public var \(arg.name): \(arg.typeName)\n"
+            propertiesCode += "    public var \(arg.name): \(arg.typeName) = \(defaultValue)\n"
         }
 
         return """
@@ -304,7 +305,11 @@ public struct ToolMacro: MemberMacro, ExtensionMacro {
             """
     }
 
-    /// init(arguments:) を生成
+    /// 初期化子を生成
+    ///
+    /// 引数なしの `init()` と `init(arguments:)` の両方を生成します。
+    /// これにより、ToolSet への登録時は `MyTool()` で作成でき、
+    /// 実行時は引数付きで再構築できます。
     private static func generateInitializer(arguments: [ToolArgumentInfo]) -> DeclSyntax {
         if arguments.isEmpty {
             return """
@@ -314,27 +319,89 @@ public struct ToolMacro: MemberMacro, ExtensionMacro {
                 """
         }
 
-        var assignments = ""
+        // 各引数のデフォルト値を生成
+        var defaultValues: [String] = []
         for arg in arguments {
-            assignments += "    self.\(arg.name) = arguments.\(arg.name)\n"
+            let defaultValue = defaultValueForType(arg.typeName, isOptional: arg.isOptional, isArray: arg.isArray)
+            defaultValues.append("self.\(arg.name) = \(defaultValue)")
+        }
+        let defaultAssignments = defaultValues.joined(separator: "\n    ")
+
+        // arguments からの代入を生成
+        var argAssignments = ""
+        for arg in arguments {
+            argAssignments += "    self.\(arg.name) = arguments.\(arg.name)\n"
         }
 
+        // 引数なし init() を生成（ToolSet 登録用）
+        // arguments プロパティは遅延初期化するため、ダミー値で初期化
         return """
+            public init() {
+                // ToolSet 登録時のデフォルト初期化
+                // 実際の引数は execute(with:) で設定される
+                \(raw: defaultAssignments)
+                // arguments は execute 時に設定されるため、空の Arguments で初期化
+                self.arguments = Arguments()
+            }
+
             public init(arguments: Arguments) {
                 self.arguments = arguments
-            \(raw: assignments)}
+            \(raw: argAssignments)}
             """
     }
 
-    /// execute(with:) メソッドを生成
-    private static func generateExecuteMethod(typeName: String) -> DeclSyntax {
+    /// 型に応じたデフォルト値を返す
+    private static func defaultValueForType(_ typeName: String, isOptional: Bool, isArray: Bool) -> String {
+        if isOptional {
+            return "nil"
+        }
+        if isArray {
+            return "[]"
+        }
+        // 基本型のデフォルト値
+        let baseType = typeName.replacingOccurrences(of: "?", with: "")
+        switch baseType {
+        case "String":
+            return "\"\""
+        case "Int", "Int8", "Int16", "Int32", "Int64",
+             "UInt", "UInt8", "UInt16", "UInt32", "UInt64":
+            return "0"
+        case "Double", "Float", "CGFloat":
+            return "0.0"
+        case "Bool":
+            return "false"
+        default:
+            // カスタム型の場合はデフォルト初期化を試みる
+            return "\(baseType)()"
+        }
+    }
+
+    /// execute(with:) インスタンスメソッドを生成
+    private static func generateExecuteMethod(typeName: String, arguments: [ToolArgumentInfo]) -> DeclSyntax {
+        // 引数のコピー処理を生成
+        var copyAssignments = ""
+        for arg in arguments {
+            copyAssignments += "    copy.\(arg.name) = args.\(arg.name)\n"
+        }
+
+        if arguments.isEmpty {
+            // 引数なしの場合はシンプルに
+            return """
+                public func execute(with argumentsData: Data) async throws -> ToolResult {
+                    let result = try await self.call()
+                    return try result.toToolResult()
+                }
+                """
+        }
+
         return """
-            public static func execute(with argumentsData: Data) async throws -> ToolResult {
+            public func execute(with argumentsData: Data) async throws -> ToolResult {
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 let args = try decoder.decode(Arguments.self, from: argumentsData)
-                let tool = \(raw: typeName)(arguments: args)
-                let result = try await tool.call()
+                var copy = self
+                copy.arguments = args
+            \(raw: copyAssignments)    let result = try await copy.call()
                 return try result.toToolResult()
             }
             """

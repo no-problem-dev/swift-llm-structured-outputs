@@ -216,9 +216,9 @@ struct CurrentTimeTool {
 enum DemoToolSet {
     static var tools: ToolSet {
         ToolSet {
-            GetWeatherTool.self
-            CalculatorTool.self
-            CurrentTimeTool.self
+            GetWeatherTool()
+            CalculatorTool()
+            CurrentTimeTool()
         }
     }
 
