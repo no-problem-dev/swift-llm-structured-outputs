@@ -7,6 +7,23 @@
 
 ## [未リリース]
 
+## [1.0.15] - 2025-12-16
+
+### 変更
+
+- **ToolSet のインスタンスベース登録方式への移行**: ツール登録APIを改善
+  - 型ベース（`.self`）からインスタンスベース（`()`）の登録方式に変更
+  - `LLMToolRegistrable` プロトコルを削除し、シンプルな設計に
+  - ツール定義とインスタンス化を1ステップで完結可能に
+
+- **ToolCapableClient を ToolCallableClient にリネーム**: 命名の一貫性を向上
+  - プロトコル名をより直感的な名前に変更
+  - 関連ファイル名を統一（`*+ToolCallable.swift`）
+
+- **ConversationAgentExample の改善**: サンプルアプリの機能強化
+  - セッション管理機能を追加
+  - コード構造のリファクタリングと機能改善
+
 ## [1.0.14] - 2025-12-16
 
 ### 追加
@@ -332,7 +349,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.14...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.15...HEAD
+[1.0.15]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.14...v1.0.15
 [1.0.14]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.13...v1.0.14
 [1.0.13]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.12...v1.0.13
 [1.0.12]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.11...v1.0.12
