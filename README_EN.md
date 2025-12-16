@@ -16,6 +16,7 @@ Type-safe structured output generation for Swift LLM clients
 - **Conversation Continuation** - State management and multi-turn conversations with `ConversationHistory`
 - **Swift Concurrency** - Full async/await and Sendable support
 - **Zero Dependencies** - Only swift-syntax required (for macro implementation)
+- **High-Level Toolkit** - Presets, built-in tools, and common output structures (LLMToolkits)
 
 ## Quick Start
 
@@ -186,6 +187,40 @@ let followUp: some ConversationalAgentStepStream<ResearchResult> = session.run(
 
 For details, see [Agent Loop Guide](documentation/agent-loop.md) and [Conversational Agent Guide](documentation/conversational-agent.md).
 
+### 8. LLMToolkits (High-Level Toolkit)
+
+Use the `LLMToolkits` module to accelerate agent development with pre-configured presets and built-in tools:
+
+```swift
+import LLMToolkits
+import LLMStructuredOutputs
+
+// Run agent with preset
+let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
+    prompt: "Analyze the market trends",
+    model: .sonnet,
+    tools: ResearcherPreset.defaultTools,
+    systemPrompt: ResearcherPreset.systemPrompt,
+    configuration: ResearcherPreset.configuration
+)
+
+for try await step in stream {
+    switch step {
+    case .toolCall(let call): print("🔧 \(call.name)")
+    case .finalResponse(let result): print("✅ \(result.summary)")
+    default: break
+    }
+}
+```
+
+LLMToolkits includes:
+- **System Prompts** - Purpose-optimized prompts (Researcher, DataAnalyst, CodingAssistant, etc.)
+- **Built-in Tools** - Calculator, DateTime, TextAnalysis
+- **Common Output Structures** - AnalysisResult, Summary, TaskPlan, etc.
+- **Agent Presets** - Ready-to-use configurations combining prompts + tools + settings
+
+See [LLMToolkits API Reference](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/) for details.
+
 ## Installation
 
 ### Swift Package Manager
@@ -204,7 +239,9 @@ Add to your target:
 .target(
     name: "YourTarget",
     dependencies: [
-        .product(name: "LLMStructuredOutputs", package: "swift-llm-structured-outputs")
+        .product(name: "LLMStructuredOutputs", package: "swift-llm-structured-outputs"),
+        // Optional: Use high-level toolkit
+        .product(name: "LLMToolkits", package: "swift-llm-structured-outputs")
     ]
 )
 ```
@@ -367,8 +404,11 @@ open Examples/LLMStructuredOutputsExample/LLMStructuredOutputsExample.xcodeproj
 
 For detailed documentation, see:
 
-- [API Reference](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/)
-- [Guides](documentation/)
+### API Reference (DocC)
+- [LLMStructuredOutputs](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) - Type-safe structured outputs API
+- [LLMToolkits](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/) - High-level toolkit (presets, built-in tools, common outputs)
+
+### Guides
   - [Getting Started](documentation/getting-started.md)
   - [Prompt Building](documentation/prompt-building.md)
   - [Conversation](documentation/conversation.md)

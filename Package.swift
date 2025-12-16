@@ -60,10 +60,16 @@ let package = Package(
             dependencies: ["LLMClient", "LLMTool", "LLMAgent"]
         ),
 
+        // MARK: - Layer 3: LLMToolkits (デフォルトプロンプト・ツール集)
+        .target(
+            name: "LLMToolkits",
+            dependencies: ["LLMClient", "LLMTool", "LLMAgent"]
+        ),
+
         // MARK: - Umbrella Module (全モジュールを再エクスポート)
         .target(
             name: "LLMStructuredOutputs",
-            dependencies: ["LLMClient", "LLMTool", "LLMConversation", "LLMAgent", "LLMConversationalAgent"]
+            dependencies: ["LLMClient", "LLMTool", "LLMConversation", "LLMAgent", "LLMConversationalAgent", "LLMToolkits"]
         ),
 
         // MARK: - Tests
