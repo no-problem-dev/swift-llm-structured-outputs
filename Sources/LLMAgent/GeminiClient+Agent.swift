@@ -12,6 +12,7 @@ extension GeminiClient: AgentCapableClient {
     ///
     /// Google Gemini API を使用してエージェントステップを実行します。
     /// ツールコールと構造化出力の両方をサポートします。
+    /// リトライ設定に基づいて、レート制限やサーバーエラー時に自動リトライを行います。
     public func executeAgentStep(
         messages: [LLMMessage],
         model: GeminiModel,
@@ -39,15 +40,22 @@ extension GeminiClient: AgentCapableClient {
         )
         urlRequest.httpBody = try JSONEncoder().encode(body)
 
-        // リクエストを送信
-        let (data, response) = try await session.data(for: urlRequest)
+        // リトライヘルパーを使用してリクエストを実行
+        let retryHelper = AgentRetryHelper<GeminiRateLimitExtractor>(
+            configuration: retryConfiguration,
+            eventHandler: retryEventHandler
+        )
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw LLMError.invalidRequest("Invalid response type")
-        }
-
-        // レスポンスを処理
-        return try handleAgentResponse(data: data, httpResponse: httpResponse, model: model.id)
+        return try await retryHelper.execute(
+            session: session,
+            request: urlRequest,
+            parseError: { data, statusCode in
+                try parseAgentError(data: data, statusCode: statusCode)
+            },
+            parseResponse: { data, _ in
+                try parseAgentSuccessResponse(data: data, model: model.id)
+            }
+        )
     }
 
     // MARK: - Private Constants
@@ -178,30 +186,29 @@ extension GeminiClient: AgentCapableClient {
         return GeminiAgentToolConfig(functionCallingConfig: config)
     }
 
-    /// レスポンスを処理
-    private func handleAgentResponse(data: Data, httpResponse: HTTPURLResponse, model: String) throws -> LLMResponse {
-        // エラーステータスコードの処理
-        switch httpResponse.statusCode {
-        case 200:
-            break
+    /// エラーステータスコードから LLMError を生成
+    private func parseAgentError(data: Data, statusCode: Int) throws -> LLMError {
+        switch statusCode {
         case 401, 403:
-            throw LLMError.unauthorized
+            return .unauthorized
         case 429:
-            throw LLMError.rateLimitExceeded
+            return .rateLimitExceeded
         case 400:
             let errorResponse = try? JSONDecoder().decode(GeminiAgentErrorResponse.self, from: data)
-            throw LLMError.invalidRequest(errorResponse?.error.message ?? "Bad request")
+            return .invalidRequest(errorResponse?.error.message ?? "Bad request")
         case 404:
             let errorResponse = try? JSONDecoder().decode(GeminiAgentErrorResponse.self, from: data)
-            throw LLMError.modelNotFound(errorResponse?.error.message ?? "Model not found")
+            return .modelNotFound(errorResponse?.error.message ?? "Model not found")
         case 500...599:
             let errorResponse = try? JSONDecoder().decode(GeminiAgentErrorResponse.self, from: data)
-            throw LLMError.serverError(httpResponse.statusCode, errorResponse?.error.message ?? "Server error")
+            return .serverError(statusCode, errorResponse?.error.message ?? "Server error")
         default:
-            throw LLMError.serverError(httpResponse.statusCode, "Unexpected status code")
+            return .serverError(statusCode, "Unexpected status code")
         }
+    }
 
-        // 成功レスポンスをデコード
+    /// 成功レスポンスから LLMResponse を生成
+    private func parseAgentSuccessResponse(data: Data, model: String) throws -> LLMResponse {
         let decoder = JSONDecoder()
 
         let geminiResponse: GeminiAgentResponseBody
@@ -211,7 +218,6 @@ extension GeminiClient: AgentCapableClient {
             throw LLMError.decodingFailed(error)
         }
 
-        // LLMResponse に変換
         return convertToLLMResponse(geminiResponse, model: model)
     }
 

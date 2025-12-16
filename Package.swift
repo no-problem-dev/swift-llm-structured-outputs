@@ -54,10 +54,16 @@ let package = Package(
             dependencies: ["LLMClient", "LLMTool"]
         ),
 
+        // MARK: - Layer 3: LLMConversationalAgent (会話型エージェント)
+        .target(
+            name: "LLMConversationalAgent",
+            dependencies: ["LLMClient", "LLMTool", "LLMAgent"]
+        ),
+
         // MARK: - Umbrella Module (全モジュールを再エクスポート)
         .target(
             name: "LLMStructuredOutputs",
-            dependencies: ["LLMClient", "LLMTool", "LLMConversation", "LLMAgent"]
+            dependencies: ["LLMClient", "LLMTool", "LLMConversation", "LLMAgent", "LLMConversationalAgent"]
         ),
 
         // MARK: - Tests

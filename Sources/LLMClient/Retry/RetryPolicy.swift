@@ -2,11 +2,10 @@ import Foundation
 
 // MARK: - RetryPolicy Protocol
 
-/// リトライポリシープロトコル（内部実装）
+/// リトライポリシープロトコル
 ///
 /// LLMプロバイダーへのリクエストが失敗した際のリトライ戦略を定義します。
-/// このプロトコルは内部実装であり、外部に公開されません。
-internal protocol RetryPolicy: Sendable {
+package protocol RetryPolicy: Sendable {
     /// 最大リトライ回数
     ///
     /// 初回リクエストを含まない、追加のリトライ回数を指定します。
@@ -33,7 +32,7 @@ internal protocol RetryPolicy: Sendable {
 
 // MARK: - ExponentialBackoffPolicy
 
-/// 指数バックオフ + ジッター リトライポリシー（内部実装）
+/// 指数バックオフ + ジッター リトライポリシー
 ///
 /// レート制限やサーバーエラーに対して、指数関数的に増加する待機時間でリトライを行います。
 /// ジッター（ランダムな揺らぎ）を追加することで、同時リトライによるサーバー負荷集中を防ぎます。
@@ -56,21 +55,21 @@ internal protocol RetryPolicy: Sendable {
 /// - `serverError` (500-599): サーバーエラー
 /// - `timeout`: タイムアウト
 /// - `networkError`: 一時的なネットワークエラー
-internal struct ExponentialBackoffPolicy: RetryPolicy {
+package struct ExponentialBackoffPolicy: RetryPolicy {
     /// 最大リトライ回数
-    let maxRetries: Int
+    package let maxRetries: Int
 
     /// 基本待機時間（秒）
-    let baseDelay: TimeInterval
+    package let baseDelay: TimeInterval
 
     /// 最大待機時間（秒）
-    let maxDelay: TimeInterval
+    package let maxDelay: TimeInterval
 
     /// ジッター係数（0.0-1.0）
     ///
     /// 待機時間に追加されるランダムな揺らぎの最大割合。
     /// 例: `0.1` の場合、待機時間の最大10%がランダムに追加されます。
-    let jitterFactor: Double
+    package let jitterFactor: Double
 
     /// デフォルトのリトライポリシー
     ///
@@ -118,7 +117,7 @@ internal struct ExponentialBackoffPolicy: RetryPolicy {
         self.jitterFactor = min(1.0, max(0, jitterFactor))
     }
 
-    func shouldRetry(error: LLMError, attempt: Int) -> Bool {
+    package func shouldRetry(error: LLMError, attempt: Int) -> Bool {
         // 最大リトライ回数を超えていないか確認
         guard attempt <= maxRetries else { return false }
 
@@ -126,7 +125,7 @@ internal struct ExponentialBackoffPolicy: RetryPolicy {
         return error.isRetryable
     }
 
-    func delay(for attempt: Int, error: LLMError, rateLimitInfo: RateLimitInfo?) -> TimeInterval {
+    package func delay(for attempt: Int, error: LLMError, rateLimitInfo: RateLimitInfo?) -> TimeInterval {
         // retry-after ヘッダーがあれば優先
         if let suggestedWait = rateLimitInfo?.suggestedWaitTime, suggestedWait > 0 {
             // ジッターを追加して返す
@@ -149,22 +148,21 @@ internal struct ExponentialBackoffPolicy: RetryPolicy {
 
 // MARK: - NoRetryPolicy
 
-/// リトライしないポリシー（内部実装）
+/// リトライしないポリシー
 ///
 /// リトライを行わず、エラーを即座にスローします。
-/// 後方互換性や特定のユースケースで使用されます。
-internal struct NoRetryPolicy: RetryPolicy {
-    let maxRetries: Int = 0
+package struct NoRetryPolicy: RetryPolicy {
+    package let maxRetries: Int = 0
 
-    static let shared = NoRetryPolicy()
+    package static let shared = NoRetryPolicy()
 
     private init() {}
 
-    func shouldRetry(error: LLMError, attempt: Int) -> Bool {
+    package func shouldRetry(error: LLMError, attempt: Int) -> Bool {
         return false
     }
 
-    func delay(for attempt: Int, error: LLMError, rateLimitInfo: RateLimitInfo?) -> TimeInterval {
+    package func delay(for attempt: Int, error: LLMError, rateLimitInfo: RateLimitInfo?) -> TimeInterval {
         return 0
     }
 }
@@ -186,7 +184,7 @@ extension LLMError {
     /// - `modelNotFound`: モデルが存在しない
     /// - `decodingFailed`: レスポンスのデコード失敗
     /// - `contentBlocked`: コンテンツが安全性フィルターにブロックされた
-    internal var isRetryable: Bool {
+    package var isRetryable: Bool {
         switch self {
         case .rateLimitExceeded:
             return true

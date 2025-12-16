@@ -8,3 +8,4 @@
 @_exported import LLMTool
 @_exported import LLMConversation
 @_exported import LLMAgent
+@_exported import LLMConversationalAgent
