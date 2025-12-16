@@ -75,8 +75,8 @@ struct Calculator {
 let client = AnthropicClient(apiKey: "sk-ant-...")
 
 let tools = ToolSet {
-    GetWeather.self
-    Calculator.self
+    GetWeather()
+    Calculator()
 }
 
 let agentStream: some AgentStepStream<WeatherReport> = client.runAgent(

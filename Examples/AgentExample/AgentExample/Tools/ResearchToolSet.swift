@@ -19,14 +19,14 @@ enum ResearchToolSet {
     /// すべてのツールを含むToolSetを作成
     static var allTools: ToolSet {
         ToolSet {
-            WebSearchTool.self
-            FetchWebPageTool.self
-            WeatherTool.self
-            CalculatorTool.self
-            CurrentTimeTool.self
-            UnitConverterTool.self
-            StringManipulationTool.self
-            RandomGeneratorTool.self
+            WebSearchTool()
+            FetchWebPageTool()
+            WeatherTool()
+            CalculatorTool()
+            CurrentTimeTool()
+            UnitConverterTool()
+            StringManipulationTool()
+            RandomGeneratorTool()
         }
     }
 
@@ -53,21 +53,21 @@ enum ResearchToolSet {
 
             switch tool {
             case .webSearch:
-                toolSet = toolSet.appending(WebSearchTool.self)
+                toolSet = toolSet.appending(WebSearchTool())
             case .fetchWebPage:
-                toolSet = toolSet.appending(FetchWebPageTool.self)
+                toolSet = toolSet.appending(FetchWebPageTool())
             case .weather:
-                toolSet = toolSet.appending(WeatherTool.self)
+                toolSet = toolSet.appending(WeatherTool())
             case .calculator:
-                toolSet = toolSet.appending(CalculatorTool.self)
+                toolSet = toolSet.appending(CalculatorTool())
             case .currentTime:
-                toolSet = toolSet.appending(CurrentTimeTool.self)
+                toolSet = toolSet.appending(CurrentTimeTool())
             case .unitConverter:
-                toolSet = toolSet.appending(UnitConverterTool.self)
+                toolSet = toolSet.appending(UnitConverterTool())
             case .stringManipulation:
-                toolSet = toolSet.appending(StringManipulationTool.self)
+                toolSet = toolSet.appending(StringManipulationTool())
             case .randomGenerator:
-                toolSet = toolSet.appending(RandomGeneratorTool.self)
+                toolSet = toolSet.appending(RandomGeneratorTool())
             }
         }
 

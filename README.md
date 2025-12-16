@@ -97,7 +97,7 @@ struct WeatherReport {
     @StructuredField("気温") var temperature: Int
 }
 
-let tools = ToolSet { GetWeather.self }
+let tools = ToolSet { GetWeather() }
 
 let stream: some AgentStepStream<WeatherReport> = client.runAgent(
     prompt: "東京の天気を調べてレポートを作成して",
@@ -123,7 +123,7 @@ for try await step in stream {
 let session = ConversationalAgentSession(
     client: AnthropicClient(apiKey: "..."),
     systemPrompt: Prompt { PromptComponent.role("リサーチアシスタント") },
-    tools: ToolSet { WebSearchTool.self }
+    tools: ToolSet { WebSearchTool() }
 )
 
 let stream: some ConversationalAgentStepStream<ResearchResult> = session.run(

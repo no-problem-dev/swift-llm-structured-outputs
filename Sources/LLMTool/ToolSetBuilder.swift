@@ -5,17 +5,17 @@ import Foundation
 /// ツールセット構築用の Result Builder
 ///
 /// Swift の Result Builder 機能を使用して、
-/// 宣言的な DSL でツールセットを構築できます。
+/// SwiftUI のような宣言的な DSL でツールセットを構築できます。
 ///
 /// ## 使用例
 ///
 /// ```swift
 /// let tools = ToolSet {
-///     GetWeatherTool.self
-///     SearchTool.self
+///     GetWeatherTool(apiKey: apiKey)
+///     SearchTool()
 ///
 ///     if needsCalculator {
-///         CalculatorTool.self
+///         CalculatorTool()
 ///     }
 ///
 ///     for tool in additionalTools {
@@ -30,30 +30,30 @@ public struct ToolSetBuilder {
 
     /// 複数のツール配列をブロックとして構築
     ///
-    /// - Parameter toolTypes: ツール型配列の可変長引数
-    /// - Returns: フラット化されたツール型の配列
-    public static func buildBlock(_ toolTypes: [any LLMToolRegistrable.Type]...) -> [any LLMToolRegistrable.Type] {
-        toolTypes.flatMap { $0 }
+    /// - Parameter tools: ツール配列の可変長引数
+    /// - Returns: フラット化されたツールの配列
+    public static func buildBlock(_ tools: [any Tool]...) -> [any Tool] {
+        tools.flatMap { $0 }
     }
 
     // MARK: - Expression Building
 
-    /// ツールタイプを配列として構築
+    /// ツールインスタンスを配列として構築
     ///
-    /// - Parameter toolType: LLMToolRegistrable に準拠したツールタイプ
-    /// - Returns: ツール型を含む配列
-    public static func buildExpression<T: LLMToolRegistrable>(_ toolType: T.Type) -> [any LLMToolRegistrable.Type] {
-        [toolType]
+    /// - Parameter tool: Tool に準拠したツールインスタンス
+    /// - Returns: ツールを含む配列
+    public static func buildExpression(_ tool: some Tool) -> [any Tool] {
+        [tool]
     }
 
-    /// ツール型配列をそのまま返す
+    /// ツール配列をそのまま返す
     ///
     /// ネストされた配列を扱う際に使用されます。
     ///
-    /// - Parameter toolTypes: ツール型配列
-    /// - Returns: そのままのツール型配列
-    public static func buildExpression(_ toolTypes: [any LLMToolRegistrable.Type]) -> [any LLMToolRegistrable.Type] {
-        toolTypes
+    /// - Parameter tools: ツール配列
+    /// - Returns: そのままのツール配列
+    public static func buildExpression(_ tools: [any Tool]) -> [any Tool] {
+        tools
     }
 
     // MARK: - Conditional Building
@@ -62,30 +62,30 @@ public struct ToolSetBuilder {
     ///
     /// `if` 文の条件が `false` の場合に使用されます。
     ///
-    /// - Parameter toolTypes: オプショナルなツール型配列
-    /// - Returns: ツール型配列、または空配列
-    public static func buildOptional(_ toolTypes: [any LLMToolRegistrable.Type]?) -> [any LLMToolRegistrable.Type] {
-        toolTypes ?? []
+    /// - Parameter tools: オプショナルなツール配列
+    /// - Returns: ツール配列、または空配列
+    public static func buildOptional(_ tools: [any Tool]?) -> [any Tool] {
+        tools ?? []
     }
 
     /// 条件分岐の最初の分岐を構築
     ///
     /// `if-else` 文の `if` 部分に使用されます。
     ///
-    /// - Parameter toolTypes: ツール型配列
-    /// - Returns: そのままのツール型配列
-    public static func buildEither(first toolTypes: [any LLMToolRegistrable.Type]) -> [any LLMToolRegistrable.Type] {
-        toolTypes
+    /// - Parameter tools: ツール配列
+    /// - Returns: そのままのツール配列
+    public static func buildEither(first tools: [any Tool]) -> [any Tool] {
+        tools
     }
 
     /// 条件分岐の2番目の分岐を構築
     ///
     /// `if-else` 文の `else` 部分に使用されます。
     ///
-    /// - Parameter toolTypes: ツール型配列
-    /// - Returns: そのままのツール型配列
-    public static func buildEither(second toolTypes: [any LLMToolRegistrable.Type]) -> [any LLMToolRegistrable.Type] {
-        toolTypes
+    /// - Parameter tools: ツール配列
+    /// - Returns: そのままのツール配列
+    public static func buildEither(second tools: [any Tool]) -> [any Tool] {
+        tools
     }
 
     // MARK: - Array Building
@@ -94,20 +94,20 @@ public struct ToolSetBuilder {
     ///
     /// `for-in` ループで生成されたツールを結合します。
     ///
-    /// - Parameter toolTypes: ツール型配列の配列
-    /// - Returns: フラット化されたツール型配列
-    public static func buildArray(_ toolTypes: [[any LLMToolRegistrable.Type]]) -> [any LLMToolRegistrable.Type] {
-        toolTypes.flatMap { $0 }
+    /// - Parameter tools: ツール配列の配列
+    /// - Returns: フラット化されたツール配列
+    public static func buildArray(_ tools: [[any Tool]]) -> [any Tool] {
+        tools.flatMap { $0 }
     }
 
     // MARK: - Final Result
 
     /// 最終結果を構築
     ///
-    /// - Parameter toolTypes: 最終的なツール型配列
-    /// - Returns: そのままのツール型配列
-    public static func buildFinalResult(_ toolTypes: [any LLMToolRegistrable.Type]) -> [any LLMToolRegistrable.Type] {
-        toolTypes
+    /// - Parameter tools: 最終的なツール配列
+    /// - Returns: そのままのツール配列
+    public static func buildFinalResult(_ tools: [any Tool]) -> [any Tool] {
+        tools
     }
 
     // MARK: - Availability
@@ -116,9 +116,9 @@ public struct ToolSetBuilder {
     ///
     /// `#available` チェックで使用されます。
     ///
-    /// - Parameter toolTypes: ツール型配列
-    /// - Returns: そのままのツール型配列
-    public static func buildLimitedAvailability(_ toolTypes: [any LLMToolRegistrable.Type]) -> [any LLMToolRegistrable.Type] {
-        toolTypes
+    /// - Parameter tools: ツール配列
+    /// - Returns: そのままのツール配列
+    public static func buildLimitedAvailability(_ tools: [any Tool]) -> [any Tool] {
+        tools
     }
 }

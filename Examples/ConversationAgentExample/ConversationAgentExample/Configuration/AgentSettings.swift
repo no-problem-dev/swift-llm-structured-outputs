@@ -1,10 +1,3 @@
-//
-//  AgentSettings.swift
-//  ConversationAgentExample
-//
-//  エージェント設定管理
-//
-
 import Foundation
 import SwiftUI
 import LLMStructuredOutputs
@@ -72,14 +65,6 @@ final class AgentSettings {
 
         var id: String { rawValue }
 
-        var shortName: String {
-            switch self {
-            case .anthropic: return "Claude"
-            case .openai: return "GPT"
-            case .gemini: return "Gemini"
-            }
-        }
-
         var hasAPIKey: Bool {
             switch self {
             case .anthropic: return APIKeyManager.hasAnthropicKey
@@ -116,14 +101,6 @@ final class AgentSettings {
             case .haiku: return .haiku
             }
         }
-
-        var shortName: String {
-            switch self {
-            case .opus: return "Opus"
-            case .sonnet: return "Sonnet"
-            case .haiku: return "Haiku"
-            }
-        }
     }
 
     /// GPT モデル選択肢
@@ -141,14 +118,6 @@ final class AgentSettings {
             case .o1: return .o1
             }
         }
-
-        var shortName: String {
-            switch self {
-            case .gpt4o: return "4o"
-            case .gpt4oMini: return "4o mini"
-            case .o1: return "o1"
-            }
-        }
     }
 
     /// Gemini モデル選択肢
@@ -164,14 +133,6 @@ final class AgentSettings {
             case .pro25: return .pro25
             case .flash25: return .flash25
             case .flash25Lite: return .flash25Lite
-            }
-        }
-
-        var shortName: String {
-            switch self {
-            case .pro25: return "2.5 Pro"
-            case .flash25: return "2.5 Flash"
-            case .flash25Lite: return "2.5 Flash-Lite"
             }
         }
     }

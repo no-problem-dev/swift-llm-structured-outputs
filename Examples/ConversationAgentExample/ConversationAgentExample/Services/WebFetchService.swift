@@ -1,10 +1,3 @@
-//
-//  WebFetchService.swift
-//  ConversationAgentExample
-//
-//  Webページ取得サービス
-//
-
 import Foundation
 
 /// Webページ取得サービス

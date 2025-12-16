@@ -1,10 +1,3 @@
-//
-//  SettingsView.swift
-//  ConversationAgentExample
-//
-//  設定画面
-//
-
 import SwiftUI
 
 /// 設定画面

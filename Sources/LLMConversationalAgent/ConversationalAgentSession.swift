@@ -51,19 +51,39 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
     private var _isRunning: Bool = false
     private let eventContinuation: AsyncStream<ConversationalAgentEvent>.Continuation
 
+    /// 保留中の ask_user ツール呼び出し
+    private var pendingAskUserCall: ToolCall?
+
+    /// ユーザー回答待ちの CheckedContinuation
+    ///
+    /// `ask_user` ツール呼び出し時に設定され、`reply(_:)` で再開されます。
+    private var answerContinuation: CheckedContinuation<String, Never>?
+
     public nonisolated let eventStream: AsyncStream<ConversationalAgentEvent>
 
     // MARK: - Initialization
 
+    /// 会話エージェントセッションを初期化
+    ///
+    /// - Parameters:
+    ///   - client: LLM クライアント
+    ///   - systemPrompt: システムプロンプト（オプション）
+    ///   - tools: 使用するツールセット
+    ///   - interactiveMode: 対話モードを有効にするか（デフォルト: false）
+    ///     `true` の場合、`AskUserTool` が自動的に追加され、
+    ///     AI がユーザーに質問できるようになります。
+    ///   - configuration: エージェント設定（オプション）
     public init(
         client: Client,
         systemPrompt: Prompt? = nil,
         tools: ToolSet,
+        interactiveMode: Bool = false,
         configuration: AgentConfiguration = .default
     ) {
         self.client = client
         self.systemPrompt = systemPrompt
-        self.tools = tools
+        // 対話モードの場合は AskUserTool を自動追加
+        self.tools = interactiveMode ? tools.appending(AskUserTool()) : tools
         self.configuration = configuration
 
         let (stream, continuation) = AsyncStream<ConversationalAgentEvent>.makeStream()
@@ -108,6 +128,33 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
         eventContinuation.yield(.cleared)
     }
 
+    public func cancel() {
+        guard _isRunning else { return }
+        _isRunning = false
+        interruptQueue.removeAll()
+        pendingAskUserCall = nil
+        // キャンセル時は空文字列で再開（ループ内でエラーハンドリング）
+        if let continuation = answerContinuation {
+            answerContinuation = nil
+            continuation.resume(returning: "")
+        }
+        eventContinuation.yield(.sessionCancelled)
+    }
+
+    // MARK: - Protocol Conformance: User Interaction API
+
+    public var waitingForAnswer: Bool {
+        answerContinuation != nil
+    }
+
+    public func reply(_ answer: String) {
+        // 回答待ち状態でない場合は何もしない
+        guard let continuation = answerContinuation else { return }
+        answerContinuation = nil
+        eventContinuation.yield(.userAnswerProvided(answer))
+        continuation.resume(returning: answer)
+    }
+
     // MARK: - Protocol Conformance: Core API
 
     public func run<Output: StructuredProtocol>(
@@ -149,11 +196,24 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
             eventContinuation.yield(.sessionCompleted)
         }
 
+        // ユーザーメッセージを追加
         let userMsg = LLMMessage.user(userMessage)
         messages.append(userMsg)
         eventContinuation.yield(.userMessage(userMsg))
         continuation.yield(.userMessage(userMessage))
 
+        await runAgentLoop(
+            model: model,
+            outputType: Output.self,
+            continuation: continuation
+        )
+    }
+
+    private func runAgentLoop<Output: StructuredProtocol>(
+        model: Client.Model,
+        outputType: Output.Type,
+        continuation: AsyncThrowingStream<ConversationalAgentStep<Output>, Error>.Continuation
+    ) async {
         var step = 0
         let maxSteps = configuration.maxSteps
         var phase: LoopPhase = .toolUse
@@ -240,16 +300,60 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
                     // ツール呼び出しがある場合
                     if configuration.autoExecuteTools {
                         var toolResults: [ToolResponse] = []
+                        var askUserCall: ToolCall?
+                        var askUserQuestion: String?
 
                         for call in toolCalls {
                             continuation.yield(.toolCall(call))
 
-                            let result = await executeToolSafely(call)
-                            toolResults.append(result)
-                            continuation.yield(.toolResult(result))
+                            // AskUserTool の場合は特別処理
+                            if call.name == AskUserTool.toolName {
+                                let question = extractQuestionFromAskUserTool(call)
+                                askUserCall = call
+                                askUserQuestion = question
+                                continuation.yield(.askingUser(question))
+                                eventContinuation.yield(.askingUser(question))
+                                // ask_user の結果は後で追加するので、ここでは toolResults に追加しない
+                            } else {
+                                let result = await executeToolSafely(call)
+                                toolResults.append(result)
+                                continuation.yield(.toolResult(result))
+                            }
                         }
 
-                        addToolResults(toolResults)
+                        // ask_user 以外のツール結果を追加
+                        if !toolResults.isEmpty {
+                            addToolResults(toolResults)
+                        }
+
+                        // ask_user が呼ばれた場合は一時停止してユーザーの回答を待つ
+                        if let call = askUserCall, let question = askUserQuestion {
+                            pendingAskUserCall = call
+                            continuation.yield(.awaitingUserInput(question))
+
+                            // withCheckedContinuation で一時停止
+                            let answer = await withCheckedContinuation { cont in
+                                self.answerContinuation = cont
+                            }
+
+                            // キャンセルされた場合（空文字かつ実行中でない）は終了
+                            guard _isRunning else {
+                                continuation.finish()
+                                return
+                            }
+
+                            // ツール結果として回答を追加
+                            let result = ToolResponse(
+                                callId: call.id,
+                                name: call.name,
+                                output: answer.isEmpty ? "No answer provided" : answer,
+                                isError: false
+                            )
+                            addToolResults([result])
+                            continuation.yield(.toolResult(result))
+                            pendingAskUserCall = nil
+                            // ループ継続（次のイテレーションで LLM に回答を渡す）
+                        }
                     } else {
                         continuation.finish()
                         return
@@ -378,6 +482,16 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
             if case .text(let value) = block { return value }
             return nil
         }.joined()
+    }
+
+    /// AskUserTool の引数から質問文を抽出
+    private func extractQuestionFromAskUserTool(_ call: ToolCall) -> String {
+        // JSON から question フィールドを抽出
+        if let dict = try? JSONSerialization.jsonObject(with: call.arguments) as? [String: Any],
+           let question = dict["question"] as? String {
+            return question
+        }
+        return "Please provide additional information."
     }
 
     // MARK: - Final Output Helpers

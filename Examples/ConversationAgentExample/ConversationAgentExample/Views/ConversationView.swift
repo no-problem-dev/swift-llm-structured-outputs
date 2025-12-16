@@ -1,26 +1,31 @@
-//
-//  ConversationView.swift
-//  ConversationAgentExample
-//
-//  会話画面
-//
-
 import SwiftUI
-import MarkdownUI
 
-/// 会話画面
+/// 実行リクエスト
 ///
-/// ConversationalAgentSession を使用したマルチターン会話のデモ画面です。
-struct ConversationView: View {
-    @Bindable var controller: ConversationController
+/// `.task(id:)` のトリガーとして使用。
+/// `id` が変わると前のタスクがキャンセルされ、新しいタスクが開始される。
+private struct RunRequest: Equatable {
+    let id = UUID()
+    let prompt: String
+    let outputType: AgentOutputType
+
+    static func == (lhs: RunRequest, rhs: RunRequest) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+struct ConversationView<ViewModel: ConversationViewModel>: View {
+    @Bindable var viewModel: ViewModel
     @State private var promptText = ""
     @State private var interruptText = ""
+    @State private var answerText = ""
     @State private var showEventLog = false
-    @State private var showClearConfirmation = false
     @State private var showResultSheet = false
+    @State private var showSessionConfig = false
+    @State private var runRequest: RunRequest?
 
     private var currentResult: String? {
-        if case .completed(let result) = controller.state {
+        if case .completed(let result) = viewModel.state {
             return result
         }
         return nil
@@ -28,242 +33,209 @@ struct ConversationView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 中央: メインコンテンツ（ステップと結果）
             mainContentSection
-
             Divider()
-
-            // 下部: 入力エリア
             inputSection
         }
         .navigationTitle("会話エージェント")
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                if controller.state.isRunning {
-                    Button {
-                        controller.stopExecution()
-                    } label: {
-                        Image(systemName: "stop.fill")
-                    }
-                    .tint(.red)
-                } else {
-                    Button {
-                        showClearConfirmation = true
-                    } label: {
-                        Image(systemName: "arrow.counterclockwise")
-                    }
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: 12) {
-                    // ターン数表示
-                    if controller.turnCount > 0 {
-                        Text("ターン \(controller.turnCount)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    // イベントログボタン
-                    Button {
-                        showEventLog.toggle()
-                    } label: {
-                        Image(systemName: showEventLog ? "list.bullet.circle.fill" : "list.bullet.circle")
-                    }
-                }
-            }
-        }
-        .confirmationDialog(
-            "セッションをクリア",
-            isPresented: $showClearConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("クリア", role: .destructive) {
-                Task {
-                    await controller.clearSession()
-                    controller.createSession()
-                    promptText = ""
-                }
-            }
-            Button("キャンセル", role: .cancel) {}
-        } message: {
-            Text("現在の会話履歴がすべて削除されます。この操作は取り消せません。")
+        .toolbar { toolbarContent }
+        .task(id: runRequest) {
+            guard let request = runRequest else { return }
+            await viewModel.run(prompt: request.prompt, outputType: request.outputType)
         }
         .sheet(isPresented: $showEventLog) {
             NavigationStack {
-                EventLogView(events: controller.events)
+                EventLogView(events: viewModel.events)
                     .navigationTitle("イベントログ")
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
-                            Button("閉じる") {
-                                showEventLog = false
-                            }
+                            Button("閉じる") { showEventLog = false }
                         }
                     }
             }
         }
         .sheet(isPresented: $showResultSheet) {
-            NavigationStack {
-                ScrollView {
-                    if let result = currentResult {
-                        Markdown(result)
-                            .markdownTheme(.gitHub)
-                            .padding()
-                    }
-                }
-                .navigationTitle("リサーチ結果")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("閉じる") {
-                            showResultSheet = false
-                        }
-                    }
-                    ToolbarItem(placement: .cancellationAction) {
-                        if let result = currentResult {
-                            ShareLink(item: result) {
-                                Image(systemName: "square.and.arrow.up")
-                            }
-                        }
-                    }
-                }
+            if let result = currentResult {
+                ResultSheet(result: result) { showResultSheet = false }
             }
+        }
+        .sheet(isPresented: $showSessionConfig) {
+            SessionConfigSheet(
+                interactiveMode: $viewModel.interactiveMode,
+                outputType: $viewModel.selectedOutputType,
+                isDisabled: viewModel.state.isRunning,
+                onModeChange: {
+                    Task {
+                        await viewModel.clearSession()
+                        viewModel.createSession()
+                        promptText = ""
+                    }
+                },
+                onClearSession: {
+                    Task {
+                        await viewModel.clearSession()
+                        viewModel.createSession()
+                        promptText = ""
+                    }
+                },
+                onDismiss: { showSessionConfig = false }
+            )
+            .presentationDetents([.medium])
         }
         .onAppear {
-            controller.createSessionIfNeeded()
+            viewModel.createSessionIfNeeded()
+        }
+        .onDisappear {
+            Task {
+                try? await viewModel.save()
+            }
+        }
+        .onChange(of: viewModel.waitingForAnswer) { _, isWaiting in
+            if isWaiting {
+                Task {
+                    try? await viewModel.save()
+                }
+            }
         }
     }
 
-    // MARK: - Main Content Section
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            HStack(spacing: 12) {
+                if viewModel.turnCount > 0 {
+                    Text("ターン \(viewModel.turnCount)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button { showSessionConfig = true } label: {
+                    Image(systemName: "gearshape")
+                }
+
+                Button { showEventLog.toggle() } label: {
+                    Image(systemName: showEventLog ? "list.bullet.circle.fill" : "list.bullet.circle")
+                }
+            }
+        }
+    }
+
+    // MARK: - Main Content
 
     private var mainContentSection: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                // 結果表示（完了時）
-                if case .completed(let result) = controller.state {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("結果", systemImage: "checkmark.circle.fill")
-                            .font(.headline)
-                            .foregroundStyle(.green)
-                        ResultView(result: result)
+        ZStack(alignment: .top) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if case .completed(let result) = viewModel.state {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("結果", systemImage: "checkmark.circle.fill")
+                                .font(.headline)
+                                .foregroundStyle(.green)
+                            ResultView(result: result)
+                        }
+                        .padding(.horizontal)
+
+                        Divider()
+                            .padding(.vertical, 8)
                     }
-                    .padding(.horizontal)
 
-                    Divider()
-                        .padding(.vertical, 8)
-                }
-
-                // エラー表示
-                if case .error(let message) = controller.state {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
-                        Text(message)
-                            .font(.subheadline)
-                            .foregroundStyle(.red)
+                    if case .error(let message) = viewModel.state {
+                        ErrorBanner(message: message)
+                            .padding(.horizontal)
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.red.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .padding(.horizontal)
-                }
 
-                // ステップリスト
-                StepListView(
-                    steps: controller.steps,
-                    isLoading: controller.state.isRunning,
-                    onResultTap: currentResult != nil ? { showResultSheet = true } : nil
-                )
+                    StepListView(
+                        steps: viewModel.steps,
+                        isLoading: viewModel.state.isRunning,
+                        onResultTap: currentResult != nil ? { showResultSheet = true } : nil
+                    )
+                }
+                .padding(.vertical)
+                .padding(.top, viewModel.state.isRunning ? 80 : 0)
             }
-            .padding(.vertical)
+            .scrollDismissesKeyboard(.interactively)
+
+            if viewModel.state.isRunning {
+                ExecutionProgressBanner(
+                    currentPhase: viewModel.steps.last?.type,
+                    startTime: viewModel.steps.first?.timestamp
+                )
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
-        .scrollDismissesKeyboard(.interactively)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.state.isRunning)
     }
 
-    // MARK: - Input Section
+    // MARK: - Input
 
     private var inputSection: some View {
         VStack(spacing: 12) {
-            // 入力欄（状態に応じて切り替え）
-            HStack {
-                if controller.state.isRunning {
-                    // 実行中: 割り込み入力
-                    TextField("割り込みメッセージを入力...", text: $interruptText, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .lineLimit(1...3)
-
-                    Button {
-                        sendInterrupt()
-                    } label: {
-                        Image(systemName: "bolt.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.orange)
-                    .disabled(interruptText.isEmpty)
-                } else {
-                    // 待機中・完了後: 質問入力
-                    TextField("質問を入力...", text: $promptText, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .lineLimit(1...3)
-
-                    Button {
-                        runQuery()
-                    } label: {
-                        Image(systemName: "paperplane.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canRun)
-                }
+            if viewModel.waitingForAnswer, let question = viewModel.pendingQuestion {
+                QuestionBanner(question: question)
             }
 
-            // APIキー状態表示
-            if !APIKeyManager.hasAnyLLMKey || !APIKeyManager.hasBraveSearchKey {
-                HStack {
-                    Spacer()
-
-                    if !APIKeyManager.hasAnyLLMKey {
-                        Label("APIキーが未設定", systemImage: "exclamationmark.triangle")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
-
-                    if !APIKeyManager.hasBraveSearchKey {
-                        Label("検索APIが未設定", systemImage: "magnifyingglass")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+            if viewModel.waitingForAnswer {
+                ConversationInputField(
+                    mode: .answer,
+                    text: $answerText,
+                    isEnabled: true,
+                    onSubmit: sendAnswer
+                )
+            } else if viewModel.state.isRunning {
+                ConversationInputField(
+                    mode: .interrupt,
+                    text: $interruptText,
+                    isEnabled: true,
+                    onSubmit: sendInterrupt,
+                    onStop: { viewModel.cancel() }
+                )
+            } else {
+                ConversationInputField(
+                    mode: .prompt,
+                    text: $promptText,
+                    isEnabled: APIKeyManager.hasAnyLLMKey,
+                    onSubmit: runQuery
+                )
             }
+
+            APIKeyStatusBar(
+                hasLLMKey: APIKeyManager.hasAnyLLMKey,
+                hasSearchKey: APIKeyManager.hasBraveSearchKey
+            )
         }
         .padding()
     }
 
     // MARK: - Actions
 
-    private var canRun: Bool {
-        !promptText.isEmpty &&
-        !controller.state.isRunning &&
-        APIKeyManager.hasAnyLLMKey
-    }
-
     private func runQuery() {
-        guard canRun else { return }
-        controller.run(prompt: promptText, outputType: .research)
+        guard !promptText.isEmpty, APIKeyManager.hasAnyLLMKey else { return }
+        runRequest = RunRequest(prompt: promptText, outputType: viewModel.selectedOutputType)
         promptText = ""
     }
 
     private func sendInterrupt() {
         guard !interruptText.isEmpty else { return }
         Task {
-            await controller.interrupt(message: interruptText)
+            await viewModel.interrupt(message: interruptText)
             interruptText = ""
         }
+    }
+
+    private func sendAnswer() {
+        guard !answerText.isEmpty else { return }
+        viewModel.reply(answerText)
+        answerText = ""
     }
 }
 
 #Preview {
-    @Previewable @State var controller = ConversationController()
+    @Previewable @State var viewModel = ConversationViewModelImpl()
     NavigationStack {
-        ConversationView(controller: controller)
+        ConversationView(viewModel: viewModel)
     }
 }

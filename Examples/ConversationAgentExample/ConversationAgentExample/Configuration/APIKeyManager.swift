@@ -1,10 +1,3 @@
-//
-//  APIKeyManager.swift
-//  ConversationAgentExample
-//
-//  APIキー管理（LLM + 外部API）
-//
-
 import Foundation
 
 /// APIキー管理

@@ -6,17 +6,17 @@ import LLMClient
 /// ツールの集合
 ///
 /// Result Builder を使用して宣言的にツールを構築できます。
-/// `Prompt` と同様のパターンで、条件分岐やループもサポートしています。
+/// SwiftUI の View と同様のパターンで、条件分岐やループもサポートしています。
 ///
 /// ## 使用例
 ///
 /// ```swift
 /// let tools = ToolSet {
-///     GetWeatherTool.self
-///     SearchTool.self
+///     GetWeatherTool(apiKey: weatherApiKey)
+///     SearchTool()
 ///
 ///     if needsCalculator {
-///         CalculatorTool.self
+///         CalculatorTool()
 ///     }
 ///
 ///     for tool in dynamicTools {
@@ -35,20 +35,18 @@ import LLMClient
 ///
 /// ```swift
 /// let baseTools = ToolSet {
-///     GetWeatherTool.self
-///     SearchTool.self
+///     GetWeatherTool()
+///     SearchTool()
 /// }
 ///
-/// let extendedTools = baseTools + CalculatorTool.self
-/// // または
-/// let extendedTools = baseTools.appending(CalculatorTool.self)
+/// let extendedTools = baseTools.appending(CalculatorTool())
 /// ```
 public struct ToolSet: Sendable {
 
     // MARK: - Properties
 
-    /// 内部のツール型配列
-    internal let toolTypes: [any LLMToolRegistrable.Type]
+    /// 内部のツール配列
+    internal let tools: [any Tool]
 
     // MARK: - Initializers
 
@@ -58,55 +56,56 @@ public struct ToolSet: Sendable {
     ///
     /// ```swift
     /// let tools = ToolSet {
-    ///     GetWeatherTool.self
-    ///     SearchTool.self
+    ///     GetWeatherTool()
+    ///     SearchTool()
     /// }
     /// ```
-    public init(@ToolSetBuilder _ builder: () -> [any LLMToolRegistrable.Type]) {
-        self.toolTypes = builder()
+    public init(@ToolSetBuilder _ builder: () -> [any Tool]) {
+        self.tools = builder()
     }
 
     /// 内部配列から直接初期化（内部使用）
-    internal init(toolTypes: [any LLMToolRegistrable.Type]) {
-        self.toolTypes = toolTypes
+    internal init(tools: [any Tool]) {
+        self.tools = tools
     }
 
     /// 空の ToolSet を作成
     public init() {
-        self.toolTypes = []
+        self.tools = []
     }
 
     // MARK: - Properties
 
     /// ツールセットが空かどうか
     public var isEmpty: Bool {
-        toolTypes.isEmpty
+        tools.isEmpty
     }
 
     /// ツールの数
     public var count: Int {
-        toolTypes.count
+        tools.count
     }
 
     /// ツール名のリスト
     public var toolNames: [String] {
-        toolTypes.map { $0.toolName }
+        tools.map { $0.name }
     }
 
     // MARK: - Lookup
 
-    /// 名前でツール型を検索
+    /// 名前でツールを検索
     ///
     /// - Parameter name: ツール名
-    /// - Returns: 見つかったツール型
-    public func toolType(named name: String) -> (any LLMToolRegistrable.Type)? {
-        toolTypes.first { $0.toolName == name }
+    /// - Returns: 見つかったツール
+    public func tool(named name: String) -> (any Tool)? {
+        tools.first { $0.name == name }
     }
 
     /// ツール定義のリストを取得
     public var definitions: [ToolDefinition] {
-        toolTypes.map { toolType in
-            ToolDefinition(
+        tools.map { tool in
+            let toolType = type(of: tool)
+            return ToolDefinition(
                 name: toolType.toolName,
                 description: toolType.toolDescription,
                 inputSchema: toolType.inputSchema
@@ -122,10 +121,10 @@ public struct ToolSet: Sendable {
     /// - Returns: ツールの実行結果
     /// - Throws: ツールが見つからない場合、または実行エラー
     public func execute(toolNamed name: String, with argumentsData: Data) async throws -> ToolResult {
-        guard let toolType = toolType(named: name) else {
+        guard let tool = tool(named: name) else {
             throw ToolExecutionError.toolNotFound(name)
         }
-        return try await toolType.execute(with: argumentsData)
+        return try await tool.execute(with: argumentsData)
     }
 }
 
@@ -154,17 +153,17 @@ extension ToolSet {
     ///   - rhs: 追加する ToolSet
     /// - Returns: 結合された ToolSet
     public static func + (lhs: ToolSet, rhs: ToolSet) -> ToolSet {
-        ToolSet(toolTypes: lhs.toolTypes + rhs.toolTypes)
+        ToolSet(tools: lhs.tools + rhs.tools)
     }
 
-    /// ToolSet にツールタイプを追加
+    /// ToolSet にツールを追加
     ///
     /// - Parameters:
     ///   - lhs: ToolSet
-    ///   - rhs: 追加するツールタイプ
+    ///   - rhs: 追加するツール
     /// - Returns: ツールが追加された ToolSet
-    public static func + <T: LLMToolRegistrable>(lhs: ToolSet, rhs: T.Type) -> ToolSet {
-        ToolSet(toolTypes: lhs.toolTypes + [rhs])
+    public static func + (lhs: ToolSet, rhs: some Tool) -> ToolSet {
+        ToolSet(tools: lhs.tools + [rhs])
     }
 
     /// 別の ToolSet を追加した新しい ToolSet を返す
@@ -175,12 +174,12 @@ extension ToolSet {
         self + other
     }
 
-    /// ツールタイプを追加した新しい ToolSet を返す
+    /// ツールを追加した新しい ToolSet を返す
     ///
-    /// - Parameter toolType: 追加するツールタイプ
+    /// - Parameter tool: 追加するツール
     /// - Returns: ツールが追加された ToolSet
-    public func appending<T: LLMToolRegistrable>(_ toolType: T.Type) -> ToolSet {
-        self + toolType
+    public func appending(_ tool: some Tool) -> ToolSet {
+        self + tool
     }
 }
 
@@ -198,29 +197,29 @@ extension ToolSet: CustomStringConvertible {
 extension ToolSet {
     /// Anthropic API 形式に変換
     package func toAnthropicFormat() -> [[String: Any]] {
-        toolTypes.map { toolType in
-            toolType.toAnthropicFormat()
+        tools.map { tool in
+            type(of: tool).toAnthropicFormat()
         }
     }
 
     /// OpenAI API 形式に変換
     package func toOpenAIFormat() -> [[String: Any]] {
-        toolTypes.map { toolType in
-            toolType.toOpenAIFormat()
+        tools.map { tool in
+            type(of: tool).toOpenAIFormat()
         }
     }
 
     /// Gemini API 形式に変換
     package func toGeminiFormat() -> [[String: Any]] {
-        toolTypes.map { toolType in
-            toolType.toGeminiFormat()
+        tools.map { tool in
+            type(of: tool).toGeminiFormat()
         }
     }
 }
 
-// MARK: - LLMToolRegistrable Provider Format Extensions
+// MARK: - Tool Provider Format Extensions
 
-extension LLMToolRegistrable {
+extension Tool {
     /// Anthropic API 形式に変換
     ///
     /// ```json
@@ -303,43 +302,4 @@ extension LLMToolRegistrable {
 
         return result
     }
-}
-
-// MARK: - LLMToolRegistrable
-
-/// ToolSet に登録可能なツール型が準拠するプロトコル
-///
-/// `@Tool` マクロによって自動的に準拠が追加されます。
-/// このプロトコルは型情報を消去せずにツールのメタ情報と実行機能を提供します。
-///
-/// ## 使用例（マクロ使用）
-///
-/// ```swift
-/// @Tool("天気を取得します")
-/// struct GetWeather {
-///     @ToolArgument("都市名")
-///     var location: String
-///
-///     func call() async throws -> String {
-///         return "晴れ、25°C"
-///     }
-/// }
-/// // 自動的に LLMToolRegistrable に準拠
-/// ```
-public protocol LLMToolRegistrable: Sendable {
-    /// ツールの識別子
-    static var toolName: String { get }
-
-    /// ツールの説明
-    static var toolDescription: String { get }
-
-    /// 引数の JSON Schema
-    static var inputSchema: JSONSchema { get }
-
-    /// ツールを実行
-    ///
-    /// - Parameter argumentsData: 引数の JSON データ
-    /// - Returns: ツールの実行結果
-    /// - Throws: 引数のデコードエラーまたは実行エラー
-    static func execute(with argumentsData: Data) async throws -> ToolResult
 }

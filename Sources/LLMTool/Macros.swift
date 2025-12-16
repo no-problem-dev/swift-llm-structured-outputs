@@ -5,17 +5,19 @@ import LLMClient
 /// LLM から呼び出し可能なツールを定義するマクロ
 ///
 /// このマクロを適用することで、構造体は自動的に以下の機能を持ちます：
-/// - `LLMTool` への準拠
-/// - `LLMToolRegistrable` への準拠
+/// - `Tool` への準拠
 /// - `toolName` と `toolDescription` の自動生成
 /// - `Arguments` 型の自動生成（`@ToolArgument` を持つプロパティから）
-/// - `asAnyTool()` メソッドの生成
+/// - `execute(with:)` インスタンスメソッドの生成
 ///
 /// ## 使用例
 ///
 /// ```swift
 /// @Tool("指定された都市の現在の天気を取得します")
 /// struct GetWeather {
+///     // 設定プロパティ（オプショナル）- ツール初期化時に設定
+///     var apiKey: String?
+///
 ///     @ToolArgument("都市名（例: 東京、大阪）")
 ///     var location: String
 ///
@@ -24,7 +26,11 @@ import LLMClient
 ///
 ///     func call() async throws -> String {
 ///         // 天気 API を呼び出す
-///         let weather = try await WeatherAPI.fetch(location: location, unit: unit ?? "celsius")
+///         let weather = try await WeatherAPI.fetch(
+///             location: location,
+///             unit: unit ?? "celsius",
+///             apiKey: apiKey
+///         )
 ///         return "\(location): \(weather.condition), \(weather.temperature)°"
 ///     }
 /// }
@@ -34,9 +40,13 @@ import LLMClient
 ///
 /// ```swift
 /// let tools = ToolSet {
-///     GetWeather.self
-///     SearchWeb.self
-///     Calculator.self
+///     GetWeather(apiKey: weatherApiKey)
+///     SearchWeb()
+///     Calculator()
+///
+///     if needsAdvancedTools {
+///         DataAnalyzer()
+///     }
 /// }
 ///
 /// let result = try await client.generate(
@@ -74,7 +84,7 @@ import LLMClient
 ///   - name: ツール名（オプション）。省略時は型名から自動生成されます。
 ///     `^[a-zA-Z0-9_-]{1,64}$` のパターンに従う必要があります。
 @attached(member, names: named(toolName), named(toolDescription), named(inputSchema), named(Arguments), named(arguments), named(init), named(execute))
-@attached(extension, conformances: LLMTool, LLMToolRegistrable, Sendable)
+@attached(extension, conformances: Tool, Sendable)
 public macro Tool(
     _ description: String,
     name: String? = nil

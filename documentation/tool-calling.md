@@ -34,7 +34,7 @@ struct GetWeather {
 
 ```swift
 let tools = ToolSet {
-    GetWeather.self
+    GetWeather()
 }
 ```
 
@@ -139,9 +139,9 @@ func call() async throws -> ToolResult {
 
 ```swift
 let tools = ToolSet {
-    GetWeather.self
-    Calculator.self
-    CurrentTime.self
+    GetWeather()
+    Calculator()
+    CurrentTime()
 }
 ```
 
@@ -149,10 +149,10 @@ let tools = ToolSet {
 
 ```swift
 let tools = ToolSet {
-    GetWeather.self
+    GetWeather()
 
     if needsCalculator {
-        Calculator.self
+        Calculator()
     }
 
     for tool in additionalTools {
@@ -165,14 +165,14 @@ let tools = ToolSet {
 
 ```swift
 let baseTools = ToolSet {
-    GetWeather.self
+    GetWeather()
 }
 
 // 演算子で追加
-let extended = baseTools + Calculator.self
+let extended = baseTools + Calculator()
 
 // メソッドで追加
-let extended = baseTools.appending(Calculator.self)
+let extended = baseTools.appending(Calculator())
 
 // ToolSet 同士の結合
 let combined = baseTools + otherTools
@@ -184,9 +184,9 @@ let combined = baseTools + otherTools
 // ツール名のリスト
 let names = tools.toolNames  // ["get_weather", "calculator"]
 
-// 名前でツール型を検索
-if let toolType = tools.toolType(named: "get_weather") {
-    // ツール型を使用
+// 名前でツールを検索
+if let tool = tools.tool(named: "get_weather") {
+    // ツールを使用
 }
 ```
 
@@ -397,8 +397,8 @@ struct Calculator {
 
 // ツールセットを作成
 let tools = ToolSet {
-    GetWeather.self
-    Calculator.self
+    GetWeather()
+    Calculator()
 }
 
 // クライアントを作成

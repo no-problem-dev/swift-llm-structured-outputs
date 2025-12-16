@@ -1,27 +1,32 @@
-//
-//  ContentView.swift
-//  ConversationAgentExample
-//
-//  メインコンテンツビュー
-//
-
 import SwiftUI
 
 /// メインコンテンツビュー
 ///
 /// アプリのエントリーポイントとなるビューです。
-/// 会話画面と設定画面をタブで切り替えます。
+/// セッション一覧、会話画面、設定画面をタブで切り替えます。
 struct ContentView: View {
     @State private var selectedTab = 0
-    @State private var controller = ConversationController()
+    @State private var sessionListViewModel = SessionListViewModel()
+    @State private var selectedSession: SessionData?
+    @State private var conversationViewModel: ConversationViewModelImpl?
+    @State private var navigationPath = NavigationPath()
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            NavigationStack {
-                ConversationView(controller: controller)
+            NavigationStack(path: $navigationPath) {
+                SessionListView(
+                    viewModel: sessionListViewModel,
+                    selectedSession: $selectedSession,
+                    onNewSession: createNewSession
+                )
+                .navigationDestination(for: SessionData.self) { session in
+                    if let viewModel = conversationViewModel, viewModel.sessionData.id == session.id {
+                        ConversationView(viewModel: viewModel)
+                    }
+                }
             }
             .tabItem {
-                Label("会話", systemImage: "bubble.left.and.bubble.right.fill")
+                Label("セッション", systemImage: "bubble.left.and.bubble.right.fill")
             }
             .tag(0)
 
@@ -37,6 +42,24 @@ struct ContentView: View {
             // 環境変数からAPIキーを同期
             APIKeyManager.syncFromEnvironment()
         }
+        .onChange(of: selectedSession) { _, newSession in
+            if let session = newSession {
+                openSession(session)
+            }
+        }
+    }
+
+    // MARK: - Actions
+
+    private func createNewSession() {
+        let newSession = sessionListViewModel.createNewSession()
+        openSession(newSession)
+    }
+
+    private func openSession(_ session: SessionData) {
+        conversationViewModel = ConversationViewModelImpl(sessionData: session)
+        navigationPath.append(session)
+        selectedSession = nil
     }
 }
 

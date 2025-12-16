@@ -1,10 +1,3 @@
-//
-//  EventLogView.swift
-//  ConversationAgentExample
-//
-//  イベントログビュー
-//
-
 import SwiftUI
 
 /// イベントログビュー

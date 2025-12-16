@@ -23,8 +23,8 @@ import LLMStructuredOutputs
 let client = AnthropicClient(apiKey: "sk-ant-...")
 
 let tools = ToolSet {
-    WebSearchTool.self
-    FetchPageTool.self
+    WebSearchTool()
+    FetchPageTool()
 }
 
 let session = ConversationalAgentSession(
@@ -65,6 +65,11 @@ for try await step in stream {
         print("📄 \(result.output)")
     case .interrupted(let msg):
         print("⚡ \(msg)")
+    case .askingUser(let question):
+        print("❓ \(question)")
+    case .awaitingUserInput:
+        print("⏳ 回答待ち")
+        // ストリームはここで一時停止 - session.reply() で回答を提供すると自動再開
     case .textResponse(let text):
         print("💬 \(text)")
     case .finalResponse(let output):
@@ -120,6 +125,69 @@ await session.interrupt("コード例も含めて")
 await task.value
 ```
 
+## インタラクティブモード（AskUserTool）
+
+`AskUserTool` を `ToolSet` に追加すると、AI がユーザーに質問できるようになります。
+
+### 自動モード vs インタラクティブモード
+
+| モード | 説明 |
+|--------|------|
+| 自動モード | AI は質問せずに最後まで実行（`AskUserTool` を含めない） |
+| インタラクティブモード | AI は不明点をユーザーに質問できる（`AskUserTool` を含める） |
+
+### 使用例
+
+```swift
+// インタラクティブモード: AskUserTool を追加
+let session = ConversationalAgentSession(
+    client: client,
+    systemPrompt: Prompt {
+        PromptComponent.role("リサーチアシスタント")
+        PromptComponent.instruction("情報が不足している場合は、ask_user ツールでユーザーに質問してください")
+    },
+    tools: ToolSet {
+        WebSearchTool()
+        FetchWebPageTool()
+        AskUserTool()  // ← これを追加
+    }
+)
+
+// run() 実行 - AI が質問する場合、ストリームは awaitingUserInput で一時停止
+let stream: some ConversationalAgentStepStream<ResearchResult> = session.run(
+    "調査して",
+    model: .sonnet
+)
+
+for try await step in stream {
+    switch step {
+    case .askingUser(let question):
+        // AI が質問中（この後 awaitingUserInput が来る）
+        print("❓ AI からの質問: \(question)")
+    case .awaitingUserInput:
+        // ストリームはここで一時停止 - ユーザー入力を待つ
+        let answer = readLine() ?? ""
+        // reply() で回答を提供するとストリームが自動再開
+        await session.reply(answer)
+        // ループは継続し、次のステップを受信
+    case .finalResponse(let output):
+        print("✅ \(output)")
+    default:
+        break
+    }
+}
+```
+
+### 回答待ち状態の確認
+
+```swift
+// AI がユーザーの回答を待っているか確認
+if await session.waitingForAnswer {
+    // reply() で回答を提供すると、一時停止中のストリームが自動再開
+    await session.reply("ユーザーの回答")
+}
+```
+
 ## イベントストリーム
 
 UI 更新用のイベントを監視できます：
@@ -156,6 +224,8 @@ Task {
 | `.toolCall(ToolCall)` | ツール呼び出し |
 | `.toolResult(ToolResponse)` | ツール実行結果 |
 | `.interrupted(String)` | 割り込み処理 |
+| `.askingUser(String)` | AI がユーザーに質問（質問内容を含む） |
+| `.awaitingUserInput(String)` | ユーザー入力待ち（ストリーム一時停止、`reply()` で自動再開） |
 | `.textResponse(String)` | テキスト応答 |
 | `.finalResponse(Output)` | 最終構造化出力 |
 
@@ -167,8 +237,11 @@ Task {
 | `.assistantMessage(LLMMessage)` | アシスタント応答追加 |
 | `.interruptQueued(String)` | 割り込みキュー追加 |
 | `.interruptProcessed(String)` | 割り込み処理完了 |
+| `.askingUser(String)` | AI がユーザーに質問中 |
+| `.userAnswerProvided(String)` | ユーザーが回答を提供 |
 | `.sessionStarted` | セッション開始 |
 | `.sessionCompleted` | セッション完了 |
+| `.sessionCancelled` | セッションがキャンセル |
 | `.cleared` | 履歴クリア |
 | `.error(ConversationalAgentError)` | エラー発生 |
 
@@ -202,13 +275,26 @@ do {
 ## セッション管理
 
 ```swift
+// メッセージ履歴の取得
 let messages = await session.getMessages()
 
+// ターン数の取得
 let turns = await session.turnCount
 
+// 実行中かどうか
 let isRunning = await session.running
 
+// 履歴のクリア
 await session.clear()
+
+// 実行中のセッションをキャンセル
+await session.cancel()
+
+// AI がユーザーの回答を待っているか
+let waiting = await session.waitingForAnswer
+
+// ユーザーの回答を提供（一時停止中のストリームが自動再開）
+await session.reply("回答内容")
 ```
 
 ## 次のステップ

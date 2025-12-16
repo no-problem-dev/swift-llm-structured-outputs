@@ -39,55 +39,55 @@ final class ToolSetBuilderTests: XCTestCase {
     // MARK: - Basic Block Building
 
     func testBuildBlockWithSingleTool() {
-        let toolTypes = ToolSetBuilder.buildBlock(
-            [TestTool1.self]
+        let tools = ToolSetBuilder.buildBlock(
+            [TestTool1()]
         )
 
-        XCTAssertEqual(toolTypes.count, 1)
-        XCTAssertEqual(toolTypes[0].toolName, "test_tool1")
+        XCTAssertEqual(tools.count, 1)
+        XCTAssertEqual(tools[0].name, "test_tool1")
     }
 
     func testBuildBlockWithMultipleTools() {
-        let toolTypes = ToolSetBuilder.buildBlock(
-            [TestTool1.self],
-            [TestTool2.self],
-            [NoArgTool.self]
+        let tools = ToolSetBuilder.buildBlock(
+            [TestTool1()],
+            [TestTool2()],
+            [NoArgTool()]
         )
 
-        XCTAssertEqual(toolTypes.count, 3)
-        XCTAssertEqual(toolTypes[0].toolName, "test_tool1")
-        XCTAssertEqual(toolTypes[1].toolName, "test_tool2")
-        XCTAssertEqual(toolTypes[2].toolName, "no_arg_tool")
+        XCTAssertEqual(tools.count, 3)
+        XCTAssertEqual(tools[0].name, "test_tool1")
+        XCTAssertEqual(tools[1].name, "test_tool2")
+        XCTAssertEqual(tools[2].name, "no_arg_tool")
     }
 
     func testBuildBlockWithNoTools() {
-        let toolTypes = ToolSetBuilder.buildBlock()
+        let tools = ToolSetBuilder.buildBlock()
 
-        XCTAssertTrue(toolTypes.isEmpty)
+        XCTAssertTrue(tools.isEmpty)
     }
 
     // MARK: - Expression Building
 
-    func testBuildExpressionWithToolType() {
-        let result = ToolSetBuilder.buildExpression(TestTool1.self)
+    func testBuildExpressionWithTool() {
+        let result = ToolSetBuilder.buildExpression(TestTool1())
 
         XCTAssertEqual(result.count, 1)
-        XCTAssertEqual(result[0].toolName, "test_tool1")
+        XCTAssertEqual(result[0].name, "test_tool1")
     }
 
     // MARK: - Optional Building
 
     func testBuildOptionalWithValue() {
-        let toolTypes: [any LLMToolRegistrable.Type]? = [TestTool1.self]
-        let result = ToolSetBuilder.buildOptional(toolTypes)
+        let tools: [any Tool]? = [TestTool1()]
+        let result = ToolSetBuilder.buildOptional(tools)
 
         XCTAssertEqual(result.count, 1)
-        XCTAssertEqual(result[0].toolName, "test_tool1")
+        XCTAssertEqual(result[0].name, "test_tool1")
     }
 
     func testBuildOptionalWithNil() {
-        let toolTypes: [any LLMToolRegistrable.Type]? = nil
-        let result = ToolSetBuilder.buildOptional(toolTypes)
+        let tools: [any Tool]? = nil
+        let result = ToolSetBuilder.buildOptional(tools)
 
         XCTAssertTrue(result.isEmpty)
     }
@@ -95,54 +95,54 @@ final class ToolSetBuilderTests: XCTestCase {
     // MARK: - Either Building (if-else)
 
     func testBuildEitherFirst() {
-        let toolTypes: [any LLMToolRegistrable.Type] = [TestTool1.self]
-        let result = ToolSetBuilder.buildEither(first: toolTypes)
+        let tools: [any Tool] = [TestTool1()]
+        let result = ToolSetBuilder.buildEither(first: tools)
 
         XCTAssertEqual(result.count, 1)
-        XCTAssertEqual(result[0].toolName, "test_tool1")
+        XCTAssertEqual(result[0].name, "test_tool1")
     }
 
     func testBuildEitherSecond() {
-        let toolTypes: [any LLMToolRegistrable.Type] = [TestTool2.self]
-        let result = ToolSetBuilder.buildEither(second: toolTypes)
+        let tools: [any Tool] = [TestTool2()]
+        let result = ToolSetBuilder.buildEither(second: tools)
 
         XCTAssertEqual(result.count, 1)
-        XCTAssertEqual(result[0].toolName, "test_tool2")
+        XCTAssertEqual(result[0].name, "test_tool2")
     }
 
     // MARK: - Array Building (for-in)
 
     func testBuildArray() {
-        let arrays: [[any LLMToolRegistrable.Type]] = [
-            [TestTool1.self],
-            [TestTool2.self]
+        let arrays: [[any Tool]] = [
+            [TestTool1()],
+            [TestTool2()]
         ]
 
         let result = ToolSetBuilder.buildArray(arrays)
 
         XCTAssertEqual(result.count, 2)
-        XCTAssertEqual(result[0].toolName, "test_tool1")
-        XCTAssertEqual(result[1].toolName, "test_tool2")
+        XCTAssertEqual(result[0].name, "test_tool1")
+        XCTAssertEqual(result[1].name, "test_tool2")
     }
 
     func testBuildArrayWithEmptyArrays() {
-        let arrays: [[any LLMToolRegistrable.Type]] = [
+        let arrays: [[any Tool]] = [
             [],
-            [TestTool1.self],
+            [TestTool1()],
             []
         ]
 
         let result = ToolSetBuilder.buildArray(arrays)
 
         XCTAssertEqual(result.count, 1)
-        XCTAssertEqual(result[0].toolName, "test_tool1")
+        XCTAssertEqual(result[0].name, "test_tool1")
     }
 
     // MARK: - Final Result Building
 
     func testBuildFinalResult() {
-        let toolTypes: [any LLMToolRegistrable.Type] = [TestTool1.self, TestTool2.self]
-        let result = ToolSetBuilder.buildFinalResult(toolTypes)
+        let tools: [any Tool] = [TestTool1(), TestTool2()]
+        let result = ToolSetBuilder.buildFinalResult(tools)
 
         XCTAssertEqual(result.count, 2)
     }
@@ -153,9 +153,9 @@ final class ToolSetBuilderTests: XCTestCase {
         let includeTool2 = true
 
         let toolSet = ToolSet {
-            TestTool1.self
+            TestTool1()
             if includeTool2 {
-                TestTool2.self
+                TestTool2()
             }
         }
 
@@ -166,9 +166,9 @@ final class ToolSetBuilderTests: XCTestCase {
         let includeTool2 = false
 
         let toolSet = ToolSet {
-            TestTool1.self
+            TestTool1()
             if includeTool2 {
-                TestTool2.self
+                TestTool2()
             }
         }
 
@@ -181,9 +181,9 @@ final class ToolSetBuilderTests: XCTestCase {
 
         let toolSet = ToolSet {
             if useTool1 {
-                TestTool1.self
+                TestTool1()
             } else {
-                TestTool2.self
+                TestTool2()
             }
         }
 
@@ -196,9 +196,9 @@ final class ToolSetBuilderTests: XCTestCase {
 
         let toolSet = ToolSet {
             if useTool1 {
-                TestTool1.self
+                TestTool1()
             } else {
-                TestTool2.self
+                TestTool2()
             }
         }
 
@@ -208,9 +208,9 @@ final class ToolSetBuilderTests: XCTestCase {
 
     func testToolSetWithAllTools() {
         let toolSet = ToolSet {
-            TestTool1.self
-            TestTool2.self
-            NoArgTool.self
+            TestTool1()
+            TestTool2()
+            NoArgTool()
         }
 
         XCTAssertEqual(toolSet.count, 3)
@@ -226,30 +226,30 @@ final class ToolSetBuilderTests: XCTestCase {
 
     func testToolLookupByName() {
         let toolSet = ToolSet {
-            TestTool1.self
-            TestTool2.self
+            TestTool1()
+            TestTool2()
         }
 
-        let toolType = toolSet.toolType(named: "test_tool1")
-        XCTAssertNotNil(toolType)
-        XCTAssertEqual(toolType?.toolName, "test_tool1")
+        let tool = toolSet.tool(named: "test_tool1")
+        XCTAssertNotNil(tool)
+        XCTAssertEqual(tool?.name, "test_tool1")
     }
 
     func testToolLookupByNameNotFound() {
         let toolSet = ToolSet {
-            TestTool1.self
+            TestTool1()
         }
 
-        let toolType = toolSet.toolType(named: "nonexistent")
-        XCTAssertNil(toolType)
+        let tool = toolSet.tool(named: "nonexistent")
+        XCTAssertNil(tool)
     }
 
     // MARK: - Tool Definitions Tests
 
     func testDefinitionsGeneration() {
         let toolSet = ToolSet {
-            TestTool1.self
-            TestTool2.self
+            TestTool1()
+            TestTool2()
         }
 
         let definitions = toolSet.definitions

@@ -9,6 +9,7 @@
 - **会話履歴の自動管理**: 複数ターンにわたる会話を自動追跡
 - **割り込みサポート**: 実行中のエージェントに追加指示を送信
 - **イベントストリーム**: UI 連携のための非同期イベント配信
+- **インタラクティブモード**: ``AskUserTool`` で AI がユーザーに質問可能
 
 ## 基本的な使い方
 
@@ -20,7 +21,7 @@ let session = ConversationalAgentSession(
     systemPrompt: Prompt {
         PromptComponent.role("リサーチアシスタント")
     },
-    tools: ToolSet { WebSearchTool.self }
+    tools: ToolSet { WebSearchTool() }
 )
 
 let stream: some ConversationalAgentStepStream<ResearchResult> = session.run(
@@ -76,6 +77,37 @@ for await event in session.eventStream {
 }
 ```
 
+## インタラクティブモード
+
+`interactiveMode: true` を指定すると、AI がユーザーに質問できるようになります（``AskUserTool`` が自動追加）：
+
+```swift
+let session = ConversationalAgentSession(
+    client: client,
+    systemPrompt: Prompt {
+        PromptComponent.role("リサーチアシスタント")
+        PromptComponent.instruction("不明な点は ask_user で質問してください")
+    },
+    tools: ToolSet {
+        WebSearchTool()
+    },
+    interactiveMode: true  // AskUserTool が自動追加される
+)
+
+for try await step in stream {
+    switch step {
+    case .awaitingUserInput(let question):
+        // ユーザーに質問を表示
+        let answer = getUserInput(question)
+        await session.reply(answer)
+    case .finalResponse(let output):
+        print(output)
+    default:
+        break
+    }
+}
+```
+
 ## Topics
 
 ### セッション
@@ -92,3 +124,7 @@ for await event in session.eventStream {
 
 - ``ConversationalAgentEvent``
 - ``ConversationalAgentError``
+
+### ツール
+
+- ``AskUserTool``

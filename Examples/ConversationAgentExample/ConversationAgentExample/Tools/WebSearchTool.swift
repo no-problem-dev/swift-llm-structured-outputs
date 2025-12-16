@@ -1,22 +1,15 @@
-//
-//  WebSearchTool.swift
-//  ConversationAgentExample
-//
-//  Web検索ツール
-//
-
 import Foundation
 import LLMStructuredOutputs
 
 /// Web検索ツール
 ///
 /// Brave Search APIを使用してWeb検索を実行します。
-@Tool("インターネットでWeb検索を実行します。検索クエリを指定して、関連するWebページの一覧を取得できます。")
+@Tool("Search the web for information. Returns a list of relevant web pages with titles, URLs, and descriptions.")
 struct WebSearchTool {
-    @ToolArgument("検索クエリ（キーワードやフレーズ）")
+    @ToolArgument("Search query (keywords or phrase)")
     var query: String
 
-    @ToolArgument("取得する検索結果の数（1-10、デフォルト5）")
+    @ToolArgument("Number of results to return (1-10, default: 5)")
     var count: Int?
 
     func call() async throws -> String {
