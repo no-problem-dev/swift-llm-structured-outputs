@@ -54,7 +54,7 @@ for try await step in stream {
     case .toolResult(let result):
         print("結果: \(result.output)")
     case .finalResponse(let report):
-        print("完了: \(report.location)")
+        print("完了: \(report)")
     }
 }
 ```

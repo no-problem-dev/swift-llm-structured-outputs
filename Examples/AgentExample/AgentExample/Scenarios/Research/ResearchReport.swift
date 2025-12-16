@@ -12,7 +12,7 @@ import LLMStructuredOutputs
 
 /// 信頼度レベル
 @StructuredEnum("レポートの信頼度レベル")
-enum ConfidenceLevel: String, Sendable {
+enum ConfidenceLevel: String {
     @StructuredCase("複数の信頼できる情報源から確認された高い信頼度")
     case high
 
@@ -35,7 +35,7 @@ enum ConfidenceLevel: String, Sendable {
 
 /// リサーチレポート
 @Structured("Webリサーチの結果をまとめた構造化レポート")
-struct ResearchReport: Equatable, Sendable {
+struct ResearchReport: Equatable {
     @StructuredField("レポートのタイトル")
     var title: String
 

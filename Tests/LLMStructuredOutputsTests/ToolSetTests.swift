@@ -1,5 +1,7 @@
 import XCTest
 @testable import LLMStructuredOutputs
+@testable import LLMClient
+@testable import LLMTool
 
 // MARK: - Test Tools for ToolSetTests
 

@@ -9,6 +9,7 @@ let package = Package(
         .iOS(.v17)
     ],
     products: [
+        // 外部に公開するのはアンブレラモジュールのみ
         .library(
             name: "LLMStructuredOutputs",
             targets: ["LLMStructuredOutputs"]
@@ -29,10 +30,40 @@ let package = Package(
             ]
         ),
 
-        // MARK: - Main Library
+        // MARK: - Layer 0: LLMClient (基本クライアント・プロバイダー)
+        .target(
+            name: "LLMClient",
+            dependencies: ["StructuredMacros"]
+        ),
+
+        // MARK: - Layer 1: LLMTool (ツール定義・実行)
+        .target(
+            name: "LLMTool",
+            dependencies: ["LLMClient"]
+        ),
+
+        // MARK: - Layer 1: LLMConversation (会話管理)
+        .target(
+            name: "LLMConversation",
+            dependencies: ["LLMClient"]
+        ),
+
+        // MARK: - Layer 2: LLMAgent (エージェントループ)
+        .target(
+            name: "LLMAgent",
+            dependencies: ["LLMClient", "LLMTool"]
+        ),
+
+        // MARK: - Layer 3: LLMConversationalAgent (会話型エージェント)
+        .target(
+            name: "LLMConversationalAgent",
+            dependencies: ["LLMClient", "LLMTool", "LLMAgent"]
+        ),
+
+        // MARK: - Umbrella Module (全モジュールを再エクスポート)
         .target(
             name: "LLMStructuredOutputs",
-            dependencies: ["StructuredMacros"]
+            dependencies: ["LLMClient", "LLMTool", "LLMConversation", "LLMAgent", "LLMConversationalAgent"]
         ),
 
         // MARK: - Tests

@@ -12,7 +12,7 @@ import LLMStructuredOutputs
 
 /// 推論ステップ
 @Structured("推論の各ステップ")
-struct ReasoningStep: Equatable, Sendable {
+struct ReasoningStep: Equatable {
     @StructuredField("このステップの番号")
     var stepNumber: Int
 
@@ -27,7 +27,7 @@ struct ReasoningStep: Equatable, Sendable {
 
 /// 推論レポート
 @Structured("論理的推論・分析の結果をまとめた構造化レポート")
-struct ReasoningReport: Equatable, Sendable {
+struct ReasoningReport: Equatable {
     @StructuredField("レポートのタイトル")
     var title: String
 

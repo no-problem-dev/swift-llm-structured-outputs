@@ -1,5 +1,8 @@
 import XCTest
 @testable import LLMStructuredOutputs
+@testable import LLMClient
+@testable import LLMTool
+@testable import LLMAgent
 
 final class AgentTests: XCTestCase {
 
