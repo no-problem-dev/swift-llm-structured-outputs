@@ -1,10 +1,3 @@
-//
-//  BraveSearchService.swift
-//  ConversationAgentExample
-//
-//  Brave Search API クライアント
-//
-
 import Foundation
 
 /// Brave Search API サービス

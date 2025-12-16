@@ -1,10 +1,3 @@
-//
-//  ConversationAgentExampleApp.swift
-//  ConversationAgentExample
-//
-//  ConversationalAgentSession の使用例を示すサンプルアプリ
-//
-
 import SwiftUI
 
 /// ConversationAgentExample アプリ

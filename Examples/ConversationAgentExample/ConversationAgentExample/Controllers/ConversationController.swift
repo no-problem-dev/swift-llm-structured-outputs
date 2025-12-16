@@ -1,89 +1,5 @@
-//
-//  ConversationController.swift
-//  ConversationAgentExample
-//
-//  会話型エージェントセッションの制御
-//
-
 import Foundation
-import SwiftUI
 import LLMStructuredOutputs
-
-/// 会話ステップの表示情報
-struct ConversationStepInfo: Identifiable {
-    let id = UUID()
-    let timestamp: Date
-    let type: StepType
-    let content: String
-    let detail: String?
-    let isError: Bool
-
-    enum StepType: String {
-        case userMessage = "👤"
-        case thinking = "🤔"
-        case toolCall = "🔧"
-        case toolResult = "📄"
-        case interrupted = "⚡"
-        case textResponse = "💬"
-        case finalResponse = "✅"
-        case event = "📢"
-        case error = "❌"
-
-        var icon: String {
-            switch self {
-            case .userMessage: return "person.fill"
-            case .thinking: return "brain.head.profile"
-            case .toolCall: return "wrench.and.screwdriver"
-            case .toolResult: return "doc.text"
-            case .interrupted: return "bolt.fill"
-            case .textResponse: return "text.bubble"
-            case .finalResponse: return "checkmark.circle.fill"
-            case .event: return "bell.fill"
-            case .error: return "exclamationmark.triangle.fill"
-            }
-        }
-
-        var label: String {
-            switch self {
-            case .userMessage: return "ユーザー"
-            case .thinking: return "思考中"
-            case .toolCall: return "ツール呼び出し"
-            case .toolResult: return "ツール結果"
-            case .interrupted: return "割り込み"
-            case .textResponse: return "応答"
-            case .finalResponse: return "完了"
-            case .event: return "イベント"
-            case .error: return "エラー"
-            }
-        }
-    }
-
-    init(type: StepType, content: String, detail: String? = nil, isError: Bool = false) {
-        self.timestamp = Date()
-        self.type = type
-        self.content = content
-        self.detail = detail
-        self.isError = isError
-    }
-}
-
-/// セッション状態
-enum SessionState: Equatable {
-    case idle
-    case running
-    case completed(String)
-    case error(String)
-
-    var isIdle: Bool {
-        if case .idle = self { return true }
-        return false
-    }
-
-    var isRunning: Bool {
-        if case .running = self { return true }
-        return false
-    }
-}
 
 /// 会話コントローラー
 ///
@@ -97,6 +13,22 @@ final class ConversationController {
     private(set) var steps: [ConversationStepInfo] = []
     private(set) var events: [ConversationStepInfo] = []
     private(set) var turnCount: Int = 0
+
+    var selectedOutputType: AgentOutputType = .research
+
+    /// インタラクティブモード（AI がユーザーに質問できる）
+    ///
+    /// `true` の場合、`AskUserTool` が有効になり、AI が不明点を質問できます。
+    /// `false` の場合、AI は質問せずに最後まで実行します。
+    ///
+    /// Note: モード変更時は UI 側で確認ダイアログを表示後、`clearSession()` と `createSession()` を呼び出してください。
+    var interactiveMode: Bool = true
+
+    /// AI がユーザーの回答を待っているかどうか
+    private(set) var waitingForAnswer: Bool = false
+
+    /// AI からの質問（回答待ち時）
+    private(set) var pendingQuestion: String?
 
     private var session: ConversationalAgentSession<AnthropicClient>?
     private var runningTask: Task<Void, Never>?
@@ -123,19 +55,25 @@ final class ConversationController {
         }
 
         let client = AnthropicClient(apiKey: apiKey)
-        let tools = ToolSet {
-            WebSearchTool.self
-            FetchWebPageTool.self
+
+        // インタラクティブモードに応じてツールセットを構築
+        let tools: ToolSet
+        if interactiveMode {
+            tools = ToolSet {
+                WebSearchTool.self
+                FetchWebPageTool.self
+                AskUserTool.self
+            }
+        } else {
+            tools = ToolSet {
+                WebSearchTool.self
+                FetchWebPageTool.self
+            }
         }
 
         session = ConversationalAgentSession(
             client: client,
-            systemPrompt: Prompt {
-                PromptComponent.role("リサーチアシスタント")
-                PromptComponent.objective("ユーザーの質問に対して調査を行い、結果をまとめる")
-                PromptComponent.instruction("必要に応じてWeb検索やページ取得を行ってください")
-                PromptComponent.instruction("調査が完了したら、指定された構造化フォーマットで結果を出力してください")
-            },
+            systemPrompt: selectedOutputType.buildPrompt(interactiveMode: interactiveMode),
             tools: tools
         )
 
@@ -145,7 +83,9 @@ final class ConversationController {
         state = .idle
         steps = []
         events = []
-        addEvent("セッションが作成されました")
+        waitingForAnswer = false
+        pendingQuestion = nil
+        addEvent("セッションが作成されました（\(selectedOutputType.displayName) / \(interactiveMode ? "インタラクティブ" : "自動")モード）")
     }
 
     /// セッションをクリア
@@ -164,6 +104,8 @@ final class ConversationController {
         steps = []
         events = []
         turnCount = 0
+        waitingForAnswer = false
+        pendingQuestion = nil
     }
 
     /// 実行中のエージェントを停止（会話履歴は保持）
@@ -172,9 +114,35 @@ final class ConversationController {
 
         runningTask?.cancel()
         runningTask = nil
+
+        // セッションの状態をリセット
+        Task {
+            await session?.cancel()
+        }
+
         state = .idle
+        waitingForAnswer = false
+        pendingQuestion = nil
         addStep(.init(type: .event, content: "実行を停止しました"))
-        addEvent("ユーザーにより実行が停止されました")
+    }
+
+    // MARK: - User Answer API
+
+    /// AI の質問に回答する
+    ///
+    /// `waitingForAnswer` が `true` の場合に呼び出してください。
+    /// 回答を提供すると、一時停止していたストリームが自動的に再開されます。
+    func reply(_ answer: String) {
+        guard waitingForAnswer, let session = session else { return }
+
+        waitingForAnswer = false
+        pendingQuestion = nil
+        state = .running
+
+        // 回答を提供して一時停止していたストリームを再開
+        Task {
+            await session.reply(answer)
+        }
     }
 
     // MARK: - Run Methods
@@ -225,7 +193,7 @@ final class ConversationController {
     }
 
     /// 選択した出力タイプで実行
-    func run(prompt: String, outputType: OutputTypeSelection) {
+    func run(prompt: String, outputType: AgentOutputType) {
         switch outputType {
         case .research:
             runResearch(prompt: prompt)
@@ -250,7 +218,7 @@ final class ConversationController {
     private func executeRun(
         session: ConversationalAgentSession<AnthropicClient>,
         prompt: String,
-        outputType: OutputTypeSelection
+        outputType: AgentOutputType
     ) async {
         do {
             switch outputType {
@@ -259,30 +227,28 @@ final class ConversationController {
                     prompt,
                     model: .sonnet
                 )
-                try await processStream(stream, formatResult: formatResearchReport)
+                try await processStream(stream, outputType: outputType) { $0.formatted }
 
             case .summary:
                 let stream: some ConversationalAgentStepStream<SummaryReport> = await session.run(
                     prompt,
                     model: .sonnet
                 )
-                try await processStream(stream, formatResult: formatSummaryReport)
+                try await processStream(stream, outputType: outputType) { $0.formatted }
 
             case .comparison:
                 let stream: some ConversationalAgentStepStream<ComparisonReport> = await session.run(
                     prompt,
                     model: .sonnet
                 )
-                try await processStream(stream, formatResult: formatComparisonReport)
+                try await processStream(stream, outputType: outputType) { $0.formatted }
             }
 
             turnCount = await session.turnCount
 
         } catch {
-            await MainActor.run {
-                state = .error(error.localizedDescription)
-                addStep(.init(type: .error, content: error.localizedDescription, isError: true))
-            }
+            state = .error(error.localizedDescription)
+            addStep(.init(type: .error, content: error.localizedDescription, isError: true))
         }
 
         runningTask = nil
@@ -290,69 +256,32 @@ final class ConversationController {
 
     private func processStream<Output: StructuredProtocol>(
         _ stream: some ConversationalAgentStepStream<Output>,
+        outputType: AgentOutputType,
         formatResult: @escaping (Output) -> String
     ) async throws {
         var finalOutput: Output?
 
         for try await step in stream {
-            await MainActor.run {
-                let stepInfo = processStep(step)
-                addStep(stepInfo)
+            addStep(step.toStepInfo())
 
-                if case .finalResponse(let output) = step {
-                    finalOutput = output
-                }
+            switch step {
+            case .askingUser(let question):
+                pendingQuestion = question
+            case .awaitingUserInput:
+                waitingForAnswer = true
+                state = .idle
+            case .finalResponse(let output):
+                finalOutput = output
+            default:
+                break
             }
         }
 
-        await MainActor.run {
-            if let output = finalOutput {
-                state = .completed(formatResult(output))
-            } else {
-                state = .completed("完了しました（テキスト応答）")
-            }
+        if let output = finalOutput {
+            state = .completed(formatResult(output))
+        } else {
+            state = .completed("完了しました（テキスト応答）")
         }
-    }
-
-    private func processStep<Output>(_ step: ConversationalAgentStep<Output>) -> ConversationStepInfo {
-        switch step {
-        case .userMessage(let message):
-            return .init(type: .userMessage, content: message)
-
-        case .thinking(let response):
-            let text = response.content.compactMap { block -> String? in
-                if case .text(let value) = block { return value }
-                return nil
-            }.joined()
-            return .init(type: .thinking, content: text.isEmpty ? "（考え中...）" : String(text.prefix(200)))
-
-        case .toolCall(let call):
-            let args = formatToolArgs(call.arguments)
-            return .init(type: .toolCall, content: call.name, detail: args)
-
-        case .toolResult(let result):
-            return .init(
-                type: .toolResult,
-                content: String(result.output.prefix(300)),
-                isError: result.isError
-            )
-
-        case .interrupted(let message):
-            return .init(type: .interrupted, content: "割り込み処理: \(message)")
-
-        case .textResponse(let text):
-            return .init(type: .textResponse, content: String(text.prefix(500)))
-
-        case .finalResponse:
-            return .init(type: .finalResponse, content: "レポート生成完了")
-        }
-    }
-
-    private func formatToolArgs(_ data: Data) -> String? {
-        guard let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return nil
-        }
-        return dict.map { "\($0.key): \($0.value)" }.joined(separator: ", ")
     }
 
     private func addStep(_ step: ConversationStepInfo) {
@@ -371,85 +300,12 @@ final class ConversationController {
         eventMonitorTask?.cancel()
         eventMonitorTask = Task {
             for await event in session.eventStream {
-                await MainActor.run {
-                    handleEvent(event)
-                }
+                handleEvent(event)
             }
         }
     }
 
     private func handleEvent(_ event: ConversationalAgentEvent) {
-        let message: String
-        switch event {
-        case .userMessage:
-            message = "ユーザーメッセージが追加されました"
-        case .assistantMessage:
-            message = "アシスタントメッセージが追加されました"
-        case .interruptQueued(let msg):
-            message = "割り込みがキューに追加: \(msg)"
-        case .interruptProcessed(let msg):
-            message = "割り込みが処理されました: \(msg)"
-        case .sessionStarted:
-            message = "セッションが開始されました"
-        case .sessionCompleted:
-            message = "セッションが完了しました"
-        case .cleared:
-            message = "会話履歴がクリアされました"
-        case .error(let error):
-            message = "エラー: \(error.localizedDescription)"
-        }
-        addEvent(message)
-    }
-
-    // MARK: - Result Formatting (Markdown)
-
-    private func formatResearchReport(_ report: ResearchReport) -> String {
-        var md = "# 📚 \(report.topic)\n\n"
-        md += "## 要約\n\n\(report.summary)\n\n"
-        md += "## 重要な発見\n\n"
-        for (i, finding) in report.keyFindings.enumerated() {
-            md += "\(i + 1). \(finding)\n"
-        }
-        md += "\n## 情報源\n\n"
-        for source in report.sources {
-            if source.hasPrefix("http") {
-                md += "- [\(source)](\(source))\n"
-            } else {
-                md += "- \(source)\n"
-            }
-        }
-        md += "\n## さらに調査すべき点\n\n"
-        for question in report.furtherQuestions {
-            md += "- \(question)\n"
-        }
-        return md
-    }
-
-    private func formatSummaryReport(_ report: SummaryReport) -> String {
-        var md = "# 📋 \(report.title)\n\n"
-        md += "\(report.summary)\n\n"
-        md += "## ポイント\n\n"
-        for point in report.bulletPoints {
-            md += "- \(point)\n"
-        }
-        return md
-    }
-
-    private func formatComparisonReport(_ report: ComparisonReport) -> String {
-        var md = "# ⚖️ \(report.subject)\n\n"
-        for item in report.items {
-            md += "## \(item.name)\n\n"
-            md += "### ✅ メリット\n\n"
-            for pro in item.pros {
-                md += "- \(pro)\n"
-            }
-            md += "\n### ❌ デメリット\n\n"
-            for con in item.cons {
-                md += "- \(con)\n"
-            }
-            md += "\n"
-        }
-        md += "## 💡 推奨\n\n\(report.recommendation)"
-        return md
+        addEvent(event.displayMessage)
     }
 }

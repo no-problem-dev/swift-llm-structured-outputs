@@ -58,6 +58,41 @@ public enum ConversationalAgentStep<Output: Sendable>: Sendable {
     /// 割り込みメッセージは次の LLM 呼び出し前に会話履歴に追加されます。
     case interrupted(String)
 
+    /// AI がユーザーに質問している
+    ///
+    /// `AskUserTool` が呼び出された時に発生します。
+    /// このステップの直後に `.awaitingUserInput` が発生し、ストリームが終了します。
+    case askingUser(String)
+
+    /// ユーザー入力待ち状態（ストリーム終了）
+    ///
+    /// `AskUserTool` が呼び出された後、ストリームはこのステップで終了します。
+    /// 構造化出力（`.finalResponse`）は生成されません。
+    ///
+    /// ユーザーの回答を処理するには:
+    /// 1. `session.provideAnswer()` で回答を提供
+    /// 2. `session.run()` を再度呼び出して会話を継続
+    ///
+    /// ```swift
+    /// for try await step in session.run("こんにちは", model: .sonnet) {
+    ///     switch step {
+    ///     case .awaitingUserInput(let question):
+    ///         // ストリームはここで終了
+    ///         print("❓ \(question)")
+    ///         let answer = getUserInput()
+    ///         await session.provideAnswer(answer)
+    ///     default:
+    ///         break
+    ///     }
+    /// }
+    ///
+    /// // 回答提供後、会話を継続
+    /// for try await step in session.resume(model: .sonnet) {
+    ///     // 続きの処理...
+    /// }
+    /// ```
+    case awaitingUserInput(String)
+
     /// テキスト応答（構造化出力なし）
     ///
     /// LLM がツール呼び出しなしでテキスト応答を返した場合に発生します。
@@ -76,7 +111,7 @@ extension ConversationalAgentStep {
     /// ステップがユーザー関連かどうか
     public var isUserRelated: Bool {
         switch self {
-        case .userMessage, .interrupted:
+        case .userMessage, .interrupted, .askingUser, .awaitingUserInput:
             return true
         default:
             return false
@@ -97,6 +132,21 @@ extension ConversationalAgentStep {
     public var isFinalStep: Bool {
         switch self {
         case .textResponse, .finalResponse:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// ストリームがこのステップで終了するかどうか
+    ///
+    /// `true` を返すステップの後、ストリームは終了します。
+    /// - `.textResponse`: テキスト応答で完了
+    /// - `.finalResponse`: 構造化出力で完了
+    /// - `.awaitingUserInput`: ユーザー入力待ちで一時停止
+    public var terminatesStream: Bool {
+        switch self {
+        case .textResponse, .finalResponse, .awaitingUserInput:
             return true
         default:
             return false
@@ -123,6 +173,10 @@ extension ConversationalAgentStep: CustomStringConvertible {
             return "toolResult(\(result.name): \(result.output.prefix(50))...)"
         case .interrupted(let message):
             return "interrupted(\(message.prefix(50))...)"
+        case .askingUser(let question):
+            return "askingUser(\(question.prefix(50))...)"
+        case .awaitingUserInput(let question):
+            return "awaitingUserInput(\(question.prefix(50))...)"
         case .textResponse(let text):
             return "textResponse(\(text.prefix(50))...)"
         case .finalResponse(let output):

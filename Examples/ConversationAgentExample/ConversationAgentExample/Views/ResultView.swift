@@ -1,10 +1,3 @@
-//
-//  ResultView.swift
-//  ConversationAgentExample
-//
-//  結果表示ビュー
-//
-
 import SwiftUI
 import MarkdownUI
 

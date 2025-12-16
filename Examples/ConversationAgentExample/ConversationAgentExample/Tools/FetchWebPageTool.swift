@@ -1,22 +1,15 @@
-//
-//  FetchWebPageTool.swift
-//  ConversationAgentExample
-//
-//  Webページ取得ツール
-//
-
 import Foundation
 import LLMStructuredOutputs
 
 /// Webページ取得ツール
 ///
 /// 指定されたURLのWebページを取得し、テキストを抽出します。
-@Tool("指定されたURLのWebページを取得し、内容をテキストとして抽出します。検索結果のURLの詳細を読み取る際に使用してください。")
+@Tool("Fetch a web page and extract its text content. Use this to read detailed information from URLs found in search results.")
 struct FetchWebPageTool {
-    @ToolArgument("取得するWebページのURL")
+    @ToolArgument("URL of the web page to fetch")
     var url: String
 
-    @ToolArgument("抽出するテキストの最大長（デフォルト5000文字）")
+    @ToolArgument("Maximum length of extracted text (default: 5000 characters)")
     var maxLength: Int?
 
     func call() async throws -> String {
