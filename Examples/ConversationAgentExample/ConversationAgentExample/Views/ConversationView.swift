@@ -1,16 +1,31 @@
 import SwiftUI
 
-struct ConversationView: View {
-    @Bindable var controller: ConversationController
+/// 実行リクエスト
+///
+/// `.task(id:)` のトリガーとして使用。
+/// `id` が変わると前のタスクがキャンセルされ、新しいタスクが開始される。
+private struct RunRequest: Equatable {
+    let id = UUID()
+    let prompt: String
+    let outputType: AgentOutputType
+
+    static func == (lhs: RunRequest, rhs: RunRequest) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+struct ConversationView<ViewModel: ConversationViewModel>: View {
+    @Bindable var viewModel: ViewModel
     @State private var promptText = ""
     @State private var interruptText = ""
     @State private var answerText = ""
     @State private var showEventLog = false
     @State private var showResultSheet = false
     @State private var showSessionConfig = false
+    @State private var runRequest: RunRequest?
 
     private var currentResult: String? {
-        if case .completed(let result) = controller.state {
+        if case .completed(let result) = viewModel.state {
             return result
         }
         return nil
@@ -24,9 +39,13 @@ struct ConversationView: View {
         }
         .navigationTitle("会話エージェント")
         .toolbar { toolbarContent }
+        .task(id: runRequest) {
+            guard let request = runRequest else { return }
+            await viewModel.run(prompt: request.prompt, outputType: request.outputType)
+        }
         .sheet(isPresented: $showEventLog) {
             NavigationStack {
-                EventLogView(events: controller.events)
+                EventLogView(events: viewModel.events)
                     .navigationTitle("イベントログ")
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
@@ -42,20 +61,20 @@ struct ConversationView: View {
         }
         .sheet(isPresented: $showSessionConfig) {
             SessionConfigSheet(
-                interactiveMode: $controller.interactiveMode,
-                outputType: $controller.selectedOutputType,
-                isDisabled: controller.state.isRunning,
+                interactiveMode: $viewModel.interactiveMode,
+                outputType: $viewModel.selectedOutputType,
+                isDisabled: viewModel.state.isRunning,
                 onModeChange: {
                     Task {
-                        await controller.clearSession()
-                        controller.createSession()
+                        await viewModel.clearSession()
+                        viewModel.createSession()
                         promptText = ""
                     }
                 },
                 onClearSession: {
                     Task {
-                        await controller.clearSession()
-                        controller.createSession()
+                        await viewModel.clearSession()
+                        viewModel.createSession()
                         promptText = ""
                     }
                 },
@@ -64,7 +83,19 @@ struct ConversationView: View {
             .presentationDetents([.medium])
         }
         .onAppear {
-            controller.createSessionIfNeeded()
+            viewModel.createSessionIfNeeded()
+        }
+        .onDisappear {
+            Task {
+                try? await viewModel.save()
+            }
+        }
+        .onChange(of: viewModel.waitingForAnswer) { _, isWaiting in
+            if isWaiting {
+                Task {
+                    try? await viewModel.save()
+                }
+            }
         }
     }
 
@@ -74,8 +105,8 @@ struct ConversationView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             HStack(spacing: 12) {
-                if controller.turnCount > 0 {
-                    Text("ターン \(controller.turnCount)")
+                if viewModel.turnCount > 0 {
+                    Text("ターン \(viewModel.turnCount)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -97,7 +128,7 @@ struct ConversationView: View {
         ZStack(alignment: .top) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    if case .completed(let result) = controller.state {
+                    if case .completed(let result) = viewModel.state {
                         VStack(alignment: .leading, spacing: 8) {
                             Label("結果", systemImage: "checkmark.circle.fill")
                                 .font(.headline)
@@ -110,57 +141,57 @@ struct ConversationView: View {
                             .padding(.vertical, 8)
                     }
 
-                    if case .error(let message) = controller.state {
+                    if case .error(let message) = viewModel.state {
                         ErrorBanner(message: message)
                             .padding(.horizontal)
                     }
 
                     StepListView(
-                        steps: controller.steps,
-                        isLoading: controller.state.isRunning,
+                        steps: viewModel.steps,
+                        isLoading: viewModel.state.isRunning,
                         onResultTap: currentResult != nil ? { showResultSheet = true } : nil
                     )
                 }
                 .padding(.vertical)
-                .padding(.top, controller.state.isRunning ? 80 : 0)
+                .padding(.top, viewModel.state.isRunning ? 80 : 0)
             }
             .scrollDismissesKeyboard(.interactively)
 
-            if controller.state.isRunning {
+            if viewModel.state.isRunning {
                 ExecutionProgressBanner(
-                    currentPhase: controller.steps.last?.type,
-                    startTime: controller.steps.first?.timestamp
+                    currentPhase: viewModel.steps.last?.type,
+                    startTime: viewModel.steps.first?.timestamp
                 )
                 .padding(.horizontal)
                 .padding(.top, 8)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: controller.state.isRunning)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.state.isRunning)
     }
 
     // MARK: - Input
 
     private var inputSection: some View {
         VStack(spacing: 12) {
-            if controller.waitingForAnswer, let question = controller.pendingQuestion {
+            if viewModel.waitingForAnswer, let question = viewModel.pendingQuestion {
                 QuestionBanner(question: question)
             }
 
-            if controller.waitingForAnswer {
+            if viewModel.waitingForAnswer {
                 ConversationInputField(
                     mode: .answer,
                     text: $answerText,
                     isEnabled: true,
                     onSubmit: sendAnswer
                 )
-            } else if controller.state.isRunning {
+            } else if viewModel.state.isRunning {
                 ConversationInputField(
                     mode: .interrupt,
                     text: $interruptText,
                     isEnabled: true,
                     onSubmit: sendInterrupt,
-                    onStop: { controller.stopExecution() }
+                    onStop: { viewModel.cancel() }
                 )
             } else {
                 ConversationInputField(
@@ -183,28 +214,28 @@ struct ConversationView: View {
 
     private func runQuery() {
         guard !promptText.isEmpty, APIKeyManager.hasAnyLLMKey else { return }
-        controller.run(prompt: promptText, outputType: controller.selectedOutputType)
+        runRequest = RunRequest(prompt: promptText, outputType: viewModel.selectedOutputType)
         promptText = ""
     }
 
     private func sendInterrupt() {
         guard !interruptText.isEmpty else { return }
         Task {
-            await controller.interrupt(message: interruptText)
+            await viewModel.interrupt(message: interruptText)
             interruptText = ""
         }
     }
 
     private func sendAnswer() {
         guard !answerText.isEmpty else { return }
-        controller.reply(answerText)
+        viewModel.reply(answerText)
         answerText = ""
     }
 }
 
 #Preview {
-    @Previewable @State var controller = ConversationController()
+    @Previewable @State var viewModel = ConversationViewModelImpl()
     NavigationStack {
-        ConversationView(controller: controller)
+        ConversationView(viewModel: viewModel)
     }
 }
