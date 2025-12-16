@@ -9,10 +9,15 @@ let package = Package(
         .iOS(.v17)
     ],
     products: [
-        // 外部に公開するのはアンブレラモジュールのみ
+        // メインのアンブレラモジュール
         .library(
             name: "LLMStructuredOutputs",
             targets: ["LLMStructuredOutputs"]
+        ),
+        // オプション: 高レベルツールキット（プリセット、組み込みツール、共通出力）
+        .library(
+            name: "LLMToolkits",
+            targets: ["LLMToolkits"]
         ),
     ],
     dependencies: [
@@ -69,7 +74,7 @@ let package = Package(
         // MARK: - Umbrella Module (全モジュールを再エクスポート)
         .target(
             name: "LLMStructuredOutputs",
-            dependencies: ["LLMClient", "LLMTool", "LLMConversation", "LLMAgent", "LLMConversationalAgent", "LLMToolkits"]
+            dependencies: ["LLMClient", "LLMTool", "LLMConversation", "LLMAgent", "LLMConversationalAgent"]
         ),
 
         // MARK: - Tests

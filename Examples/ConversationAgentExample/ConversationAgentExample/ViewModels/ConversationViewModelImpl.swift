@@ -1,9 +1,14 @@
 import Foundation
 import LLMStructuredOutputs
+import LLMToolkits
 
 /// 会話ViewModel 実装
 ///
 /// ConversationalAgentSession を使用して、マルチターン会話を管理します。
+/// LLMToolkits のプリセットと出力型を活用した3つのシナリオをサポート：
+/// - Research: AnalysisResult
+/// - Article Summary: Summary
+/// - Code Review: CodeReview
 @Observable @MainActor
 final class ConversationViewModelImpl: ConversationViewModel {
 
@@ -75,11 +80,8 @@ final class ConversationViewModelImpl: ConversationViewModel {
 
         let client = AnthropicClient(apiKey: apiKey)
 
-        // ツールセットを構築（interactiveMode は Session 側で AskUserTool を自動追加）
-        let tools = ToolSet {
-            WebSearchTool()
-            FetchWebPageTool()
-        }
+        // シナリオに応じたツールセットを構築
+        let tools = buildToolSet(for: selectedOutputType)
 
         session = ConversationalAgentSession(
             client: client,
@@ -177,6 +179,26 @@ final class ConversationViewModelImpl: ConversationViewModel {
 
     // MARK: - Private Methods
 
+    /// シナリオに応じたツールセットを構築
+    private func buildToolSet(for outputType: AgentOutputType) -> ToolSet {
+        ToolSet {
+            // Research: Web検索 + Webフェッチ
+            if outputType.requiresWebSearch {
+                WebSearchTool()
+            }
+
+            // Research, ArticleSummary: Webフェッチ
+            if outputType.requiresWebFetch {
+                FetchWebPageTool()
+            }
+
+            // CodeReview: テキスト分析ツール（LLMToolkits）
+            if outputType == .codeReview {
+                TextAnalysisTool()
+            }
+        }
+    }
+
     private func executeRun(
         session: ConversationalAgentSession<AnthropicClient>,
         prompt: String,
@@ -185,21 +207,24 @@ final class ConversationViewModelImpl: ConversationViewModel {
         do {
             switch outputType {
             case .research:
-                let stream: some ConversationalAgentStepStream<ResearchReport> = await session.run(
+                // LLMToolkits の AnalysisResult を使用
+                let stream: some ConversationalAgentStepStream<AnalysisResult> = await session.run(
                     prompt,
                     model: .sonnet
                 )
                 try await processStream(stream, outputType: outputType) { $0.formatted }
 
-            case .summary:
-                let stream: some ConversationalAgentStepStream<SummaryReport> = await session.run(
+            case .articleSummary:
+                // LLMToolkits の Summary を使用
+                let stream: some ConversationalAgentStepStream<Summary> = await session.run(
                     prompt,
                     model: .sonnet
                 )
                 try await processStream(stream, outputType: outputType) { $0.formatted }
 
-            case .comparison:
-                let stream: some ConversationalAgentStepStream<ComparisonReport> = await session.run(
+            case .codeReview:
+                // LLMToolkits の CodeReview を使用
+                let stream: some ConversationalAgentStepStream<CodeReview> = await session.run(
                     prompt,
                     model: .sonnet
                 )

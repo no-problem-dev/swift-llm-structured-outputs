@@ -1,71 +1,31 @@
 import Foundation
-import LLMStructuredOutputs
+import LLMToolkits
 
-// MARK: - ResearchReport
+// MARK: - Output Types
+//
+// このアプリでは LLMToolkits の共通出力型を使用します：
+//
+// - AnalysisResult: リサーチシナリオ用
+//   - summary: 分析の要約
+//   - keyFindings: 主要な発見
+//   - recommendations: 推奨アクション
+//   - risks: 潜在的リスク
+//   - confidence: 信頼度スコア
+//
+// - Summary: 記事要約シナリオ用
+//   - briefSummary: 簡潔な要約
+//   - mainPoints: 主要ポイント
+//   - keyTakeaways: 重要な結論
+//   - targetAudience: 対象読者
+//
+// - CodeReview: コードレビューシナリオ用
+//   - overallAssessment: 総評
+//   - issues: 発見された問題点
+//   - suggestions: 改善提案
+//   - strengths: 良い点
+//   - qualityScore: 品質スコア (1-10)
 
-/// リサーチレポート
-///
-/// 調査結果をまとめた構造化出力です。
-@Structured("Research report with findings and sources")
-struct ResearchReport {
-    @StructuredField("Research topic")
-    var topic: String
-
-    @StructuredField("Summary of findings (200-400 words)")
-    var summary: String
-
-    @StructuredField("Key findings (3-5 items)")
-    var keyFindings: [String]
-
-    @StructuredField("Source URLs referenced")
-    var sources: [String]
-
-    @StructuredField("Questions for further investigation (2-3 items)")
-    var furtherQuestions: [String]
-}
-
-// MARK: - SummaryReport
-
-/// サマリーレポート
-///
-/// シンプルな要約を提供する構造化出力です。
-@Structured("Concise summary report")
-struct SummaryReport {
-    @StructuredField("Summary title")
-    var title: String
-
-    @StructuredField("Brief summary (around 100 words)")
-    var summary: String
-
-    @StructuredField("Key bullet points (3-5 items)")
-    var bulletPoints: [String]
-}
-
-// MARK: - ComparisonReport
-
-/// 比較レポート
-///
-/// 複数の対象を比較する構造化出力です。
-@Structured("Comparative analysis report")
-struct ComparisonReport {
-    @StructuredField("Subject being compared")
-    var subject: String
-
-    @StructuredField("List of items being compared")
-    var items: [ComparisonItem]
-
-    @StructuredField("Overall recommendation and conclusion")
-    var recommendation: String
-}
-
-@Structured("Item in comparison")
-struct ComparisonItem {
-    @StructuredField("Name of the item")
-    var name: String
-
-    @StructuredField("Advantages/Pros")
-    var pros: [String]
-
-    @StructuredField("Disadvantages/Cons")
-    var cons: [String]
-}
+// LLMToolkits の型を再エクスポート
+public typealias ResearchOutput = AnalysisResult
+public typealias ArticleSummaryOutput = Summary
+public typealias CodeReviewOutput = CodeReview

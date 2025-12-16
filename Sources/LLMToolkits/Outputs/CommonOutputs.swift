@@ -37,13 +37,13 @@ public struct AnalysisResult {
     @StructuredField("Brief one-paragraph summary of the analysis (2-4 sentences)")
     public var summary: String
 
-    @StructuredField("Key findings from the analysis", .minItems(1), .maxItems(10))
+    @StructuredField("Key findings from the analysis")
     public var keyFindings: [String]
 
-    @StructuredField("Actionable recommendations based on the analysis", .minItems(1), .maxItems(5))
+    @StructuredField("Actionable recommendations based on the analysis")
     public var recommendations: [String]
 
-    @StructuredField("Potential risks or concerns identified", .maxItems(5))
+    @StructuredField("Potential risks or concerns identified")
     public var risks: [String]?
 
     @StructuredField("Confidence score from 0.0 (uncertain) to 1.0 (highly confident)")
@@ -62,10 +62,10 @@ public struct Summary {
     @StructuredField("Concise summary of the main content (1-3 sentences)")
     public var briefSummary: String
 
-    @StructuredField("Main points covered in the content", .minItems(1), .maxItems(7))
+    @StructuredField("Main points covered in the content")
     public var mainPoints: [String]
 
-    @StructuredField("Key takeaways or action items", .maxItems(5))
+    @StructuredField("Key takeaways or action items")
     public var keyTakeaways: [String]?
 
     @StructuredField("Target audience this content is intended for")
@@ -84,7 +84,7 @@ public struct Classification {
     @StructuredField("Primary category or label for the input")
     public var primaryCategory: String
 
-    @StructuredField("Secondary categories if applicable", .maxItems(3))
+    @StructuredField("Secondary categories if applicable")
     public var secondaryCategories: [String]?
 
     @StructuredField("Confidence score for the classification from 0.0 to 1.0")
@@ -112,13 +112,10 @@ public struct SentimentAnalysis {
     @StructuredField("Sentiment intensity from 0.0 (weak) to 1.0 (strong)")
     public var intensity: Double
 
-    @StructuredField(
-        "Detected emotions in the text",
-        .maxItems(5)
-    )
+    @StructuredField("Detected emotions in the text")
     public var emotions: [String]?
 
-    @StructuredField("Key phrases that influenced the sentiment analysis", .maxItems(5))
+    @StructuredField("Key phrases that influenced the sentiment analysis")
     public var keyPhrases: [String]?
 
     @StructuredField("Brief explanation of the sentiment analysis")
@@ -134,13 +131,13 @@ public struct SentimentAnalysis {
 @Structured("Extracted key points with importance ranking and supporting evidence")
 public struct KeyPointExtraction {
 
-    @StructuredField("Extracted key points with details", .minItems(1), .maxItems(10))
+    @StructuredField("Extracted key points with details")
     public var keyPoints: [KeyPoint]
 
     @StructuredField("Overall theme or topic of the content")
     public var overallTheme: String
 
-    @StructuredField("Areas that need more information or clarification", .maxItems(3))
+    @StructuredField("Areas that need more information or clarification")
     public var gaps: [String]?
 }
 
@@ -173,7 +170,7 @@ public struct QuestionAnswer {
     @StructuredField("Direct answer to the question")
     public var answer: String
 
-    @StructuredField("Supporting evidence or sources for the answer", .maxItems(5))
+    @StructuredField("Supporting evidence or sources for the answer")
     public var sources: [String]?
 
     @StructuredField("Confidence in the answer from 0.0 to 1.0")
@@ -185,7 +182,7 @@ public struct QuestionAnswer {
     )
     public var answerCompleteness: String
 
-    @StructuredField("Follow-up questions that might help clarify", .maxItems(3))
+    @StructuredField("Follow-up questions that might help clarify")
     public var followUpQuestions: [String]?
 }
 
@@ -201,16 +198,16 @@ public struct TaskPlan {
     @StructuredField("Goal or objective this plan achieves")
     public var objective: String
 
-    @StructuredField("Ordered list of steps to complete the task", .minItems(1), .maxItems(15))
+    @StructuredField("Ordered list of steps to complete the task")
     public var steps: [TaskStep]
 
-    @StructuredField("Prerequisites or requirements before starting", .maxItems(5))
+    @StructuredField("Prerequisites or requirements before starting")
     public var prerequisites: [String]?
 
-    @StructuredField("Potential risks or blockers to be aware of", .maxItems(5))
+    @StructuredField("Potential risks or blockers to be aware of")
     public var risks: [String]?
 
-    @StructuredField("Success criteria for the completed task", .minItems(1), .maxItems(5))
+    @StructuredField("Success criteria for the completed task")
     public var successCriteria: [String]
 }
 
@@ -227,7 +224,7 @@ public struct TaskStep {
     @StructuredField("Expected output or deliverable from this step")
     public var expectedOutput: String?
 
-    @StructuredField("Step numbers this step depends on", .maxItems(5))
+    @StructuredField("Step numbers this step depends on")
     public var dependsOn: [Int]?
 }
 
@@ -240,10 +237,10 @@ public struct TaskStep {
 @Structured("Comparison analysis result with pros, cons, and recommendation")
 public struct ComparisonResult {
 
-    @StructuredField("Items being compared", .minItems(2), .maxItems(5))
+    @StructuredField("Items being compared")
     public var items: [ComparisonItem]
 
-    @StructuredField("Key differences between the items", .minItems(1), .maxItems(10))
+    @StructuredField("Key differences between the items")
     public var keyDifferences: [String]
 
     @StructuredField("Recommended choice based on the comparison")
@@ -252,7 +249,7 @@ public struct ComparisonResult {
     @StructuredField("Reasoning for the recommendation")
     public var reasoning: String
 
-    @StructuredField("Factors that might change this recommendation", .maxItems(3))
+    @StructuredField("Factors that might change this recommendation")
     public var caveats: [String]?
 }
 
@@ -263,10 +260,10 @@ public struct ComparisonItem {
     @StructuredField("Name or identifier of the item")
     public var name: String
 
-    @StructuredField("Advantages or strengths", .minItems(1), .maxItems(5))
+    @StructuredField("Advantages or strengths")
     public var pros: [String]
 
-    @StructuredField("Disadvantages or weaknesses", .maxItems(5))
+    @StructuredField("Disadvantages or weaknesses")
     public var cons: [String]
 
     @StructuredField(
@@ -285,13 +282,13 @@ public struct ComparisonItem {
 @Structured("Entity extraction result with categorized entities")
 public struct EntityExtraction {
 
-    @StructuredField("Extracted entities organized by type", .minItems(1))
+    @StructuredField("Extracted entities organized by type")
     public var entities: [ExtractedEntity]
 
-    @StructuredField("Total count of entities extracted", .minimum(0))
+    @StructuredField("Total count of entities extracted")
     public var totalCount: Int
 
-    @StructuredField("Entity types that were searched but not found", .maxItems(10))
+    @StructuredField("Entity types that were searched but not found")
     public var notFoundTypes: [String]?
 }
 
@@ -330,13 +327,13 @@ public struct CodeReview {
     @StructuredField("Overall assessment of the code quality")
     public var overallAssessment: String
 
-    @StructuredField("Issues found in the code", .maxItems(20))
+    @StructuredField("Issues found in the code")
     public var issues: [CodeIssue]?
 
-    @StructuredField("Suggestions for improvement", .maxItems(10))
+    @StructuredField("Suggestions for improvement")
     public var suggestions: [String]?
 
-    @StructuredField("Positive aspects of the code", .maxItems(5))
+    @StructuredField("Positive aspects of the code")
     public var strengths: [String]?
 
     @StructuredField(

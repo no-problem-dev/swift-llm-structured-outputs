@@ -7,8 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1941B6702EF0CCE1007AC9A1 /* LLMStructuredOutputs in Frameworks */ = {isa = PBXBuildFile; productRef = 1941B66F2EF0CCE1007AC9A1 /* LLMStructuredOutputs */; };
 		1941B6E32EF0D76A007AC9A1 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 1941B6E22EF0D76A007AC9A1 /* MarkdownUI */; };
+		1941B8E22EF19CEC007AC9A1 /* LLMStructuredOutputs in Frameworks */ = {isa = PBXBuildFile; productRef = 1941B8E12EF19CEC007AC9A1 /* LLMStructuredOutputs */; };
+		1941B93C2EF19EA5007AC9A1 /* LLMToolkits in Frameworks */ = {isa = PBXBuildFile; productRef = 1941B93B2EF19EA5007AC9A1 /* LLMToolkits */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,7 +29,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1941B6702EF0CCE1007AC9A1 /* LLMStructuredOutputs in Frameworks */,
+				1941B8E22EF19CEC007AC9A1 /* LLMStructuredOutputs in Frameworks */,
+				1941B93C2EF19EA5007AC9A1 /* LLMToolkits in Frameworks */,
 				1941B6E32EF0D76A007AC9A1 /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -40,6 +42,7 @@
 			isa = PBXGroup;
 			children = (
 				1941B6622EF0CC3E007AC9A1 /* ConversationAgentExample */,
+				1941B93A2EF19EA5007AC9A1 /* Frameworks */,
 				1941B6612EF0CC3E007AC9A1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -50,6 +53,13 @@
 				1941B6602EF0CC3E007AC9A1 /* ConversationAgentExample.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		1941B93A2EF19EA5007AC9A1 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -72,8 +82,9 @@
 			);
 			name = ConversationAgentExample;
 			packageProductDependencies = (
-				1941B66F2EF0CCE1007AC9A1 /* LLMStructuredOutputs */,
 				1941B6E22EF0D76A007AC9A1 /* MarkdownUI */,
+				1941B8E12EF19CEC007AC9A1 /* LLMStructuredOutputs */,
+				1941B93B2EF19EA5007AC9A1 /* LLMToolkits */,
 			);
 			productName = ConversationAgentExample;
 			productReference = 1941B6602EF0CC3E007AC9A1 /* ConversationAgentExample.app */;
@@ -104,8 +115,8 @@
 			mainGroup = 1941B6572EF0CC3E007AC9A1;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				1941B66E2EF0CCE1007AC9A1 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */,
 				1941B6E12EF0D76A007AC9A1 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
+				1941B8E02EF19CEC007AC9A1 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1941B6612EF0CC3E007AC9A1 /* Products */;
@@ -349,7 +360,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		1941B66E2EF0CCE1007AC9A1 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */ = {
+		1941B8E02EF19CEC007AC9A1 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../../../swift-llm-structured-outputs";
 		};
@@ -367,14 +378,19 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		1941B66F2EF0CCE1007AC9A1 /* LLMStructuredOutputs */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = LLMStructuredOutputs;
-		};
 		1941B6E22EF0D76A007AC9A1 /* MarkdownUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 1941B6E12EF0D76A007AC9A1 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
 			productName = MarkdownUI;
+		};
+		1941B8E12EF19CEC007AC9A1 /* LLMStructuredOutputs */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LLMStructuredOutputs;
+		};
+		1941B93B2EF19EA5007AC9A1 /* LLMToolkits */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1941B8E02EF19CEC007AC9A1 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */;
+			productName = LLMToolkits;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
