@@ -68,7 +68,6 @@ struct StepListView: View {
                 .padding()
             }
             .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
             .onChange(of: steps.count) { _, _ in
                 if let lastStep = steps.last {
                     withAnimation {

@@ -1,11 +1,29 @@
 import SwiftUI
 
-/// 設定画面
+/// 統合設定ビュー
 ///
-/// LLMプロバイダー、モデル、APIキーなどの設定を管理します。
-struct SettingsView: View {
-    private var settings = AgentSettings.shared
+/// 「セッション設定」と「APIキー設定」を上タブで切り替えます。
+struct UnifiedSettingsView: View {
+    enum Tab: String, CaseIterable {
+        case session = "セッション"
+        case apiKeys = "APIキー"
+    }
 
+    @State private var selectedTab: Tab = .session
+
+    // セッション設定用
+    @Binding var interactiveMode: Bool
+    @Binding var outputType: AgentOutputType
+    var isSessionDisabled: Bool
+    var onModeChange: () -> Void
+    var onClearSession: () -> Void
+    var onDismiss: () -> Void
+
+    @State private var showInteractiveModeConfirm = false
+    @State private var showClearConfirm = false
+    @State private var pendingInteractiveMode = false
+
+    // APIキー設定用
     @State private var anthropicKey = ""
     @State private var openAIKey = ""
     @State private var geminiKey = ""
@@ -15,7 +33,148 @@ struct SettingsView: View {
     @State private var showingGeminiKey = false
     @State private var showingBraveSearchKey = false
 
+    private var settings: AgentSettings { AgentSettings.shared }
+
     var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // 上タブ
+                Picker("", selection: $selectedTab) {
+                    ForEach(Tab.allCases, id: \.self) { tab in
+                        Text(tab.rawValue).tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding()
+
+                // コンテンツ
+                switch selectedTab {
+                case .session:
+                    sessionSettingsContent
+                case .apiKeys:
+                    apiKeysSettingsContent
+                }
+            }
+            .navigationTitle("設定")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完了", action: onDismiss)
+                }
+            }
+            .confirmationDialog(
+                "モードを変更",
+                isPresented: $showInteractiveModeConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("変更する", role: .destructive) {
+                    interactiveMode = pendingInteractiveMode
+                    onModeChange()
+                }
+                Button("キャンセル", role: .cancel) {}
+            } message: {
+                Text("モードを変更すると現在の会話履歴がクリアされます。")
+            }
+            .confirmationDialog(
+                "セッションをクリア",
+                isPresented: $showClearConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("クリア", role: .destructive) {
+                    onClearSession()
+                    onDismiss()
+                }
+                Button("キャンセル", role: .cancel) {}
+            } message: {
+                Text("現在の会話履歴がすべて削除されます。この操作は取り消せません。")
+            }
+        }
+    }
+
+    // MARK: - Session Settings
+
+    private var sessionSettingsContent: some View {
+        List {
+            Section {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("インタラクティブモード")
+                        Text(interactiveMode ? "AIが不明点を質問します" : "AIが自動で最後まで実行します")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Toggle("", isOn: Binding(
+                        get: { interactiveMode },
+                        set: { newValue in
+                            pendingInteractiveMode = newValue
+                            showInteractiveModeConfirm = true
+                        }
+                    ))
+                    .labelsHidden()
+                    .disabled(isSessionDisabled)
+                }
+            } header: {
+                Label("動作モード", systemImage: "person.2")
+            } footer: {
+                Text("モードを変更するとセッションがクリアされます")
+            }
+
+            Section {
+                ForEach(AgentOutputType.allCases) { type in
+                    Button {
+                        outputType = type
+                    } label: {
+                        HStack {
+                            Image(systemName: type.icon)
+                                .foregroundStyle(type.tintColor)
+                                .frame(width: 24)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(type.displayName)
+                                    .foregroundStyle(.primary)
+                                Text(type.subtitle)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            if outputType == type {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                    }
+                    .disabled(isSessionDisabled)
+                }
+            } header: {
+                Label("出力タイプ", systemImage: "doc.text")
+            } footer: {
+                Text("次の実行時に使用する出力形式を選択します")
+            }
+
+            Section {
+                Button(role: .destructive) {
+                    showClearConfirm = true
+                } label: {
+                    HStack {
+                        Image(systemName: "trash")
+                        Text("セッションをクリア")
+                    }
+                }
+                .disabled(isSessionDisabled)
+            } footer: {
+                Text("会話履歴がすべて削除されます")
+            }
+        }
+    }
+
+    // MARK: - API Keys Settings
+
+    private var apiKeysSettingsContent: some View {
         Form {
             // MARK: - プロバイダー選択
             Section {
@@ -36,8 +195,6 @@ struct SettingsView: View {
                 }
             } header: {
                 Text("プロバイダー")
-            } footer: {
-                Text("会話エージェントはAnthropic、OpenAI、Geminiで利用可能です。")
             }
 
             // MARK: - モデル選択
@@ -133,7 +290,7 @@ struct SettingsView: View {
             } header: {
                 Text("外部APIキー（オプション）")
             } footer: {
-                Text("Brave Search APIキーがない場合、Web検索ツールは利用できません。月2000件まで無料で利用可能です。")
+                Text("Brave Search APIキーがない場合、Web検索ツールは利用できません。")
             }
 
             // MARK: - ステータス
@@ -159,7 +316,6 @@ struct SettingsView: View {
                 }
             }
         }
-        .navigationTitle("設定")
     }
 }
 
@@ -238,7 +394,15 @@ private struct StatusRow: View {
 }
 
 #Preview {
-    NavigationStack {
-        SettingsView()
-    }
+    @Previewable @State var interactive = true
+    @Previewable @State var outputType = AgentOutputType.research
+
+    UnifiedSettingsView(
+        interactiveMode: $interactive,
+        outputType: $outputType,
+        isSessionDisabled: false,
+        onModeChange: {},
+        onClearSession: {},
+        onDismiss: {}
+    )
 }

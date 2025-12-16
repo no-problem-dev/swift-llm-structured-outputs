@@ -60,10 +60,10 @@ struct ConversationView<ViewModel: ConversationViewModel>: View {
             }
         }
         .sheet(isPresented: $showSessionConfig) {
-            SessionConfigSheet(
+            UnifiedSettingsView(
                 interactiveMode: $viewModel.interactiveMode,
                 outputType: $viewModel.selectedOutputType,
-                isDisabled: viewModel.state.isRunning,
+                isSessionDisabled: viewModel.state.isRunning,
                 onModeChange: {
                     Task {
                         await viewModel.clearSession()
@@ -80,7 +80,6 @@ struct ConversationView<ViewModel: ConversationViewModel>: View {
                 },
                 onDismiss: { showSessionConfig = false }
             )
-            .presentationDetents([.medium])
         }
         .onAppear {
             viewModel.createSessionIfNeeded()
@@ -207,7 +206,8 @@ struct ConversationView<ViewModel: ConversationViewModel>: View {
                 hasSearchKey: APIKeyManager.hasBraveSearchKey
             )
         }
-        .padding()
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
     }
 
     // MARK: - Actions
