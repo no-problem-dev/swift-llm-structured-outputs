@@ -7,6 +7,30 @@
 
 ## [未リリース]
 
+## [1.0.16] - 2025-12-17
+
+### 追加
+
+- **LLMToolkits モジュール**: 高レベルなエージェント構築支援機能を追加
+  - プリセット: `ResearcherPreset`, `WriterPreset`, `CodingAssistantPreset`
+  - 共通出力型: `AnalysisResult`, `Summary`, `CodeReview`, `Classification` など
+  - システムプロンプトビルダー: `SystemPromptBuilder`
+  - ツール群: `WebSearchTool`, `FetchWebPageTool`, `TextAnalysisTool`
+  - DocC ドキュメントを追加
+
+### 変更
+
+- **ConversationAgentExample の改善**: LLMToolkits を活用したリファクタリング
+  - 3つのシナリオ（Research, Article Summary, Code Review）をサポート
+  - セッション結果の永続化と復元機能を追加
+  - 出力タイプ切り替え時にセッションを自動再作成
+
+### 修正
+
+- **CommonOutputs のスキーマ制約を削除**: Anthropic API 互換性の改善
+  - `minimum`/`maximum` 制約を削除（API でサポートされていないため）
+  - 制約情報はフィールド説明に記載
+
 ## [1.0.15] - 2025-12-16
 
 ### 変更
@@ -357,7 +381,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.15...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.16...HEAD
+[1.0.16]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.15...v1.0.16
 [1.0.15]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.14...v1.0.15
 [1.0.14]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.13...v1.0.14
 [1.0.13]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.12...v1.0.13
