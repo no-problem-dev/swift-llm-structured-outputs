@@ -253,10 +253,3 @@ let classificationPrompt = Prompt {
 }
 ```
 
-## Topics
-
-### プロンプト
-
-- ``Prompt``
-- ``PromptComponent``
-- ``PromptBuilder``

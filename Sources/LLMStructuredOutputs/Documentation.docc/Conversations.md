@@ -4,7 +4,7 @@
 
 ## 概要
 
-``ConversationHistory`` は、LLM とのマルチターン会話を管理する Actor です。
+`ConversationHistory` は、LLM とのマルチターン会話を管理する Actor です。
 履歴はクライアントやモデルから独立しており、異なるプロバイダー間で同じ会話を継続できます。
 
 ## 会話の作成と実行
@@ -93,7 +93,7 @@ await history.clear()
 
 ## イベントストリーム
 
-``ConversationEvent`` を購読して、会話の変更をリアルタイムで監視できます：
+`ConversationEvent` を購読して、会話の変更をリアルタイムで監視できます：
 
 ```swift
 Task {
@@ -140,9 +140,6 @@ let result: Summary = try await client.chat(
 
 ## Topics
 
-### 関連型
+### 関連ガイド
 
-- ``ConversationHistory``
-- ``ConversationHistoryProtocol``
-- ``ConversationEvent``
-- ``TokenUsage``
+- <doc:ConversationalAgent>

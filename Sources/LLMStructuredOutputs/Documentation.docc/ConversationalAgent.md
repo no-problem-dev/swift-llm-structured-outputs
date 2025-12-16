@@ -4,12 +4,12 @@
 
 ## 概要
 
-``ConversationalAgentSession`` は以下の機能を提供します：
+`ConversationalAgentSession` は以下の機能を提供します：
 
 - **会話履歴の自動管理**: 複数ターンにわたる会話を自動追跡
 - **割り込みサポート**: 実行中のエージェントに追加指示を送信
 - **イベントストリーム**: UI 連携のための非同期イベント配信
-- **インタラクティブモード**: ``AskUserTool`` で AI がユーザーに質問可能
+- **インタラクティブモード**: `AskUserTool` で AI がユーザーに質問可能
 
 ## 基本的な使い方
 
@@ -79,7 +79,7 @@ for await event in session.eventStream {
 
 ## インタラクティブモード
 
-`interactiveMode: true` を指定すると、AI がユーザーに質問できるようになります（``AskUserTool`` が自動追加）：
+`interactiveMode: true` を指定すると、AI がユーザーに質問できるようになります（`AskUserTool` が自動追加）：
 
 ```swift
 let session = ConversationalAgentSession(
@@ -110,21 +110,6 @@ for try await step in stream {
 
 ## Topics
 
-### セッション
+### 関連ガイド
 
-- ``ConversationalAgentSession``
-- ``ConversationalAgentSessionProtocol``
-
-### ステップ
-
-- ``ConversationalAgentStep``
-- ``ConversationalAgentStepStream``
-
-### イベント
-
-- ``ConversationalAgentEvent``
-- ``ConversationalAgentError``
-
-### ツール
-
-- ``AskUserTool``
+- <doc:AgentLoop>

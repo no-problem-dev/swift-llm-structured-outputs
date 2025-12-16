@@ -32,11 +32,13 @@ jobs:
       - name: Create docs directory
         run: mkdir -p ./docs
 
-      - name: Generate Documentation for LLMStructuredOutputs
+      - name: Generate Combined Documentation
         run: |
           swift package --allow-writing-to-directory ./docs \
             generate-documentation \
+            --enable-experimental-combined-documentation \
             --target LLMStructuredOutputs \
+            --target LLMToolkits \
             --disable-indexing \
             --transform-for-static-hosting \
             --hosting-base-path swift-llm-structured-outputs \

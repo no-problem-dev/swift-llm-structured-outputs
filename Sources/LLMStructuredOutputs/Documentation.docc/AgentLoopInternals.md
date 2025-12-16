@@ -2,7 +2,7 @@
 
 エージェントループの内部実装フローを詳細に解説します。
 
-> Note: 外部向け API は ``AgentStepStream`` プロトコルです。
+> Note: 外部向け API は `AgentStepStream` プロトコルです。
 > 内部実装の `AgentStepSequence` や `AgentLoopRunner` は直接参照できません。
 
 ## 概要
@@ -11,11 +11,11 @@
 
 | レイヤー | コンポーネント | 役割 |
 |---------|---------------|------|
-| Public API | ``AgentStepStream`` (Protocol) | AsyncSequence としてステップを提供 |
+| Public API | `AgentStepStream` (Protocol) | AsyncSequence としてステップを提供 |
 | Internal | `AgentStepSequence` | 内部実装の AsyncSequence |
 | Execution | `AgentLoopRunner` (Actor) | ループ実行の制御 |
 | Policy | `AgentTerminationPolicy` | 終了条件の判定 |
-| State | ``AgentContext``, `AgentLoopStateManager` | 状態管理 |
+| State | `AgentContext`, `AgentLoopStateManager` | 状態管理 |
 
 ### 設計原則
 
@@ -313,11 +313,11 @@ continueWithTools?
 
 | エラー | 発生箇所 | 説明 |
 |--------|----------|------|
-| ``AgentError/maxStepsExceeded(steps:)`` | `nextStep()` | ステップ数が上限に達した |
-| ``AgentError/llmError(_:)`` | `sendRequest()` | LLM API 呼び出し失敗 |
-| ``AgentError/outputDecodingFailed(_:)`` | `decodeFinalOutput()` | JSON デコード失敗 |
-| ``AgentError/toolNotFound(name:)`` | `AgentContext.executeTool()` | 指定ツールが存在しない |
-| ``AgentError/toolExecutionFailed(name:underlyingError:)`` | `AgentContext.executeTool()` | ツール実行中のエラー |
+| `AgentError.maxStepsExceeded` | `nextStep()` | ステップ数が上限に達した |
+| `AgentError.llmError` | `sendRequest()` | LLM API 呼び出し失敗 |
+| `AgentError.outputDecodingFailed` | `decodeFinalOutput()` | JSON デコード失敗 |
+| `AgentError.toolNotFound` | `AgentContext.executeTool()` | 指定ツールが存在しない |
+| `AgentError.toolExecutionFailed` | `AgentContext.executeTool()` | ツール実行中のエラー |
 
 ### ツールエラーの扱い
 
@@ -336,18 +336,9 @@ continueWithTools?
 
 ### 無限ループ防止メカニズム
 
-1. **ステップ数制限**: `maxSteps` を超えると ``AgentError/maxStepsExceeded(steps:)``
+1. **ステップ数制限**: `maxSteps` を超えると `AgentError.maxStepsExceeded` エラー
 2. **重複検出**: 同一ツール・同一引数の呼び出しが `maxDuplicateToolCalls` を超えると終了
 3. **総呼び出し回数制限**: 同一ツールが `maxToolCallsPerTool` 回を超えて呼ばれると終了
 4. **stopReason 判定**: LLM の `endTurn` シグナルで正常終了
 5. **デコード再試行**: JSON デコード失敗時は最大2回まで再試行
 
-## Topics
-
-### 型
-
-- ``AgentStepStream``
-- ``AgentStep``
-- ``AgentConfiguration``
-- ``AgentContext``
-- ``AgentError``
