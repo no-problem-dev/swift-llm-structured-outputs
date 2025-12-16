@@ -38,6 +38,11 @@ jobs:
             generate-documentation \
             --enable-experimental-combined-documentation \
             --target LLMStructuredOutputs \
+            --target LLMClient \
+            --target LLMTool \
+            --target LLMConversation \
+            --target LLMAgent \
+            --target LLMConversationalAgent \
             --target LLMToolkits \
             --disable-indexing \
             --transform-for-static-hosting \
