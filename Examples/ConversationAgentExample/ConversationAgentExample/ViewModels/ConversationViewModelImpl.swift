@@ -59,6 +59,11 @@ final class ConversationViewModelImpl: ConversationViewModel {
         self.selectedOutputType = sessionData.outputType
         self.interactiveMode = sessionData.interactiveMode
         self.steps = sessionData.steps
+
+        // 保存済みの結果があれば復元
+        if let result = sessionData.result {
+            self.state = .completed(result)
+        }
     }
 
     // MARK: - Session Management
@@ -93,7 +98,12 @@ final class ConversationViewModelImpl: ConversationViewModel {
         // イベント監視を開始
         startEventMonitoring()
 
-        state = .idle
+        // 既に完了状態（復元された結果がある）場合は state を維持
+        if case .completed = state {
+            // 復元された結果を維持
+        } else {
+            state = .idle
+        }
         waitingForAnswer = false
         pendingQuestion = nil
         addEvent("セッションが作成されました（\(selectedOutputType.displayName) / \(interactiveMode ? "インタラクティブ" : "自動")モード）")
@@ -117,6 +127,7 @@ final class ConversationViewModelImpl: ConversationViewModel {
 
         // SessionData もリセット
         sessionData.steps = []
+        sessionData.result = nil
         sessionData.updatedAt = Date()
     }
 
@@ -174,6 +185,12 @@ final class ConversationViewModelImpl: ConversationViewModel {
         sessionData.steps = steps
         sessionData.updatedAt = Date()
         sessionData.updateTitleFromFirstMessage()
+
+        // 結果を保存
+        if case .completed(let resultString) = state {
+            sessionData.result = resultString
+        }
+
         try await storage.save(sessionData)
     }
 

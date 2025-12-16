@@ -11,6 +11,7 @@ struct SessionData: Identifiable, Codable {
     var outputType: AgentOutputType
     var interactiveMode: Bool
     var steps: [ConversationStepInfo]
+    var result: String?
 
     /// 新規セッションを作成
     init(
@@ -25,6 +26,7 @@ struct SessionData: Identifiable, Codable {
         self.outputType = outputType
         self.interactiveMode = interactiveMode
         self.steps = []
+        self.result = nil
     }
 
     /// 既存データから復元
@@ -35,7 +37,8 @@ struct SessionData: Identifiable, Codable {
         updatedAt: Date,
         outputType: AgentOutputType,
         interactiveMode: Bool,
-        steps: [ConversationStepInfo]
+        steps: [ConversationStepInfo],
+        result: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -44,6 +47,7 @@ struct SessionData: Identifiable, Codable {
         self.outputType = outputType
         self.interactiveMode = interactiveMode
         self.steps = steps
+        self.result = result
     }
 }
 
