@@ -124,6 +124,68 @@ for call in plan.toolCalls {
 }
 ```
 
+### 6. Agent Loop
+
+Use `runAgent` to automatically execute tools and generate structured output:
+
+```swift
+@Structured("Weather report")
+struct WeatherReport {
+    @StructuredField("Location") var location: String
+    @StructuredField("Conditions") var conditions: String
+    @StructuredField("Temperature") var temperature: Int
+}
+
+let tools = ToolSet { GetWeather.self }
+
+let stream: some AgentStepStream<WeatherReport> = client.runAgent(
+    prompt: "Check the weather in Tokyo and create a report",
+    model: .sonnet,
+    tools: tools
+)
+
+for try await step in stream {
+    switch step {
+    case .toolCall(let call): print("🔧 \(call.name)")
+    case .toolResult(let result): print("📤 \(result.output)")
+    case .finalResponse(let report): print("✅ \(report.location): \(report.conditions)")
+    default: break
+    }
+}
+```
+
+### 7. Conversational Agent
+
+Use `ConversationalAgentSession` to run agent loops while maintaining multi-turn conversations:
+
+```swift
+let session = ConversationalAgentSession(
+    client: AnthropicClient(apiKey: "..."),
+    systemPrompt: Prompt { PromptComponent.role("Research assistant") },
+    tools: ToolSet { WebSearchTool.self }
+)
+
+let stream: some ConversationalAgentStepStream<ResearchResult> = session.run(
+    "Research AI agents",
+    model: .sonnet
+)
+
+for try await step in stream {
+    switch step {
+    case .toolCall(let call): print("🔧 \(call.name)")
+    case .finalResponse(let output): print("✅ \(output.summary)")
+    default: break
+    }
+}
+
+let followUp: some ConversationalAgentStepStream<ResearchResult> = session.run(
+    "Tell me more about security aspects",
+    model: .sonnet
+)
+```
+
+For details, see [Agent Loop Guide](documentation/agent-loop.md) and [Conversational Agent Guide](documentation/conversational-agent.md).
+
 ## Installation
 
 ### Swift Package Manager
@@ -283,6 +345,8 @@ An iOS example app is included in `Examples/LLMStructuredOutputsExample`. Try al
 | Event Stream | `chatStream()` streaming responses |
 | Prompt DSL | `Prompt { }` builder for prompt construction |
 | Tool Calling | `@Tool` definition, `planToolCalls()` planning |
+| Agent Loop | `runAgent()` auto tool execution and structured output |
+| Conversational Agent | `ConversationalAgentSession` multi-turn agent |
 | **Provider Comparison** | Claude/GPT/Gemini parallel comparison, response time & token measurement |
 
 ### Provider Comparison Demo
@@ -307,9 +371,11 @@ For detailed documentation, see:
 - [Guides](documentation/)
   - [Getting Started](documentation/getting-started.md)
   - [Prompt Building](documentation/prompt-building.md)
-  - [Tool Calling](documentation/tool-calling.md)
-  - [Providers](documentation/providers.md)
   - [Conversation](documentation/conversation.md)
+  - [Tool Calling](documentation/tool-calling.md)
+  - [Agent Loop](documentation/agent-loop.md)
+  - [Conversational Agent](documentation/conversational-agent.md)
+  - [Providers](documentation/providers.md)
 
 ## License
 

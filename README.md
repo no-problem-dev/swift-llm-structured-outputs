@@ -107,15 +107,45 @@ let stream: some AgentStepStream<WeatherReport> = client.runAgent(
 
 for try await step in stream {
     switch step {
-    case .toolCall(let info): print("🔧 \(info.name)")
-    case .toolResult(let info): print("📤 \(info.content)")
+    case .toolCall(let call): print("🔧 \(call.name)")
+    case .toolResult(let result): print("📤 \(result.output)")
     case .finalResponse(let report): print("✅ \(report.location): \(report.conditions)")
     default: break
     }
 }
 ```
 
-詳細は[エージェントループガイド](documentation/agent-loop.md)を参照してください。
+### 会話型エージェント
+
+`ConversationalAgentSession` でマルチターン会話を保持しながらエージェントループを実行します：
+
+```swift
+let session = ConversationalAgentSession(
+    client: AnthropicClient(apiKey: "..."),
+    systemPrompt: Prompt { PromptComponent.role("リサーチアシスタント") },
+    tools: ToolSet { WebSearchTool.self }
+)
+
+let stream: some ConversationalAgentStepStream<ResearchResult> = session.run(
+    "AIエージェントについて調査して",
+    model: .sonnet
+)
+
+for try await step in stream {
+    switch step {
+    case .toolCall(let call): print("🔧 \(call.name)")
+    case .finalResponse(let output): print("✅ \(output.summary)")
+    default: break
+    }
+}
+
+let followUp: some ConversationalAgentStepStream<ResearchResult> = session.run(
+    "セキュリティ面について詳しく",
+    model: .sonnet
+)
+```
+
+詳細は[エージェントループガイド](documentation/agent-loop.md)、[会話型エージェントガイド](documentation/conversational-agent.md)を参照してください。
 
 ## インストール
 
@@ -141,10 +171,11 @@ dependencies: [
 |--------|------|
 | [はじめに](documentation/getting-started.md) | インストールと基本的な使い方 |
 | [プロンプト構築](documentation/prompt-building.md) | DSL を使ったプロンプト構築 |
+| [会話](documentation/conversation.md) | マルチターン会話の実装 |
 | [ツールコール](documentation/tool-calling.md) | LLM に外部関数を呼び出させる |
 | [エージェントループ](documentation/agent-loop.md) | ツール自動実行と構造化出力の生成 |
+| [会話型エージェント](documentation/conversational-agent.md) | マルチターン会話を保持したエージェント |
 | [プロバイダー](documentation/providers.md) | 各プロバイダーとモデルの詳細 |
-| [会話](documentation/conversation.md) | マルチターン会話の実装 |
 
 ### 📚 APIリファレンス（DocC）
 
@@ -166,6 +197,7 @@ dependencies: [
 | プロンプト DSL | `Prompt { }` ビルダーによるプロンプト構築 |
 | ツールコール | `@Tool` によるツール定義、`planToolCalls()` による計画 |
 | エージェントループ | `runAgent()` によるツール自動実行と構造化出力生成 |
+| 会話型エージェント | `ConversationalAgentSession` によるマルチターンエージェント |
 | **プロバイダー比較** | Claude/GPT/Gemini の並列比較、レスポンス時間・トークン計測 |
 
 ### プロバイダー比較デモ

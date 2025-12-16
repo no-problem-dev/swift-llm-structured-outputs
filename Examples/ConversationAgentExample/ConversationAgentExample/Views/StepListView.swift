@@ -11,6 +11,7 @@ import SwiftUI
 struct StepListView: View {
     let steps: [ConversationStepInfo]
     let isLoading: Bool
+    var onResultTap: (() -> Void)?
 
     private var latestStepType: ConversationStepInfo.StepType? {
         steps.last?.type
@@ -55,7 +56,8 @@ struct StepListView: View {
                                 StepRow(
                                     step: step,
                                     isLast: isLastStep,
-                                    isLatestActive: isLastStep && isLoading
+                                    isLatestActive: isLastStep && isLoading,
+                                    onResultTap: step.type == .finalResponse ? onResultTap : nil
                                 )
                                 .id(step.id)
                             }
@@ -191,9 +193,10 @@ private struct StepRow: View {
     let step: ConversationStepInfo
     let isLast: Bool
     let isLatestActive: Bool
+    var onResultTap: (() -> Void)?
 
-    /// 折りたたみ表示の文字数閾値
-    private let collapseThreshold = 150
+    /// 折りたたみ表示の行数閾値
+    private let lineThreshold = 5
 
     @State private var isExpanded = false
     @State private var isPulsing = false
@@ -251,7 +254,7 @@ private struct StepRow: View {
                 // メインコンテンツ（長い場合は折りたたみ）
                 CollapsibleText(
                     text: step.content,
-                    threshold: collapseThreshold,
+                    lineThreshold: lineThreshold,
                     isExpanded: $isExpanded,
                     isError: step.isError
                 )
@@ -260,8 +263,23 @@ private struct StepRow: View {
                 if let detail = step.detail {
                     CollapsibleDetail(
                         text: detail,
-                        threshold: collapseThreshold
+                        lineThreshold: lineThreshold
                     )
+                }
+
+                // 完了時: レポート表示ボタン
+                if step.type == .finalResponse, let onResultTap {
+                    Button {
+                        onResultTap()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                            Text("レポートを表示")
+                        }
+                        .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.orange)
                 }
             }
             .padding(.bottom, isLast ? 0 : 16)
@@ -306,17 +324,21 @@ private struct StepRow: View {
 
 private struct CollapsibleText: View {
     let text: String
-    let threshold: Int
+    let lineThreshold: Int
     @Binding var isExpanded: Bool
     var isError: Bool = false
 
+    private var lines: [String] {
+        text.components(separatedBy: .newlines)
+    }
+
     private var needsCollapse: Bool {
-        text.count > threshold
+        lines.count > lineThreshold
     }
 
     private var displayText: String {
         if needsCollapse && !isExpanded {
-            return String(text.prefix(threshold)) + "..."
+            return lines.prefix(lineThreshold).joined(separator: "\n") + "\n..."
         }
         return text
     }
@@ -334,7 +356,7 @@ private struct CollapsibleText: View {
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Text(isExpanded ? "折りたたむ" : "すべて表示")
+                        Text(isExpanded ? "折りたたむ" : "すべて表示 (\(lines.count)行)")
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                     }
                     .font(.caption2)
@@ -350,17 +372,21 @@ private struct CollapsibleText: View {
 
 private struct CollapsibleDetail: View {
     let text: String
-    let threshold: Int
+    let lineThreshold: Int
 
     @State private var isExpanded = false
 
+    private var lines: [String] {
+        text.components(separatedBy: .newlines)
+    }
+
     private var needsCollapse: Bool {
-        text.count > threshold
+        lines.count > lineThreshold
     }
 
     private var displayText: String {
         if needsCollapse && !isExpanded {
-            return String(text.prefix(threshold)) + "..."
+            return lines.prefix(lineThreshold).joined(separator: "\n") + "\n..."
         }
         return text
     }
@@ -378,7 +404,7 @@ private struct CollapsibleDetail: View {
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Text(isExpanded ? "折りたたむ" : "すべて表示")
+                        Text(isExpanded ? "折りたたむ" : "すべて表示 (\(lines.count)行)")
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                     }
                     .font(.caption2)

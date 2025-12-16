@@ -166,6 +166,17 @@ final class ConversationController {
         turnCount = 0
     }
 
+    /// 実行中のエージェントを停止（会話履歴は保持）
+    func stopExecution() {
+        guard state.isRunning else { return }
+
+        runningTask?.cancel()
+        runningTask = nil
+        state = .idle
+        addStep(.init(type: .event, content: "実行を停止しました"))
+        addEvent("ユーザーにより実行が停止されました")
+    }
+
     // MARK: - Run Methods
 
     /// リサーチレポートを生成

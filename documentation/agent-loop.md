@@ -87,12 +87,12 @@ let agentStream: some AgentStepStream<WeatherReport> = client.runAgent(
 
 for try await step in agentStream {
     switch step {
-    case .thinking(let response):
+    case .thinking:
         print("💭 思考中...")
-    case .toolCall(let info):
-        print("🔧 ツール呼び出し: \(info.name)")
-    case .toolResult(let info):
-        print("📤 結果: \(info.content)")
+    case .toolCall(let call):
+        print("🔧 ツール呼び出し: \(call.name)")
+    case .toolResult(let result):
+        print("📤 結果: \(result.output)")
     case .finalResponse(let report):
         print("✅ 完了: \(report.location) - \(report.temperature)°\(report.unit)")
     }
@@ -106,30 +106,27 @@ for try await step in agentStream {
 | ケース | 説明 |
 |--------|------|
 | `.thinking(LLMResponse)` | LLM の思考プロセス |
-| `.toolCall(ToolCallInfo)` | ツール呼び出し要求 |
-| `.toolResult(ToolResultInfo)` | ツール実行結果 |
+| `.toolCall(ToolCall)` | ツール呼び出し要求 |
+| `.toolResult(ToolResponse)` | ツール実行結果 |
 | `.finalResponse(Output)` | 最終的な構造化出力 |
 
-### ToolCallInfo
+### ToolCall
 
 ```swift
-case .toolCall(let info):
-    info.id       // ツール呼び出しID
-    info.name     // ツール名
-    info.input    // 引数（Data）
-
-    // 引数をデコード
-    let args = try info.decodeInput(as: MyArgs.self)
+case .toolCall(let call):
+    call.id
+    call.name
+    call.arguments
 ```
 
-### ToolResultInfo
+### ToolResponse
 
 ```swift
-case .toolResult(let info):
-    info.toolCallId  // 対応するツール呼び出しID
-    info.name        // ツール名
-    info.content     // 実行結果（文字列）
-    info.isError     // エラーかどうか
+case .toolResult(let result):
+    result.callId
+    result.name
+    result.output
+    result.isError
 ```
 
 ## AgentConfiguration

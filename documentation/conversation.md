@@ -284,5 +284,6 @@ let result: Summary = try await client.chat(
 ## 次のステップ
 
 - [ツールコール](tool-calling.md) で LLM に外部関数を呼び出させる
+- [エージェントループ](agent-loop.md) でツール自動実行と構造化出力を確認
+- [会話型エージェント](conversational-agent.md) でマルチターン対応のエージェントを確認
 - [プロバイダー](providers.md) でプロバイダー固有の詳細を確認
-- [はじめに](getting-started.md) で基本的なセットアップを確認

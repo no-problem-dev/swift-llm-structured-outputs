@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import MarkdownUI
 
 /// 会話画面
 ///
@@ -16,6 +17,14 @@ struct ConversationView: View {
     @State private var interruptText = ""
     @State private var showEventLog = false
     @State private var showClearConfirmation = false
+    @State private var showResultSheet = false
+
+    private var currentResult: String? {
+        if case .completed(let result) = controller.state {
+            return result
+        }
+        return nil
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,12 +39,20 @@ struct ConversationView: View {
         .navigationTitle("会話エージェント")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button {
-                    showClearConfirmation = true
-                } label: {
-                    Image(systemName: "arrow.counterclockwise")
+                if controller.state.isRunning {
+                    Button {
+                        controller.stopExecution()
+                    } label: {
+                        Image(systemName: "stop.fill")
+                    }
+                    .tint(.red)
+                } else {
+                    Button {
+                        showClearConfirmation = true
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise")
+                    }
                 }
-                .disabled(controller.state.isRunning)
             }
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: 12) {
@@ -84,6 +101,33 @@ struct ConversationView: View {
                     }
             }
         }
+        .sheet(isPresented: $showResultSheet) {
+            NavigationStack {
+                ScrollView {
+                    if let result = currentResult {
+                        Markdown(result)
+                            .markdownTheme(.gitHub)
+                            .padding()
+                    }
+                }
+                .navigationTitle("リサーチ結果")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("閉じる") {
+                            showResultSheet = false
+                        }
+                    }
+                    ToolbarItem(placement: .cancellationAction) {
+                        if let result = currentResult {
+                            ShareLink(item: result) {
+                                Image(systemName: "square.and.arrow.up")
+                            }
+                        }
+                    }
+                }
+            }
+        }
         .onAppear {
             controller.createSessionIfNeeded()
         }
@@ -127,7 +171,8 @@ struct ConversationView: View {
                 // ステップリスト
                 StepListView(
                     steps: controller.steps,
-                    isLoading: controller.state.isRunning
+                    isLoading: controller.state.isRunning,
+                    onResultTap: currentResult != nil ? { showResultSheet = true } : nil
                 )
             }
             .padding(.vertical)

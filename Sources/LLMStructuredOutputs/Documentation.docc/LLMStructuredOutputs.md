@@ -50,6 +50,7 @@ let user: UserInfo = try await client.generate(
 - <doc:Conversations>
 - <doc:AgentLoop>
 - <doc:AgentLoopInternals>
+- <doc:ConversationalAgent>
 - <doc:ExampleApp>
 
 ### マクロ
@@ -106,6 +107,15 @@ let user: UserInfo = try await client.generate(
 - ``AgentError``
 - ``ToolCall``
 - ``ToolResponse``
+
+### 会話型エージェント
+
+- ``ConversationalAgentSession``
+- ``ConversationalAgentSessionProtocol``
+- ``ConversationalAgentStep``
+- ``ConversationalAgentStepStream``
+- ``ConversationalAgentEvent``
+- ``ConversationalAgentError``
 
 ### エラー
 
