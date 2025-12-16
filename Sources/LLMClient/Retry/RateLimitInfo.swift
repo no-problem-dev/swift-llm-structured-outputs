@@ -2,11 +2,11 @@ import Foundation
 
 // MARK: - RateLimitInfo
 
-/// レート制限情報（内部実装）
+/// レート制限情報
 ///
 /// HTTPレスポンスヘッダーから抽出されたレート制限に関する情報を保持します。
-/// プロバイダー固有のヘッダー形式を統一的に扱うための内部型です。
-internal struct RateLimitInfo: Sendable {
+/// プロバイダー固有のヘッダー形式を統一的に扱います。
+package struct RateLimitInfo: Sendable {
     /// retry-after ヘッダーの値（秒）
     ///
     /// APIが明示的に指定したリトライまでの待機時間。
@@ -57,11 +57,11 @@ internal struct RateLimitInfo: Sendable {
 
 // MARK: - RateLimitInfoExtractable Protocol
 
-/// レート制限情報をHTTPレスポンスから抽出するプロトコル（内部実装）
+/// レート制限情報をHTTPレスポンスから抽出するプロトコル
 ///
 /// 各プロバイダーはこのプロトコルに準拠し、
 /// プロバイダー固有のヘッダー形式から `RateLimitInfo` を抽出します。
-internal protocol RateLimitInfoExtractable {
+package protocol RateLimitInfoExtractable {
     /// HTTPレスポンスからレート制限情報を抽出
     ///
     /// - Parameter response: HTTPレスポンス
@@ -79,8 +79,8 @@ internal protocol RateLimitInfoExtractable {
 /// - `x-ratelimit-remaining-tokens`: 残りトークン数
 /// - `x-ratelimit-reset-tokens`: トークンリセット時間
 /// - `retry-after`: リトライ待機秒数（429エラー時）
-internal enum OpenAIRateLimitExtractor: RateLimitInfoExtractable {
-    static func extractRateLimitInfo(from response: HTTPURLResponse) -> RateLimitInfo {
+package enum OpenAIRateLimitExtractor: RateLimitInfoExtractable {
+    package static func extractRateLimitInfo(from response: HTTPURLResponse) -> RateLimitInfo {
         // retry-after（秒数）
         let retryAfter: TimeInterval? = response
             .value(forHTTPHeaderField: "retry-after")
@@ -149,8 +149,8 @@ internal enum OpenAIRateLimitExtractor: RateLimitInfoExtractable {
 /// - `anthropic-ratelimit-tokens-remaining`: 残りトークン数
 /// - `anthropic-ratelimit-tokens-reset`: トークンリセット時刻
 /// - `retry-after`: リトライ待機秒数（429エラー時）
-internal enum AnthropicRateLimitExtractor: RateLimitInfoExtractable {
-    static func extractRateLimitInfo(from response: HTTPURLResponse) -> RateLimitInfo {
+package enum AnthropicRateLimitExtractor: RateLimitInfoExtractable {
+    package static func extractRateLimitInfo(from response: HTTPURLResponse) -> RateLimitInfo {
         // retry-after（秒数）
         let retryAfter: TimeInterval? = response
             .value(forHTTPHeaderField: "retry-after")
@@ -213,8 +213,8 @@ internal enum AnthropicRateLimitExtractor: RateLimitInfoExtractable {
 ///
 /// Gemini APIは標準的なHTTPヘッダーを使用します：
 /// - `retry-after`: リトライ待機秒数（429エラー時）
-internal enum GeminiRateLimitExtractor: RateLimitInfoExtractable {
-    static func extractRateLimitInfo(from response: HTTPURLResponse) -> RateLimitInfo {
+package enum GeminiRateLimitExtractor: RateLimitInfoExtractable {
+    package static func extractRateLimitInfo(from response: HTTPURLResponse) -> RateLimitInfo {
         // retry-after（秒数）
         let retryAfter: TimeInterval? = response
             .value(forHTTPHeaderField: "retry-after")

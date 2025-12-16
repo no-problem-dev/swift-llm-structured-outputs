@@ -3,6 +3,35 @@ import LLMClient
 import LLMTool
 import LLMAgent
 
+// MARK: - LoopPhase
+
+/// 会話エージェントループのフェーズ
+private enum LoopPhase: Sendable {
+    /// ツール使用フェーズ
+    ///
+    /// LLM はツールを呼び出すか、テキスト応答を返すことができます。
+    case toolUse
+
+    /// 最終出力フェーズ
+    ///
+    /// ツール呼び出しが完了し、構造化出力を要求するフェーズです。
+    /// リトライ回数を追跡します。
+    case finalOutput(retryCount: Int)
+}
+
+// MARK: - FinalOutputConstants
+
+/// 最終出力フェーズの定数
+private enum FinalOutputConstants {
+    /// 最終出力デコードの最大リトライ回数
+    static let maxDecodeRetries: Int = 2
+
+    /// 最終出力要求メッセージ
+    ///
+    /// 構造化出力を要求するためのユーザーメッセージです。
+    static let requestMessage = "Please provide your final response in the required JSON format."
+}
+
 // MARK: - ConversationalAgentSession
 
 /// `ConversationalAgentSessionProtocol` の標準実装
@@ -127,13 +156,14 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
 
         var step = 0
         let maxSteps = configuration.maxSteps
+        var phase: LoopPhase = .toolUse
 
         do {
             while step < maxSteps {
                 step += 1
 
-                // 割り込みチェックポイント
-                if !interruptQueue.isEmpty {
+                // 割り込みチェックポイント（toolUse フェーズのみ）
+                if case .toolUse = phase, !interruptQueue.isEmpty {
                     for interruptMsg in interruptQueue {
                         let msg = LLMMessage.user(interruptMsg)
                         messages.append(msg)
@@ -144,17 +174,32 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
                     interruptQueue.removeAll()
                 }
 
-                // LLM 呼び出し
+                // フェーズに応じて LLM 呼び出し
                 let response: LLMResponse
                 do {
-                    response = try await client.executeAgentStep(
-                        messages: messages,
-                        model: model,
-                        systemPrompt: systemPrompt,
-                        tools: tools,
-                        toolChoice: tools.isEmpty ? nil : .auto,
-                        responseSchema: nil
-                    )
+                    switch phase {
+                    case .toolUse:
+                        // ツール使用フェーズ: ツール有効、構造化出力なし
+                        response = try await client.executeAgentStep(
+                            messages: messages,
+                            model: model,
+                            systemPrompt: systemPrompt,
+                            tools: tools,
+                            toolChoice: tools.isEmpty ? nil : .auto,
+                            responseSchema: nil
+                        )
+
+                    case .finalOutput:
+                        // 最終出力フェーズ: ツール無効、構造化出力要求
+                        response = try await client.executeAgentStep(
+                            messages: messages,
+                            model: model,
+                            systemPrompt: systemPrompt,
+                            tools: ToolSet {},
+                            toolChoice: nil,
+                            responseSchema: Output.jsonSchema
+                        )
+                    }
                 } catch let error as LLMError {
                     throw ConversationalAgentError.llmError(error)
                 }
@@ -162,39 +207,74 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
                 addAssistantResponse(response)
                 continuation.yield(.thinking(response))
 
-                let toolCalls = extractToolCalls(from: response)
+                // フェーズに応じた処理
+                switch phase {
+                case .toolUse:
+                    let toolCalls = extractToolCalls(from: response)
 
-                if toolCalls.isEmpty {
-                    if let output = try? decodeOutput(response, as: Output.self) {
-                        let assistantText = String(describing: output)
-                        let assistantMsg = LLMMessage(role: .assistant, content: assistantText)
+                    if toolCalls.isEmpty {
+                        // ツール呼び出しがない → 最終出力フェーズへ移行
+                        if !tools.isEmpty {
+                            // ツールがある場合は finalOutput フェーズへ移行
+                            phase = .finalOutput(retryCount: 0)
+                            addFinalOutputRequest()
+                            // ループ継続（次のイテレーションで finalOutput フェーズの処理）
+                            continue
+                        } else {
+                            // ツールがない場合は直接デコードを試行
+                            if let output = try? decodeOutput(response, as: Output.self) {
+                                let assistantMsg = LLMMessage(role: .assistant, content: String(describing: output))
+                                eventContinuation.yield(.assistantMessage(assistantMsg))
+                                continuation.yield(.finalResponse(output))
+                                continuation.finish()
+                                return
+                            } else {
+                                let text = extractTextContent(from: response)
+                                continuation.yield(.textResponse(text))
+                                continuation.finish()
+                                return
+                            }
+                        }
+                    }
+
+                    // ツール呼び出しがある場合
+                    if configuration.autoExecuteTools {
+                        var toolResults: [ToolResponse] = []
+
+                        for call in toolCalls {
+                            continuation.yield(.toolCall(call))
+
+                            let result = await executeToolSafely(call)
+                            toolResults.append(result)
+                            continuation.yield(.toolResult(result))
+                        }
+
+                        addToolResults(toolResults)
+                    } else {
+                        continuation.finish()
+                        return
+                    }
+
+                case .finalOutput(let retryCount):
+                    // 構造化出力のデコードを試行
+                    do {
+                        let output = try decodeOutput(response, as: Output.self)
+                        let assistantMsg = LLMMessage(role: .assistant, content: String(describing: output))
                         eventContinuation.yield(.assistantMessage(assistantMsg))
                         continuation.yield(.finalResponse(output))
                         continuation.finish()
                         return
-                    } else {
-                        let text = extractTextContent(from: response)
-                        continuation.yield(.textResponse(text))
-                        continuation.finish()
-                        return
+                    } catch {
+                        // デコード失敗 → リトライ
+                        let newRetryCount = retryCount + 1
+                        if newRetryCount >= FinalOutputConstants.maxDecodeRetries {
+                            throw ConversationalAgentError.outputDecodingFailed(error)
+                        }
+                        phase = .finalOutput(retryCount: newRetryCount)
+                        addFinalOutputRequest()
+                        // ループ継続（リトライ）
+                        continue
                     }
-                }
-
-                if configuration.autoExecuteTools {
-                    var toolResults: [ToolResponse] = []
-
-                    for call in toolCalls {
-                        continuation.yield(.toolCall(call))
-
-                        let result = await executeToolSafely(call)
-                        toolResults.append(result)
-                        continuation.yield(.toolResult(result))
-                    }
-
-                    addToolResults(toolResults)
-                } else {
-                    continuation.finish()
-                    return
                 }
             }
 
@@ -298,5 +378,13 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
             if case .text(let value) = block { return value }
             return nil
         }.joined()
+    }
+
+    // MARK: - Final Output Helpers
+
+    /// 最終出力要求メッセージを追加
+    private func addFinalOutputRequest() {
+        let message = LLMMessage.user(FinalOutputConstants.requestMessage)
+        messages.append(message)
     }
 }

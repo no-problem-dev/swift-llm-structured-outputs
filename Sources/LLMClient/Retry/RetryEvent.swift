@@ -39,6 +39,14 @@ public struct RetryEvent: Sendable {
     public var remainingRetries: Int {
         max(0, maxRetries - attempt)
     }
+
+    /// イニシャライザ
+    package init(attempt: Int, maxRetries: Int, error: LLMError, delaySeconds: TimeInterval) {
+        self.attempt = attempt
+        self.maxRetries = maxRetries
+        self.error = error
+        self.delaySeconds = delaySeconds
+    }
 }
 
 // MARK: - RetryEventHandler
@@ -170,10 +178,10 @@ public struct RetryConfiguration: Sendable {
         )
     }
 
-    // MARK: - Internal Conversion
+    // MARK: - Policy Conversion
 
-    /// 内部リトライポリシーに変換
-    internal var policy: any RetryPolicy {
+    /// リトライポリシーに変換
+    package var policy: any RetryPolicy {
         guard isEnabled else {
             return NoRetryPolicy.shared
         }

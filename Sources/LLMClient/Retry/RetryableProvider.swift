@@ -139,17 +139,24 @@ internal struct RetryableProvider<ExtractorType: RateLimitInfoExtractable>: LLMP
 
 // MARK: - RateLimitAwareError
 
-/// レート制限情報付きエラー（内部実装）
+/// レート制限情報付きエラー
 ///
 /// HTTPレスポンスヘッダーから抽出したレート制限情報を保持するエラー型です。
-/// プロバイダーからリトライプロバイダーへの情報伝達に使用されます。
-internal struct RateLimitAwareError: Error, Sendable {
+/// リトライ処理で待機時間の計算に使用されます。
+package struct RateLimitAwareError: Error, Sendable {
     /// 基底の LLMError
-    let underlyingError: LLMError
+    package let underlyingError: LLMError
 
     /// レート制限情報
-    let rateLimitInfo: RateLimitInfo
+    package let rateLimitInfo: RateLimitInfo
 
     /// HTTPステータスコード
-    let statusCode: Int
+    package let statusCode: Int
+
+    /// イニシャライザ
+    package init(underlyingError: LLMError, rateLimitInfo: RateLimitInfo, statusCode: Int) {
+        self.underlyingError = underlyingError
+        self.rateLimitInfo = rateLimitInfo
+        self.statusCode = statusCode
+    }
 }
