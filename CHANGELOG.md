@@ -7,6 +7,34 @@
 
 ## [未リリース]
 
+## [1.0.14] - 2025-12-16
+
+### 追加
+
+- **ConversationalAgentSession API**: 会話エージェントのセッション管理機能を追加
+  - マルチターン会話でのエージェント実行をサポート
+  - セッションベースの状態管理
+  - サンプルアプリ（ConversationAgentExample）を追加
+
+- **ConversationalAgent ドキュメント**: 会話エージェント機能の包括的なドキュメントを追加
+
+### 変更
+
+- **エージェント機能のリトライ対応と構造化出力フェーズ管理**: エージェントループの信頼性を向上
+  - リトライ機能の強化
+  - 構造化出力フェーズの管理を改善
+
+- **モジュール分離によるパッケージ構成の最適化**: SPMパッケージ構造を改善
+  - モジュール間の依存関係を整理
+  - ビルド時間とコード保守性を向上
+
+- **API 名修正**: より直感的な命名への改善
+
+### 修正
+
+- **マルチターン会話でステップ履歴を保持するように修正**: 会話継続時のコンテキスト保持問題を解決
+  - 複数ターンにわたる会話で履歴が正しく維持されるように修正
+
 ## [1.0.13] - 2025-12-15
 
 ### 追加
@@ -304,7 +332,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.13...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.14...HEAD
+[1.0.14]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.13...v1.0.14
 [1.0.13]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.12...v1.0.13
 [1.0.12]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.11...v1.0.12
 [1.0.11]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.10...v1.0.11
