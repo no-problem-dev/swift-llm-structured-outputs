@@ -14,6 +14,7 @@
 - **型安全な構造化出力** - LLM の応答を Swift 構造体として取得
 - **マルチターン会話** - コンテキストを保持した継続的な対話
 - **3大プロバイダー対応** - Claude、GPT、Gemini を統一 API で利用
+- **高レベルツールキット** - プリセット、組み込みツール、共通出力構造体（LLMToolkits）
 
 ## 特徴
 
@@ -172,6 +173,40 @@ let followUp: some ConversationalAgentStepStream<ResearchResult> = session.run(
 
 詳細は[エージェントループガイド](documentation/agent-loop.md)、[会話型エージェントガイド](documentation/conversational-agent.md)を参照してください。
 
+### LLMToolkits（高レベルツールキット）
+
+`LLMToolkits` モジュールを使用すると、事前構成されたプリセットと組み込みツールでエージェント開発を加速できます：
+
+```swift
+import LLMToolkits
+import LLMStructuredOutputs
+
+// プリセットを使用したエージェント実行
+let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
+    prompt: "市場トレンドを分析してください",
+    model: .sonnet,
+    tools: ResearcherPreset.defaultTools,
+    systemPrompt: ResearcherPreset.systemPrompt,
+    configuration: ResearcherPreset.configuration
+)
+
+for try await step in stream {
+    switch step {
+    case .toolCall(let call): print("🔧 \(call.name)")
+    case .finalResponse(let result): print("✅ \(result.summary)")
+    default: break
+    }
+}
+```
+
+LLMToolkits には以下が含まれます：
+- **システムプロンプト** - 目的別に最適化済み（Researcher, DataAnalyst, CodingAssistant など）
+- **組み込みツール** - Calculator, DateTime, TextAnalysis
+- **共通出力構造体** - AnalysisResult, Summary, TaskPlan など
+- **エージェントプリセット** - プロンプト + ツール + 設定を組み合わせた即座に使える構成
+
+詳細は [LLMToolkits APIリファレンス](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/) を参照してください。
+
 ## インストール
 
 ```swift
@@ -183,7 +218,9 @@ dependencies: [
 .target(
     name: "YourApp",
     dependencies: [
-        .product(name: "LLMStructuredOutputs", package: "swift-llm-structured-outputs")
+        .product(name: "LLMStructuredOutputs", package: "swift-llm-structured-outputs"),
+        // オプション: 高レベルツールキットを使用する場合
+        .product(name: "LLMToolkits", package: "swift-llm-structured-outputs")
     ]
 )
 ```
@@ -205,6 +242,7 @@ dependencies: [
 ### 📚 APIリファレンス（DocC）
 
 - [LLMStructuredOutputs](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) - 型安全な構造化出力 API
+- [LLMToolkits](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/) - 高レベルツールキット（プリセット、組み込みツール、共通出力）
 
 ## 対応プロバイダー
 
