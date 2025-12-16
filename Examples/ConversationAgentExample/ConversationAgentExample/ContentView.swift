@@ -12,7 +12,7 @@ struct ContentView: View {
     @State private var navigationPath = NavigationPath()
 
     var body: some View {
-        TabView(selecti そしたら新規ブランチを立てて、一旦コミット・プッシュしてほしい。 on: $selectedTab) {
+        TabView(selection: $selectedTab) {
             NavigationStack(path: $navigationPath) {
                 SessionListView(
                     viewModel: sessionListViewModel,

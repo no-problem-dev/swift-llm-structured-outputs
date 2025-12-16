@@ -1,7 +1,7 @@
 import Foundation
 import LLMClient
 
-// MARK: - ToolCapableClient Protocol
+// MARK: - ToolCallableClient Protocol
 
 /// ツールコール機能を持つ LLM クライアントのプロトコル
 ///
@@ -25,7 +25,7 @@ import LLMClient
 /// }
 ///
 /// let tools = ToolSet {
-///     GetWeather.self
+///     GetWeather()
 /// }
 ///
 /// let response = try await client.planToolCalls(
@@ -34,7 +34,7 @@ import LLMClient
 ///     tools: tools
 /// )
 /// ```
-public protocol ToolCapableClient: StructuredLLMClient {
+public protocol ToolCallableClient: StructuredLLMClient {
     /// ツール呼び出しを計画する（単一プロンプト）
     ///
     /// LLM にツールを提供し、どのツールをどの引数で呼び出すべきかを判断させます。
@@ -83,7 +83,7 @@ public protocol ToolCapableClient: StructuredLLMClient {
 
 // MARK: - Default Implementations
 
-extension ToolCapableClient {
+extension ToolCallableClient {
     /// 単一プロンプトから会話履歴形式に変換するデフォルト実装
     public func planToolCalls(
         prompt: String,

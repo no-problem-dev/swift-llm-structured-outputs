@@ -23,8 +23,8 @@ import LLMStructuredOutputs
 let client = AnthropicClient(apiKey: "sk-ant-...")
 
 let tools = ToolSet {
-    WebSearchTool.self
-    FetchPageTool.self
+    WebSearchTool()
+    FetchPageTool()
 }
 
 let session = ConversationalAgentSession(
@@ -147,9 +147,9 @@ let session = ConversationalAgentSession(
         PromptComponent.instruction("情報が不足している場合は、ask_user ツールでユーザーに質問してください")
     },
     tools: ToolSet {
-        WebSearchTool.self
-        FetchWebPageTool.self
-        AskUserTool.self  // ← これを追加
+        WebSearchTool()
+        FetchWebPageTool()
+        AskUserTool()  // ← これを追加
     }
 )
 

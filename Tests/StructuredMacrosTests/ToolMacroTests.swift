@@ -47,31 +47,41 @@ final class ToolMacroTests: XCTestCase {
                 @Structured
                 public struct Arguments {
                     @StructuredField("都市名")
-                    public var location: String
+                    public var location: String = ""
                 }
 
                 public static var inputSchema: JSONSchema {
                     Arguments.jsonSchema
                 }
 
-                public let arguments: Arguments
+                public var arguments: Arguments
+
+                public init() {
+                    // ToolSet 登録時のデフォルト初期化
+                    // 実際の引数は execute(with:) で設定される
+                    self.location = ""
+                    // arguments は execute 時に設定されるため、空の Arguments で初期化
+                    self.arguments = Arguments()
+                }
 
                 public init(arguments: Arguments) {
                     self.arguments = arguments
                     self.location = arguments.location
                 }
 
-                public static func execute(with argumentsData: Data) async throws -> ToolResult {
+                public func execute(with argumentsData: Data) async throws -> ToolResult {
                     let decoder = JSONDecoder()
                     decoder.keyDecodingStrategy = .convertFromSnakeCase
                     let args = try decoder.decode(Arguments.self, from: argumentsData)
-                    let tool = GetWeather(arguments: args)
-                    let result = try await tool.call()
+                    var copy = self
+                    copy.arguments = args
+                    copy.location = args.location
+                    let result = try await copy.call()
                     return try result.toToolResult()
                 }
             }
 
-            extension GetWeather: LLMTool, LLMToolRegistrable, Sendable {
+            extension GetWeather: Tool, Sendable {
             }
             """,
             macros: toolTestMacros
@@ -110,31 +120,41 @@ final class ToolMacroTests: XCTestCase {
                 @Structured
                 public struct Arguments {
                     @StructuredField("計算式")
-                    public var expression: String
+                    public var expression: String = ""
                 }
 
                 public static var inputSchema: JSONSchema {
                     Arguments.jsonSchema
                 }
 
-                public let arguments: Arguments
+                public var arguments: Arguments
+
+                public init() {
+                    // ToolSet 登録時のデフォルト初期化
+                    // 実際の引数は execute(with:) で設定される
+                    self.expression = ""
+                    // arguments は execute 時に設定されるため、空の Arguments で初期化
+                    self.arguments = Arguments()
+                }
 
                 public init(arguments: Arguments) {
                     self.arguments = arguments
                     self.expression = arguments.expression
                 }
 
-                public static func execute(with argumentsData: Data) async throws -> ToolResult {
+                public func execute(with argumentsData: Data) async throws -> ToolResult {
                     let decoder = JSONDecoder()
                     decoder.keyDecodingStrategy = .convertFromSnakeCase
                     let args = try decoder.decode(Arguments.self, from: argumentsData)
-                    let tool = CalculatorTool(arguments: args)
-                    let result = try await tool.call()
+                    var copy = self
+                    copy.arguments = args
+                    copy.expression = args.expression
+                    let result = try await copy.call()
                     return try result.toToolResult()
                 }
             }
 
-            extension CalculatorTool: LLMTool, LLMToolRegistrable, Sendable {
+            extension CalculatorTool: Tool, Sendable {
             }
             """,
             macros: toolTestMacros
@@ -173,23 +193,19 @@ final class ToolMacroTests: XCTestCase {
                     Arguments.jsonSchema
                 }
 
-                public let arguments: Arguments
+                public var arguments: Arguments
 
                 public init(arguments: Arguments = EmptyArguments()) {
                     self.arguments = arguments
                 }
 
-                public static func execute(with argumentsData: Data) async throws -> ToolResult {
-                    let decoder = JSONDecoder()
-                    decoder.keyDecodingStrategy = .convertFromSnakeCase
-                    let args = try decoder.decode(Arguments.self, from: argumentsData)
-                    let tool = GetCurrentTime(arguments: args)
-                    let result = try await tool.call()
+                public func execute(with argumentsData: Data) async throws -> ToolResult {
+                    let result = try await self.call()
                     return try result.toToolResult()
                 }
             }
 
-            extension GetCurrentTime: LLMTool, LLMToolRegistrable, Sendable {
+            extension GetCurrentTime: Tool, Sendable {
             }
             """,
             macros: toolTestMacros
@@ -238,18 +254,28 @@ final class ToolMacroTests: XCTestCase {
                 @Structured
                 public struct Arguments {
                     @StructuredField("検索キーワード")
-                    public var query: String
+                    public var query: String = ""
                     @StructuredField("最大件数")
-                    public var limit: Int
+                    public var limit: Int = 0
                     @StructuredField("カテゴリ")
-                    public var category: String?
+                    public var category: String? = nil
                 }
 
                 public static var inputSchema: JSONSchema {
                     Arguments.jsonSchema
                 }
 
-                public let arguments: Arguments
+                public var arguments: Arguments
+
+                public init() {
+                    // ToolSet 登録時のデフォルト初期化
+                    // 実際の引数は execute(with:) で設定される
+                    self.query = ""
+                    self.limit = 0
+                    self.category = nil
+                    // arguments は execute 時に設定されるため、空の Arguments で初期化
+                    self.arguments = Arguments()
+                }
 
                 public init(arguments: Arguments) {
                     self.arguments = arguments
@@ -258,17 +284,21 @@ final class ToolMacroTests: XCTestCase {
                     self.category = arguments.category
                 }
 
-                public static func execute(with argumentsData: Data) async throws -> ToolResult {
+                public func execute(with argumentsData: Data) async throws -> ToolResult {
                     let decoder = JSONDecoder()
                     decoder.keyDecodingStrategy = .convertFromSnakeCase
                     let args = try decoder.decode(Arguments.self, from: argumentsData)
-                    let tool = SearchProducts(arguments: args)
-                    let result = try await tool.call()
+                    var copy = self
+                    copy.arguments = args
+                    copy.query = args.query
+                    copy.limit = args.limit
+                    copy.category = args.category
+                    let result = try await copy.call()
                     return try result.toToolResult()
                 }
             }
 
-            extension SearchProducts: LLMTool, LLMToolRegistrable, Sendable {
+            extension SearchProducts: Tool, Sendable {
             }
             """,
             macros: toolTestMacros
@@ -309,31 +339,41 @@ final class ToolMacroTests: XCTestCase {
                 @Structured
                 public struct Arguments {
                     @StructuredField("ユーザーID")
-                    public var userId: String
+                    public var userId: String = ""
                 }
 
                 public static var inputSchema: JSONSchema {
                     Arguments.jsonSchema
                 }
 
-                public let arguments: Arguments
+                public var arguments: Arguments
+
+                public init() {
+                    // ToolSet 登録時のデフォルト初期化
+                    // 実際の引数は execute(with:) で設定される
+                    self.userId = ""
+                    // arguments は execute 時に設定されるため、空の Arguments で初期化
+                    self.arguments = Arguments()
+                }
 
                 public init(arguments: Arguments) {
                     self.arguments = arguments
                     self.userId = arguments.userId
                 }
 
-                public static func execute(with argumentsData: Data) async throws -> ToolResult {
+                public func execute(with argumentsData: Data) async throws -> ToolResult {
                     let decoder = JSONDecoder()
                     decoder.keyDecodingStrategy = .convertFromSnakeCase
                     let args = try decoder.decode(Arguments.self, from: argumentsData)
-                    let tool = GetUserData(arguments: args)
-                    let result = try await tool.call()
+                    var copy = self
+                    copy.arguments = args
+                    copy.userId = args.userId
+                    let result = try await copy.call()
                     return try result.toToolResult()
                 }
             }
 
-            extension GetUserData: LLMTool, LLMToolRegistrable, Sendable {
+            extension GetUserData: Tool, Sendable {
             }
             """,
             macros: toolTestMacros
@@ -404,31 +444,41 @@ final class ToolMacroTests: XCTestCase {
                 @Structured
                 public struct Arguments {
                     @StructuredField("ファイルパスのリスト")
-                    public var filePaths: [String]
+                    public var filePaths: [String] = []
                 }
 
                 public static var inputSchema: JSONSchema {
                     Arguments.jsonSchema
                 }
 
-                public let arguments: Arguments
+                public var arguments: Arguments
+
+                public init() {
+                    // ToolSet 登録時のデフォルト初期化
+                    // 実際の引数は execute(with:) で設定される
+                    self.filePaths = []
+                    // arguments は execute 時に設定されるため、空の Arguments で初期化
+                    self.arguments = Arguments()
+                }
 
                 public init(arguments: Arguments) {
                     self.arguments = arguments
                     self.filePaths = arguments.filePaths
                 }
 
-                public static func execute(with argumentsData: Data) async throws -> ToolResult {
+                public func execute(with argumentsData: Data) async throws -> ToolResult {
                     let decoder = JSONDecoder()
                     decoder.keyDecodingStrategy = .convertFromSnakeCase
                     let args = try decoder.decode(Arguments.self, from: argumentsData)
-                    let tool = ProcessFiles(arguments: args)
-                    let result = try await tool.call()
+                    var copy = self
+                    copy.arguments = args
+                    copy.filePaths = args.filePaths
+                    let result = try await copy.call()
                     return try result.toToolResult()
                 }
             }
 
-            extension ProcessFiles: LLMTool, LLMToolRegistrable, Sendable {
+            extension ProcessFiles: Tool, Sendable {
             }
             """,
             macros: toolTestMacros
@@ -481,20 +531,31 @@ final class ToolMacroTests: XCTestCase {
                 @Structured
                 public struct Arguments {
                     @StructuredField("検索クエリ")
-                    public var query: String
+                    public var query: String = ""
                     @StructuredField("検索結果の最大件数")
-                    public var maxResults: Int?
+                    public var maxResults: Int? = nil
                     @StructuredField("検索対象のドメイン")
-                    public var domains: [String]?
+                    public var domains: [String]? = nil
                     @StructuredField("安全検索を有効にするか")
-                    public var safeSearch: Bool
+                    public var safeSearch: Bool = false
                 }
 
                 public static var inputSchema: JSONSchema {
                     Arguments.jsonSchema
                 }
 
-                public let arguments: Arguments
+                public var arguments: Arguments
+
+                public init() {
+                    // ToolSet 登録時のデフォルト初期化
+                    // 実際の引数は execute(with:) で設定される
+                    self.query = ""
+                    self.maxResults = nil
+                    self.domains = nil
+                    self.safeSearch = false
+                    // arguments は execute 時に設定されるため、空の Arguments で初期化
+                    self.arguments = Arguments()
+                }
 
                 public init(arguments: Arguments) {
                     self.arguments = arguments
@@ -504,17 +565,22 @@ final class ToolMacroTests: XCTestCase {
                     self.safeSearch = arguments.safeSearch
                 }
 
-                public static func execute(with argumentsData: Data) async throws -> ToolResult {
+                public func execute(with argumentsData: Data) async throws -> ToolResult {
                     let decoder = JSONDecoder()
                     decoder.keyDecodingStrategy = .convertFromSnakeCase
                     let args = try decoder.decode(Arguments.self, from: argumentsData)
-                    let tool = WebSearchTool(arguments: args)
-                    let result = try await tool.call()
+                    var copy = self
+                    copy.arguments = args
+                    copy.query = args.query
+                    copy.maxResults = args.maxResults
+                    copy.domains = args.domains
+                    copy.safeSearch = args.safeSearch
+                    let result = try await copy.call()
                     return try result.toToolResult()
                 }
             }
 
-            extension WebSearchTool: LLMTool, LLMToolRegistrable, Sendable {
+            extension WebSearchTool: Tool, Sendable {
             }
             """,
             macros: toolTestMacros

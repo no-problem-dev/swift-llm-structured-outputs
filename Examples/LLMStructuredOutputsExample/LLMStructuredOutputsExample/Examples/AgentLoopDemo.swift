@@ -237,9 +237,9 @@ struct WeatherReport {
 enum AgentDemoToolSet {
     static var tools: ToolSet {
         ToolSet {
-            AgentGetWeatherTool.self
-            AgentCalculatorTool.self
-            AgentCurrentTimeTool.self
+            AgentGetWeatherTool()
+            AgentCalculatorTool()
+            AgentCurrentTimeTool()
         }
     }
 
@@ -674,8 +674,8 @@ private struct CodeExampleSection: View {
 
         // ツールセットを作成（複数ツール）
         let tools = ToolSet {
-            GetWeather.self
-            Calculator.self
+            GetWeather()
+            Calculator()
         }
 
         // エージェントループを実行

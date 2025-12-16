@@ -37,7 +37,7 @@ struct GetWeather {
 
 // 実行
 let client = AnthropicClient(apiKey: "...")
-let tools = ToolSet { GetWeather.self }
+let tools = ToolSet { GetWeather() }
 
 let stream: some AgentStepStream<WeatherReport> = client.runAgent(
     prompt: "東京の天気を調べてレポートを作成して",

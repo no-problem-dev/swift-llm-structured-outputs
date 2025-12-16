@@ -4,9 +4,9 @@ import LLMClient
 import FoundationNetworking
 #endif
 
-// MARK: - GeminiClient + ToolCapableClient
+// MARK: - GeminiClient + ToolCallableClient
 
-extension GeminiClient: ToolCapableClient {
+extension GeminiClient: ToolCallableClient {
     /// ツール呼び出しを計画する（会話履歴付き）
     ///
     /// Google Gemini API を使用してツール呼び出しを計画します。

@@ -75,25 +75,17 @@ final class ConversationViewModelImpl: ConversationViewModel {
 
         let client = AnthropicClient(apiKey: apiKey)
 
-        // インタラクティブモードに応じてツールセットを構築
-        let tools: ToolSet
-        if interactiveMode {
-            tools = ToolSet {
-                WebSearchTool.self
-                FetchWebPageTool.self
-                AskUserTool.self
-            }
-        } else {
-            tools = ToolSet {
-                WebSearchTool.self
-                FetchWebPageTool.self
-            }
+        // ツールセットを構築（interactiveMode は Session 側で AskUserTool を自動追加）
+        let tools = ToolSet {
+            WebSearchTool()
+            FetchWebPageTool()
         }
 
         session = ConversationalAgentSession(
             client: client,
             systemPrompt: selectedOutputType.buildPrompt(interactiveMode: interactiveMode),
-            tools: tools
+            tools: tools,
+            interactiveMode: interactiveMode
         )
 
         // イベント監視を開始

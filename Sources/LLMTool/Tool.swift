@@ -1,7 +1,7 @@
 import Foundation
 import LLMClient
 
-// MARK: - LLMTool Protocol
+// MARK: - Tool Protocol
 
 /// LLM が呼び出し可能なツールを定義するプロトコル
 ///
@@ -13,6 +13,9 @@ import LLMClient
 /// ```swift
 /// @Tool("指定された都市の天気を取得します")
 /// struct GetWeather {
+///     // 設定プロパティ（オプショナル）
+///     var apiKey: String?
+///
 ///     @ToolArgument("都市名")
 ///     var location: String
 ///
@@ -26,27 +29,16 @@ import LLMClient
 /// }
 /// ```
 ///
-/// ## 使用例（手動実装）
+/// ## ToolSet での使用
 ///
 /// ```swift
-/// struct GetWeather: LLMTool {
-///     static let toolName = "get_weather"
-///     static let toolDescription = "指定された都市の天気を取得します"
-///
-///     @Structured
-///     struct Arguments {
-///         @StructuredField("都市名")
-///         var location: String
-///     }
-///
-///     let arguments: Arguments
-///
-///     func call() async throws -> ToolResult {
-///         return .text("東京: 晴れ、25°C")
-///     }
+/// let tools = ToolSet {
+///     GetWeather(apiKey: "xxx")
+///     SearchWeb()
+///     Calculator()
 /// }
 /// ```
-public protocol LLMTool: Sendable {
+public protocol Tool: Sendable {
     /// ツールの識別子
     ///
     /// API で使用される名前です。
@@ -59,37 +51,30 @@ public protocol LLMTool: Sendable {
     /// 詳細に記述することで、適切なタイミングでツールが呼び出されやすくなります。
     static var toolDescription: String { get }
 
-    /// 引数の型
+    /// 引数の JSON Schema
     ///
-    /// `StructuredProtocol` に準拠した型で、ツールの入力パラメータを定義します。
-    /// `@Structured` マクロで定義された型、または `EmptyArguments` を使用します。
-    associatedtype Arguments: StructuredProtocol
-
-    /// 戻り値の型
-    ///
-    /// `ToolResultConvertible` に準拠した型です。
-    /// `String`, `Int`, `Bool`, `ToolResult` などが使用できます。
-    associatedtype Result: ToolResultConvertible
-
-    /// ツールに渡された引数
-    var arguments: Arguments { get }
+    /// ツールの入力パラメータを定義する JSON Schema です。
+    static var inputSchema: JSONSchema { get }
 
     /// ツールを実行
     ///
     /// LLM から呼び出された際に実行されるメソッドです。
+    /// インスタンスメソッドとして実装することで、設定プロパティにアクセスできます。
     ///
-    /// - Returns: ツールの実行結果（`ToolResultConvertible` に準拠した型）
-    /// - Throws: 実行中のエラー
-    func call() async throws -> Result
+    /// - Parameter argumentsData: 引数の JSON データ
+    /// - Returns: ツールの実行結果
+    /// - Throws: 引数のデコードエラーまたは実行エラー
+    func execute(with argumentsData: Data) async throws -> ToolResult
 }
 
-// MARK: - Default Implementations
+// MARK: - Tool Default Implementations
 
-extension LLMTool {
-    /// 引数の JSON Schema を取得
-    public static var argumentsSchema: JSONSchema {
-        Arguments.jsonSchema
-    }
+extension Tool {
+    /// ツール名への便利アクセス
+    public var name: String { Self.toolName }
+
+    /// ツールの説明への便利アクセス
+    public var description: String { Self.toolDescription }
 }
 
 // MARK: - EmptyArguments

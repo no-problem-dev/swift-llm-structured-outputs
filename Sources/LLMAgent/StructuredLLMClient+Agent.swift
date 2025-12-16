@@ -6,10 +6,10 @@ import LLMTool
 
 /// エージェントループをサポートするクライアントのプロトコル
 ///
-/// `ToolCapableClient` を拡張し、エージェントループの実装に必要な
+/// `ToolCallableClient` を拡張し、エージェントループの実装に必要な
 /// メソッドを提供します。各プロバイダーはこのプロトコルに適合することで
 /// エージェント機能を利用可能にします。
-public protocol AgentCapableClient: ToolCapableClient {
+public protocol AgentCapableClient: ToolCallableClient {
     /// エージェントステップを実行
     ///
     /// メッセージ履歴、ツール、オプションの構造化出力スキーマを含むリクエストを送信します。
@@ -54,7 +54,7 @@ extension AgentCapableClient {
     /// }
     ///
     /// let tools = ToolSet {
-    ///     GetWeather.self
+    ///     GetWeather()
     /// }
     ///
     /// @Structured("天気レポート")
