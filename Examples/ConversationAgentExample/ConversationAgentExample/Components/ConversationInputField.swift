@@ -24,8 +24,15 @@ struct ConversationInputField: View {
             }
 
             TextField(placeholder, text: $text, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1...3)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Color(.systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(.systemGray4), lineWidth: 1)
+                )
+                .lineLimit(1...5)
 
             Button(action: onSubmit) {
                 Image(systemName: iconName)
