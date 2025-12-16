@@ -1,10 +1,3 @@
-//
-//  ContentView.swift
-//  ConversationAgentExample
-//
-//  メインコンテンツビュー
-//
-
 import SwiftUI
 
 /// メインコンテンツビュー

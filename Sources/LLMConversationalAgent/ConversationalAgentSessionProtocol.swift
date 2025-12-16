@@ -269,6 +269,78 @@ public protocol ConversationalAgentSessionProtocol<Client>: Actor {
     /// - クリア後は `cleared` イベントが発行されます
     func clear() async
 
+    /// 実行中のセッションをキャンセル
+    ///
+    /// 実行中のエージェントループを強制的に停止し、セッション状態をリセットします。
+    /// 会話履歴は保持されます。
+    ///
+    /// ## 動作
+    ///
+    /// 1. 実行フラグ (`running`) を `false` にリセット
+    /// 2. 割り込みキューをクリア
+    /// 3. `sessionCancelled` イベントを発行
+    ///
+    /// ## 注意事項
+    ///
+    /// - キャンセル後も会話履歴は保持されます
+    /// - 次の `run()` 呼び出しは正常に開始できます
+    /// - 実行中でない場合は何もしません
+    ///
+    /// ## 使用例
+    ///
+    /// ```swift
+    /// // 停止ボタンが押されたとき
+    /// await session.cancel()
+    /// ```
+    func cancel() async
+
+    // MARK: - User Interaction API
+
+    /// ユーザーの回答を待っているかどうか
+    ///
+    /// `AskUserTool` が呼び出され、セッションがユーザーの回答を待っている場合に `true` を返します。
+    var waitingForAnswer: Bool { get async }
+
+    /// AI の質問に回答する
+    ///
+    /// `AskUserTool` が呼び出された後、ユーザーの回答を提供します。
+    /// 回答はツール結果として AI に渡され、一時停止していたストリームが自動的に再開されます。
+    ///
+    /// ## 動作
+    ///
+    /// 1. 回答をツール結果として記録
+    /// 2. `userAnswerProvided` イベントを発行
+    /// 3. 一時停止していたストリームが自動的に再開
+    ///
+    /// ## 注意事項
+    ///
+    /// - `waitingForAnswer` が `false` の場合、この呼び出しは無視されます
+    /// - 回答は AI にとってツール実行結果として扱われます
+    /// - ストリームは `finalResponse` まで継続します
+    ///
+    /// ## 使用例
+    ///
+    /// ```swift
+    /// for try await step in session.run("調査して", model: .sonnet) {
+    ///     switch step {
+    ///     case .askingUser(let question):
+    ///         print("❓ \(question)")
+    ///     case .awaitingUserInput:
+    ///         // ストリームは一時停止中 - ユーザー入力を取得して回答
+    ///         let answer = getUserInput()
+    ///         await session.reply(answer)
+    ///         // ストリームは自動的に再開される
+    ///     case .finalResponse(let output):
+    ///         print("✅ \(output)")
+    ///     default:
+    ///         break
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// - Parameter answer: ユーザーの回答
+    func reply(_ answer: String) async
+
     // MARK: - Core API
 
     /// ユーザーメッセージを送信してエージェントループを実行
@@ -376,4 +448,5 @@ extension ConversationalAgentSessionProtocol {
             stream: run(userMessage, model: model, outputType: Output.self)
         )
     }
+
 }

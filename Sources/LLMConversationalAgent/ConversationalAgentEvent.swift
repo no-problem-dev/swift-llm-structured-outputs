@@ -60,6 +60,17 @@ public enum ConversationalAgentEvent: Sendable {
     /// 会話履歴に追加された時に発生します。
     case interruptProcessed(String)
 
+    /// AI がユーザーに質問している
+    ///
+    /// `AskUserTool` が呼び出された時に発生します。
+    /// セッションは `provideAnswer()` が呼ばれるまで一時停止します。
+    case askingUser(String)
+
+    /// ユーザーが質問に回答した
+    ///
+    /// `provideAnswer()` が呼ばれた時に発生します。
+    case userAnswerProvided(String)
+
     /// セッションが開始された
     ///
     /// `run()` が呼ばれてエージェントループが開始された時に発生します。
@@ -69,6 +80,12 @@ public enum ConversationalAgentEvent: Sendable {
     ///
     /// エージェントループが正常に完了した時に発生します。
     case sessionCompleted
+
+    /// セッションがキャンセルされた
+    ///
+    /// `cancel()` が呼ばれてセッションがキャンセルされた時に発生します。
+    /// 会話履歴は保持されます。
+    case sessionCancelled
 
     /// 会話履歴がクリアされた
     ///
@@ -143,10 +160,16 @@ extension ConversationalAgentEvent: CustomStringConvertible {
             return "interruptQueued(\(message.prefix(30))...)"
         case .interruptProcessed(let message):
             return "interruptProcessed(\(message.prefix(30))...)"
+        case .askingUser(let question):
+            return "askingUser(\(question.prefix(30))...)"
+        case .userAnswerProvided(let answer):
+            return "userAnswerProvided(\(answer.prefix(30))...)"
         case .sessionStarted:
             return "sessionStarted"
         case .sessionCompleted:
             return "sessionCompleted"
+        case .sessionCancelled:
+            return "sessionCancelled"
         case .cleared:
             return "cleared"
         case .error(let error):

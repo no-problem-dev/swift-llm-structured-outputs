@@ -116,6 +116,7 @@ let user: UserInfo = try await client.generate(
 - ``ConversationalAgentStepStream``
 - ``ConversationalAgentEvent``
 - ``ConversationalAgentError``
+- ``AskUserTool``
 
 ### エラー
 
