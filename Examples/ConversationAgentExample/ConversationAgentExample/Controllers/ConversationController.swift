@@ -177,7 +177,6 @@ final class ConversationController {
         guard !state.isRunning else { return }
 
         state = .running
-        steps = []
 
         runningTask = Task {
             await executeRun(session: session, prompt: prompt, outputType: .research)
@@ -193,7 +192,6 @@ final class ConversationController {
         guard !state.isRunning else { return }
 
         state = .running
-        steps = []
 
         runningTask = Task {
             await executeRun(session: session, prompt: prompt, outputType: .summary)
@@ -209,7 +207,6 @@ final class ConversationController {
         guard !state.isRunning else { return }
 
         state = .running
-        steps = []
 
         runningTask = Task {
             await executeRun(session: session, prompt: prompt, outputType: .comparison)
