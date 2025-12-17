@@ -93,28 +93,41 @@ internal struct GeminiProvider: LLMProvider, RetryableProviderProtocol {
             contents.append(contentsOf: convertToGeminiContents(message))
         }
 
-        // システムインストラクション
-        var systemInstruction: GeminiContent?
-        if let systemPrompt = request.systemPrompt {
-            systemInstruction = GeminiContent(
-                role: "user",
-                parts: [GeminiPart(text: systemPrompt)]
-            )
-        }
-
         // 生成設定
         var generationConfig = GeminiGenerationConfig(
             maxOutputTokens: request.maxTokens ?? Self.defaultMaxTokens,
             temperature: request.temperature
         )
 
-        // 構造化出力の設定
+        // 構造化出力の設定と制約プロンプトの生成
+        var constraintPrompt: Prompt?
+
         if let schema = request.responseSchema {
-            // Gemini用にスキーマを適合
+            // Gemini用にスキーマを適合（制約追跡付き）
             // - additionalProperties を除去（一部APIバージョンで未サポート）
+            // - サポートされていない制約は PromptComponent.outputConstraint に変換
             let adapter = GeminiSchemaAdapter()
+            let adaptationResult = adapter.adaptWithConstraints(schema)
+
             generationConfig.responseMimeType = "application/json"
-            generationConfig.responseSchema = adapter.adapt(schema)
+            generationConfig.responseSchema = adaptationResult.schema
+
+            // 除去された制約を Prompt に変換（Prompt DSL を活用）
+            constraintPrompt = adaptationResult.toConstraintPrompt()
+        }
+
+        // システムインストラクションを構築（制約プロンプトを統合）
+        let effectiveSystemPrompt = buildEffectiveSystemPrompt(
+            base: request.systemPrompt,
+            constraints: constraintPrompt
+        )
+
+        var systemInstruction: GeminiContent?
+        if let systemPrompt = effectiveSystemPrompt {
+            systemInstruction = GeminiContent(
+                role: "user",
+                parts: [GeminiPart(text: systemPrompt)]
+            )
         }
 
         return GeminiRequestBody(
@@ -124,6 +137,29 @@ internal struct GeminiProvider: LLMProvider, RetryableProviderProtocol {
             tools: nil,
             toolConfig: nil
         )
+    }
+
+    /// システムプロンプトと制約プロンプトを統合
+    ///
+    /// - Parameters:
+    ///   - base: ベースのシステムプロンプト
+    ///   - constraints: 制約プロンプト（Prompt DSL）
+    /// - Returns: 統合されたシステムプロンプト
+    private func buildEffectiveSystemPrompt(base: String?, constraints: Prompt?) -> String? {
+        switch (base, constraints) {
+        case (let base?, let constraints?):
+            // 両方ある場合：ベース + 制約プロンプト
+            return "\(base)\n\n\(constraints.render())"
+        case (let base?, nil):
+            // ベースのみ
+            return base
+        case (nil, let constraints?):
+            // 制約のみ
+            return constraints.render()
+        case (nil, nil):
+            // どちらもない
+            return nil
+        }
     }
 
     /// HTTPリクエストを実行

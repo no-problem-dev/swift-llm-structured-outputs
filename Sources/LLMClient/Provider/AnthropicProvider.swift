@@ -101,24 +101,63 @@ internal struct AnthropicProvider: LLMProvider, RetryableProviderProtocol {
             convertToAnthropicMessage(message)
         }
 
-        // 構造化出力の設定（Anthropic APIでサポートされていない制約を除去）
+        // 構造化出力の設定と制約プロンプトの生成
         var outputFormat: AnthropicOutputFormat?
+        var constraintPrompt: Prompt?
+
         if let schema = request.responseSchema {
+            // Anthropic用にスキーマを適合（制約追跡付き）
+            // - サポートされていない制約を除去
+            // - 除去された制約は PromptComponent.outputConstraint に変換
             let adapter = AnthropicSchemaAdapter()
+            let adaptationResult = adapter.adaptWithConstraints(schema)
+
             outputFormat = AnthropicOutputFormat(
                 type: "json_schema",
-                schema: adapter.adapt(schema)
+                schema: adaptationResult.schema
             )
+
+            // 除去された制約を Prompt に変換（Prompt DSL を活用）
+            constraintPrompt = adaptationResult.toConstraintPrompt()
         }
+
+        // システムプロンプトを構築（制約プロンプトを統合）
+        let effectiveSystemPrompt = buildEffectiveSystemPrompt(
+            base: request.systemPrompt,
+            constraints: constraintPrompt
+        )
 
         return AnthropicRequestBody(
             model: request.model.id,
             messages: messages,
-            system: request.systemPrompt,
+            system: effectiveSystemPrompt,
             maxTokens: request.maxTokens ?? Self.defaultMaxTokens,
             temperature: request.temperature,
             outputFormat: outputFormat
         )
+    }
+
+    /// システムプロンプトと制約プロンプトを統合
+    ///
+    /// - Parameters:
+    ///   - base: ベースのシステムプロンプト
+    ///   - constraints: 制約プロンプト（Prompt DSL）
+    /// - Returns: 統合されたシステムプロンプト
+    private func buildEffectiveSystemPrompt(base: String?, constraints: Prompt?) -> String? {
+        switch (base, constraints) {
+        case (let base?, let constraints?):
+            // 両方ある場合：ベース + 制約プロンプト
+            return "\(base)\n\n\(constraints.render())"
+        case (let base?, nil):
+            // ベースのみ
+            return base
+        case (nil, let constraints?):
+            // 制約のみ
+            return constraints.render()
+        case (nil, nil):
+            // どちらもない
+            return nil
+        }
     }
 
     /// LLMMessage を Anthropic メッセージ形式に変換
