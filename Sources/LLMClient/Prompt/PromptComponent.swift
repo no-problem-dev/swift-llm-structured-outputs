@@ -192,6 +192,27 @@ public enum PromptComponent: Sendable, Equatable {
     /// PromptComponent.note("西暦と和暦が混在している場合があります")
     /// ```
     case note(String)
+
+    // MARK: - 出力制約系
+
+    /// 出力値の制約（スキーマ由来）
+    ///
+    /// JSON Schema でサポートされていない制約を自然言語で指定します。
+    /// これは主に内部で自動生成されますが、手動で追加することもできます。
+    ///
+    /// - Parameter value: 制約の説明
+    ///
+    /// ## 使用例
+    /// ```swift
+    /// PromptComponent.outputConstraint("The 'age' field must be at least 0.")
+    /// PromptComponent.outputConstraint("The 'tags' array must have at most 5 item(s).")
+    /// ```
+    ///
+    /// ## ユーザー定義の constraint との違い
+    ///
+    /// - `constraint`: ビジネスロジック的な制約（「推測はしない」など）
+    /// - `outputConstraint`: 出力値の技術的な制約（数値範囲、配列長など）
+    case outputConstraint(String)
 }
 
 // MARK: - Rendering
@@ -213,6 +234,7 @@ extension PromptComponent {
         case .example: return "example"
         case .important: return "important"
         case .note: return "note"
+        case .outputConstraint: return "output_constraint"
         }
     }
 
@@ -231,7 +253,8 @@ extension PromptComponent {
              .thinkingStep(let value),
              .reasoning(let value),
              .important(let value),
-             .note(let value):
+             .note(let value),
+             .outputConstraint(let value):
             return "<\(tagName)>\n\(value)\n</\(tagName)>"
 
         case .example(let input, let output):
