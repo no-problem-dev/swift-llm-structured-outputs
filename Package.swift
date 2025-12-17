@@ -23,6 +23,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
         .package(url: "https://github.com/apple/swift-docc-plugin.git", from: "1.4.0"),
+        .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.8.2"),
     ],
     targets: [
         // MARK: - Macro Implementation
@@ -59,6 +60,16 @@ let package = Package(
             dependencies: ["LLMClient", "LLMTool"]
         ),
 
+        // MARK: - Layer 2: LLMMCP (MCPサーバー統合)
+        .target(
+            name: "LLMMCP",
+            dependencies: [
+                "LLMClient",
+                "LLMTool",
+                .product(name: "MCP", package: "swift-sdk"),
+            ]
+        ),
+
         // MARK: - Layer 3: LLMConversationalAgent (会話型エージェント)
         .target(
             name: "LLMConversationalAgent",
@@ -74,13 +85,17 @@ let package = Package(
         // MARK: - Umbrella Module (全モジュールを再エクスポート)
         .target(
             name: "LLMStructuredOutputs",
-            dependencies: ["LLMClient", "LLMTool", "LLMConversation", "LLMAgent", "LLMConversationalAgent"]
+            dependencies: ["LLMClient", "LLMTool", "LLMConversation", "LLMAgent", "LLMConversationalAgent", "LLMMCP"]
         ),
 
         // MARK: - Tests
         .testTarget(
             name: "LLMStructuredOutputsTests",
             dependencies: ["LLMStructuredOutputs"]
+        ),
+        .testTarget(
+            name: "LLMMCPTests",
+            dependencies: ["LLMMCP", "LLMStructuredOutputs"]
         ),
         .testTarget(
             name: "StructuredMacrosTests",
