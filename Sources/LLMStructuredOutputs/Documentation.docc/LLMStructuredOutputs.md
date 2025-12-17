@@ -42,7 +42,15 @@ let user: UserInfo = try await client.generate(
 
 ## Topics
 
-### 基本
+### モジュール
+
+- ``/LLMClient``
+- ``/LLMTool``
+- ``/LLMConversation``
+- ``/LLMAgent``
+- ``/LLMConversationalAgent``
+
+### ガイド
 
 - <doc:GettingStarted>
 - <doc:PromptBuilding>
@@ -52,73 +60,3 @@ let user: UserInfo = try await client.generate(
 - <doc:AgentLoopInternals>
 - <doc:ConversationalAgent>
 - <doc:ExampleApp>
-
-### マクロ
-
-- ``Structured(_:)``
-- ``StructuredField(_:_:)``
-- ``StructuredEnum(_:)``
-- ``StructuredCase(_:)``
-- ``Tool(_:name:)``
-- ``ToolArgument(_:_:)``
-
-### クライアント
-
-- ``AnthropicClient``
-- ``OpenAIClient``
-- ``GeminiClient``
-- ``StructuredLLMClient``
-
-### モデル
-
-- ``ClaudeModel``
-- ``GPTModel``
-- ``GeminiModel``
-
-### 会話
-
-- ``ConversationHistory``
-- ``ConversationHistoryProtocol``
-- ``ConversationEvent``
-- ``ChatResponse``
-- ``LLMMessage``
-- ``TokenUsage``
-- ``LLMResponse/StopReason``
-
-### スキーマ
-
-- ``JSONSchema``
-- ``FieldConstraint``
-- ``StructuredProtocol``
-
-### ツール
-
-- ``ToolSet``
-- ``ToolChoice``
-- ``ToolResult``
-- ``ToolCallResponse``
-
-### エージェント
-
-- ``AgentStep``
-- ``AgentStepStream``
-- ``AgentConfiguration``
-- ``AgentContext``
-- ``AgentError``
-- ``ToolCall``
-- ``ToolResponse``
-
-### 会話型エージェント
-
-- ``ConversationalAgentSession``
-- ``ConversationalAgentSessionProtocol``
-- ``ConversationalAgentStep``
-- ``ConversationalAgentStepStream``
-- ``ConversationalAgentEvent``
-- ``ConversationalAgentError``
-- ``AskUserTool``
-
-### エラー
-
-- ``LLMError``
-- ``AgentError``

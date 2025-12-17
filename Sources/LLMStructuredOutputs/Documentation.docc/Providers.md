@@ -16,7 +16,7 @@ let client = AnthropicClient(apiKey: "sk-ant-...")
 
 ### モデルオプション
 
-``ClaudeModel`` を使用してモデルを選択:
+`ClaudeModel` を使用してモデルを選択:
 
 | エイリアス | 説明 |
 |-----------|------|
@@ -51,7 +51,7 @@ let client = OpenAIClient(apiKey: "sk-...")
 
 ### モデルオプション
 
-``GPTModel`` を使用してモデルを選択:
+`GPTModel` を使用してモデルを選択:
 
 | エイリアス | 説明 |
 |-----------|------|
@@ -78,7 +78,7 @@ let client = GeminiClient(apiKey: "...")
 
 ### モデルオプション
 
-``GeminiModel`` を使用してモデルを選択:
+`GeminiModel` を使用してモデルを選択:
 
 | エイリアス | 説明 |
 |-----------|------|

@@ -9,6 +9,8 @@ Type-safe structured output generation for Swift LLM clients
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/Documentation-DocC-blue.svg)](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/)
 
+📖 **[API Reference](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/)** | 📚 **[LLMToolkits](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/)**
+
 ## Features
 
 - **Type-safe Structured Outputs** - Automatic JSON Schema generation via Swift macros

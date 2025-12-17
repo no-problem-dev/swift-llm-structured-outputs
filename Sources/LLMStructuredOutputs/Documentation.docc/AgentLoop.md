@@ -63,10 +63,10 @@ for try await step in stream {
 
 各ステップの種類：
 
-- ``AgentStep/thinking(_:)`` - LLM の思考
-- ``AgentStep/toolCall(_:)`` - ツール呼び出し
-- ``AgentStep/toolResult(_:)`` - ツール実行結果
-- ``AgentStep/finalResponse(_:)`` - 構造化出力
+- `thinking` - LLM の思考プロセス（テキスト）
+- `toolCall` - ツール呼び出しリクエスト
+- `toolResult` - ツール実行結果
+- `finalResponse` - 最終的な構造化出力
 
 ## 対応プロバイダー
 
@@ -80,15 +80,6 @@ for try await step in stream {
 
 ## Topics
 
-### 型
+### 関連ガイド
 
-- ``AgentStep``
-- ``AgentStepStream``
-- ``AgentConfiguration``
-- ``AgentContext``
-- ``AgentError``
-
-### ツール関連
-
-- ``ToolCall``
-- ``ToolResponse``
+- <doc:AgentLoopInternals>

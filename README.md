@@ -8,6 +8,8 @@
 ![Platforms](https://img.shields.io/badge/Platforms-iOS%2017%2B%20%7C%20macOS%2014%2B%20%7C%20Linux-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
+📖 **[APIリファレンス](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/)** | 📚 **[LLMToolkits](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/)**
+
 ## できること
 
 - **LLM エージェントの構築** - ツールを自動実行し、構造化された結果を生成
