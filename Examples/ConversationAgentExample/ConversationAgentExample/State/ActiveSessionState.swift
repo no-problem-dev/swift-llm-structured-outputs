@@ -1,5 +1,6 @@
 import Foundation
 import LLMAgent
+import LLMClient
 import LLMStructuredOutputs
 import LLMToolkits
 import LLMConversationalAgent
@@ -9,6 +10,12 @@ import LLMConversationalAgent
 /// アプリ全体で共有されるセッション状態。
 /// セッション参照を一元管理し、View間で状態を同期する。
 /// 実行タスクもここで管理し、Viewのライフサイクルから独立させる。
+///
+/// ## データの流れ
+///
+/// - **永続化**: `sessionData.messages: [LLMMessage]` が Single Source of Truth
+/// - **UI表示**: `steps: [ConversationStepInfo]` は `messages` から動的に生成
+/// - **ライブ表示**: 実行中は `liveSteps` に一時的なステップを蓄積
 @MainActor @Observable
 final class ActiveSessionState {
 
@@ -30,8 +37,11 @@ final class ActiveSessionState {
     /// 現在の実行状態
     private(set) var executionState: SessionState = .idle
 
-    /// 会話ステップの履歴
-    private(set) var steps: [ConversationStepInfo] = []
+    /// ライブ実行中の一時的なステップ
+    ///
+    /// ストリーム実行中に追加されるステップ。
+    /// 実行完了後、messages から再生成される steps と置き換わる。
+    private var liveSteps: [ConversationStepInfo] = []
 
     /// イベントログ
     private(set) var events: [ConversationStepInfo] = []
@@ -69,7 +79,6 @@ final class ActiveSessionState {
         self.sessionData = sessionData
         self.interactiveMode = sessionData.interactiveMode
         self.selectedOutputType = sessionData.outputType
-        self.steps = sessionData.steps
 
         if let result = sessionData.result {
             self.executionState = .completed(result)
@@ -84,6 +93,17 @@ final class ActiveSessionState {
     }
 
     // MARK: - Computed Properties
+
+    /// 会話ステップの履歴（UI表示用）
+    ///
+    /// 永続化された `messages` から動的に生成。
+    /// ライブ実行中は `liveSteps` を返す。
+    var steps: [ConversationStepInfo] {
+        if executionState.isRunning || !liveSteps.isEmpty {
+            return liveSteps
+        }
+        return sessionData.messages.toStepInfos()
+    }
 
     /// 完了時の結果（存在する場合）
     var currentResult: String? {
@@ -107,8 +127,8 @@ final class ActiveSessionState {
     ///
     /// `true`の場合、新しいプロンプトは`run()`ではなく`resume()`または`interrupt()`で処理すべき。
     var hasConversationHistory: Bool {
-        // ユーザーメッセージを含むステップがあるかどうかで判定
-        steps.contains { $0.type == .userMessage }
+        // messages にユーザーメッセージがあるかどうかで判定
+        sessionData.messages.contains { $0.role == .user }
     }
 
     /// 再開可能な状態かどうか
@@ -155,19 +175,25 @@ final class ActiveSessionState {
 
     // MARK: - Step Management
 
+    /// ライブ実行中にステップを追加
     func addStep(_ step: ConversationStepInfo) {
-        steps.append(step)
-        sessionData.addStep(step)
+        liveSteps.append(step)
     }
 
     func addEvent(_ message: String) {
         events.append(ConversationStepInfo(type: .event, content: message))
     }
 
+    /// ライブステップをクリアして messages から再生成
+    func syncStepsFromMessages() {
+        liveSteps = []
+    }
+
+    /// 全てクリア
     func clearSteps() {
-        steps = []
+        liveSteps = []
         events = []
-        sessionData.steps = []
+        sessionData.messages = []
     }
 
     // MARK: - User Interaction Setters
@@ -203,11 +229,18 @@ final class ActiveSessionState {
         sessionData.updateTitleFromFirstMessage()
     }
 
+    /// セッションから messages を同期
+    func syncMessagesFromSession() async {
+        guard let session = session else { return }
+        sessionData.messages = await session.getMessages()
+        sessionData.updatedAt = Date()
+    }
+
     func setSessionData(_ data: SessionData) {
         self.sessionData = data
         self.interactiveMode = data.interactiveMode
         self.selectedOutputType = data.outputType
-        self.steps = data.steps
+        self.liveSteps = []
 
         if let result = data.result {
             self.executionState = .completed(result)
@@ -233,6 +266,9 @@ final class ActiveSessionState {
         // 既存の実行タスクをキャンセル
         executionTask?.cancel()
 
+        // ライブステップを初期化（既存の messages から変換）
+        liveSteps = sessionData.messages.toStepInfos()
+
         setExecutionState(.running)
 
         // 実行タスクを作成して保持
@@ -256,9 +292,11 @@ final class ActiveSessionState {
             } catch is CancellationError {
                 // タスクキャンセルは正常終了として扱う
                 self.addEvent("実行がキャンセルされました")
+                await self.syncMessagesFromSession()
             } catch {
                 self.setExecutionState(.error(error.localizedDescription))
                 self.addStep(ConversationStepInfo(type: .error, content: error.localizedDescription, isError: true))
+                await self.syncMessagesFromSession()
             }
 
             self.executionTask = nil
@@ -276,6 +314,9 @@ final class ActiveSessionState {
 
         // 既存の実行タスクをキャンセル
         executionTask?.cancel()
+
+        // ライブステップを初期化
+        liveSteps = sessionData.messages.toStepInfos()
 
         setExecutionState(.running)
         addStep(ConversationStepInfo(type: .event, content: "セッションを再開しています..."))
@@ -301,9 +342,11 @@ final class ActiveSessionState {
             } catch is CancellationError {
                 // タスクキャンセルは正常終了として扱う
                 self.addEvent("実行がキャンセルされました")
+                await self.syncMessagesFromSession()
             } catch {
                 self.setExecutionState(.error(error.localizedDescription))
                 self.addStep(ConversationStepInfo(type: .error, content: error.localizedDescription, isError: true))
+                await self.syncMessagesFromSession()
             }
 
             self.executionTask = nil
@@ -316,6 +359,7 @@ final class ActiveSessionState {
 
         Task {
             await session?.cancel()
+            await syncMessagesFromSession()
         }
 
         executionTask?.cancel()
@@ -373,6 +417,9 @@ final class ActiveSessionState {
             }
         }
 
+        // ストリーム完了後、messages を同期
+        await syncMessagesFromSession()
+
         if let output = finalOutput {
             setExecutionState(.completed(formatResult(output)))
         } else {
@@ -380,6 +427,10 @@ final class ActiveSessionState {
         }
 
         setTurnCount(await session.turnCount)
+
+        // ライブステップをクリア（steps は messages から再生成される）
+        syncStepsFromMessages()
+
         try? await onSave()
     }
 
@@ -406,12 +457,12 @@ final class ActiveSessionState {
 
         session = nil
         executionState = .idle
-        steps = []
+        liveSteps = []
         events = []
         turnCount = 0
         waitingForAnswer = false
         pendingQuestion = nil
-        sessionData.steps = []
+        sessionData.messages = []
         sessionData.result = nil
         sessionData.updatedAt = Date()
     }

@@ -168,7 +168,7 @@ public struct TokenUsage: Sendable {
 ///     content: "晴れ、25度"
 /// )
 /// ```
-public struct LLMMessage: Sendable {
+public struct LLMMessage: Sendable, Codable {
     /// メッセージの役割
     public let role: Role
 
@@ -176,13 +176,13 @@ public struct LLMMessage: Sendable {
     public let contents: [MessageContent]
 
     /// 役割
-    public enum Role: String, Sendable {
+    public enum Role: String, Sendable, Codable {
         case user
         case assistant
     }
 
     /// メッセージコンテンツの種類
-    public enum MessageContent: Sendable, Equatable {
+    public enum MessageContent: Sendable, Equatable, Codable {
         /// テキストコンテンツ
         case text(String)
 
@@ -196,6 +196,68 @@ public struct LLMMessage: Sendable {
         ///   - content: 実行結果の文字列
         ///   - isError: エラー結果かどうか
         case toolResult(toolCallId: String, name: String, content: String, isError: Bool)
+
+        // MARK: - Codable
+
+        private enum CodingKeys: String, CodingKey {
+            case type
+            case text
+            case id
+            case name
+            case input
+            case toolCallId
+            case content
+            case isError
+        }
+
+        private enum ContentType: String, Codable {
+            case text
+            case toolUse
+            case toolResult
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            let type = try container.decode(ContentType.self, forKey: .type)
+
+            switch type {
+            case .text:
+                let text = try container.decode(String.self, forKey: .text)
+                self = .text(text)
+            case .toolUse:
+                let id = try container.decode(String.self, forKey: .id)
+                let name = try container.decode(String.self, forKey: .name)
+                let input = try container.decode(Data.self, forKey: .input)
+                self = .toolUse(id: id, name: name, input: input)
+            case .toolResult:
+                let toolCallId = try container.decode(String.self, forKey: .toolCallId)
+                let name = try container.decode(String.self, forKey: .name)
+                let content = try container.decode(String.self, forKey: .content)
+                let isError = try container.decode(Bool.self, forKey: .isError)
+                self = .toolResult(toolCallId: toolCallId, name: name, content: content, isError: isError)
+            }
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+
+            switch self {
+            case .text(let text):
+                try container.encode(ContentType.text, forKey: .type)
+                try container.encode(text, forKey: .text)
+            case .toolUse(let id, let name, let input):
+                try container.encode(ContentType.toolUse, forKey: .type)
+                try container.encode(id, forKey: .id)
+                try container.encode(name, forKey: .name)
+                try container.encode(input, forKey: .input)
+            case .toolResult(let toolCallId, let name, let content, let isError):
+                try container.encode(ContentType.toolResult, forKey: .type)
+                try container.encode(toolCallId, forKey: .toolCallId)
+                try container.encode(name, forKey: .name)
+                try container.encode(content, forKey: .content)
+                try container.encode(isError, forKey: .isError)
+            }
+        }
     }
 
     // MARK: - Initializers

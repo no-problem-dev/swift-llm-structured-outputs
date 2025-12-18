@@ -1,4 +1,5 @@
 import Foundation
+import LLMClient
 import LLMStructuredOutputs
 import LLMToolkits
 import LLMConversationalAgent
@@ -82,6 +83,14 @@ enum ProviderSession: Sendable {
         case .anthropic(let session): await session.reply(answer)
         case .openai(let session): await session.reply(answer)
         case .gemini(let session): await session.reply(answer)
+        }
+    }
+
+    func getMessages() async -> [LLMMessage] {
+        switch self {
+        case .anthropic(let session): await session.getMessages()
+        case .openai(let session): await session.getMessages()
+        case .gemini(let session): await session.getMessages()
         }
     }
 

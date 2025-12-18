@@ -1,5 +1,6 @@
 import Foundation
 import LLMAgent
+import LLMClient
 import LLMStructuredOutputs
 import LLMToolkits
 
@@ -10,7 +11,8 @@ protocol ConversationUseCase: Sendable {
         client: Client,
         outputType: AgentOutputType,
         interactiveMode: Bool,
-        configuration: AgentConfiguration
+        configuration: AgentConfiguration,
+        initialMessages: [LLMMessage]
     ) -> ConversationalAgentSession<Client> where Client.Model: Sendable
 
     /// プロバイダーに応じたクライアントを作成
@@ -31,13 +33,15 @@ final class ConversationUseCaseImpl: ConversationUseCase {
         client: Client,
         outputType: AgentOutputType,
         interactiveMode: Bool,
-        configuration: AgentConfiguration
+        configuration: AgentConfiguration,
+        initialMessages: [LLMMessage]
     ) -> ConversationalAgentSession<Client> where Client.Model: Sendable {
         agentService.createSession(
             client: client,
             outputType: outputType,
             interactiveMode: interactiveMode,
-            configuration: configuration
+            configuration: configuration,
+            initialMessages: initialMessages
         )
     }
 

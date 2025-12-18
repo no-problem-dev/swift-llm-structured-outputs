@@ -30,7 +30,7 @@ final class SessionUseCaseImpl: SessionUseCase {
     }
 
     func saveSession(_ session: SessionData) async throws {
-        guard !session.steps.isEmpty else { return }
+        guard !session.messages.isEmpty else { return }
         try await repository.save(session)
     }
 

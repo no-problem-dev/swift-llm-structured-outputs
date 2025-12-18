@@ -107,18 +107,22 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
     ///   - interactiveMode: 対話モードを有効にするか（デフォルト: false）
     ///     `true` の場合、AI がユーザーに質問できるようになります。
     ///   - configuration: エージェント設定（オプション）
+    ///   - initialMessages: 復元する会話履歴（オプション）
+    ///     過去のセッションを復元する場合に使用します。
     public init(
         client: Client,
         systemPrompt: Prompt? = nil,
         tools: ToolSet,
         interactiveMode: Bool = false,
-        configuration: AgentConfiguration = .default
+        configuration: AgentConfiguration = .default,
+        initialMessages: [LLMMessage] = []
     ) {
         self.client = client
         self.systemPrompt = systemPrompt
         // 対話モードの場合は ask_user ツールを自動追加
         self.tools = interactiveMode ? tools.appending(AskUserTool()) : tools
         self.configuration = configuration
+        self.messages = initialMessages
     }
 
     // MARK: - Protocol Conformance: Properties

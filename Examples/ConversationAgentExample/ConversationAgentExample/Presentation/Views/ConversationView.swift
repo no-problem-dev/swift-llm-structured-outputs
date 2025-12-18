@@ -260,6 +260,9 @@ struct ConversationView: View {
             maxToolCallsPerTool: nil  // ステップ数で制限するのでツール毎の制限は不要
         )
 
+        // 復元する会話履歴
+        let initialMessages = sessionState.sessionData.messages
+
         let newSession: ProviderSession
         switch provider {
         case .anthropic:
@@ -268,7 +271,8 @@ struct ConversationView: View {
                 client: client,
                 outputType: sessionState.selectedOutputType,
                 interactiveMode: sessionState.interactiveMode,
-                configuration: configuration
+                configuration: configuration,
+                initialMessages: initialMessages
             )
             newSession = .anthropic(s)
 
@@ -278,7 +282,8 @@ struct ConversationView: View {
                 client: client,
                 outputType: sessionState.selectedOutputType,
                 interactiveMode: sessionState.interactiveMode,
-                configuration: configuration
+                configuration: configuration,
+                initialMessages: initialMessages
             )
             newSession = .openai(s)
 
@@ -288,7 +293,8 @@ struct ConversationView: View {
                 client: client,
                 outputType: sessionState.selectedOutputType,
                 interactiveMode: sessionState.interactiveMode,
-                configuration: configuration
+                configuration: configuration,
+                initialMessages: initialMessages
             )
             newSession = .gemini(s)
         }
@@ -303,7 +309,9 @@ struct ConversationView: View {
 
         sessionState.setWaitingForAnswer(false)
         sessionState.setPendingQuestion(nil)
-        sessionState.addEvent("セッションが作成されました（\(sessionState.selectedOutputType.displayName) / \(sessionState.interactiveMode ? "インタラクティブ" : "自動")モード）")
+
+        let historyInfo = initialMessages.isEmpty ? "" : "（履歴: \(initialMessages.count)メッセージ）"
+        sessionState.addEvent("セッションが作成されました（\(sessionState.selectedOutputType.displayName) / \(sessionState.interactiveMode ? "インタラクティブ" : "自動")モード）\(historyInfo)")
     }
 
     private func clearSession() async {
@@ -367,7 +375,8 @@ struct ConversationView: View {
         useCase: any UseCaseContainer,
         sessionState: ActiveSessionState
     ) async throws {
-        guard !sessionState.steps.isEmpty else { return }
+        // messages が空の場合は保存しない
+        guard !sessionState.sessionData.messages.isEmpty else { return }
 
         sessionState.updateTitleFromFirstMessage()
 
