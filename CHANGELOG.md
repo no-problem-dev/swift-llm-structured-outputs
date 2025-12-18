@@ -7,6 +7,37 @@
 
 ## [未リリース]
 
+## [1.0.18] - 2025-12-19
+
+### 追加
+
+- **WebToolKit.fetch_page**: Web ページのコンテンツ取得ツールを追加
+  - HTML テキスト抽出とページネーション対応
+  - MCP ベストプラクティスに準拠した ToolAnnotations 設定
+  - FetchWebPageTool を WebToolKit に統合
+
+- **ConversationalAgentSession.initialMessages**: セッション復元パラメータを追加
+  - セッション復元時に会話履歴を渡せるように改善
+  - LLMMessage を Single Source of Truth として設計
+
+### 変更
+
+- **ConversationAgentExample の UX 改善**
+  - セッション削除時の確認ダイアログを追加
+  - セッション名変更機能を追加（コンテキストメニュー）
+  - 「完了しました」表示のロジック修正（構造化出力完了時のみ）
+  - スクロールビューを下基準に変更
+  - ScrollView 二重問題を修正
+
+- **ConversationAgentExample を State+UseCase アーキテクチャにリファクタリング**
+  - SessionData: steps を messages に変更（永続化改善）
+  - ActiveSessionState: liveSteps と messages 分離
+  - 不要なファイルを削除（FetchWebPageTool, WebFetchService 等）
+
+### 修正
+
+- **空セッションではアクティブセッションバーを表示しない**: 空セッション時の UI 表示を改善
+
 ## [1.0.17] - 2025-12-18
 
 ### 追加
@@ -416,7 +447,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.17...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.18...HEAD
+[1.0.18]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.17...v1.0.18
 [1.0.17]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.16...v1.0.17
 [1.0.16]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.15...v1.0.16
 [1.0.15]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.14...v1.0.15
