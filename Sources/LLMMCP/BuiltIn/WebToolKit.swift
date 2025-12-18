@@ -23,9 +23,10 @@ import LLMTool
 ///
 /// ## 提供されるツール
 ///
-/// - `fetch_url`: URLからコンテンツを取得
+/// - `fetch_url`: URLからコンテンツを取得（生のテキスト）
 /// - `fetch_json`: URLからJSONを取得してパース
 /// - `fetch_headers`: URLからHTTPヘッダーのみを取得
+/// - `fetch_page`: Webページからテキストを抽出（HTML解析、ページネーション対応）
 public final class WebToolKit: ToolKit, @unchecked Sendable {
     // MARK: - Properties
 
@@ -72,7 +73,8 @@ public final class WebToolKit: ToolKit, @unchecked Sendable {
         [
             fetchURLTool,
             fetchJSONTool,
-            fetchHeadersTool
+            fetchHeadersTool,
+            fetchPageTool
         ]
     }
 
@@ -298,6 +300,92 @@ public final class WebToolKit: ToolKit, @unchecked Sendable {
             return .json(output)
         }
     }
+
+    /// fetch_page ツール（Webページからテキストを抽出）
+    private var fetchPageTool: BuiltInTool {
+        BuiltInTool(
+            name: "fetch_page",
+            description: "Fetch a web page and extract readable text content. Removes scripts, styles, navigation, and other non-essential elements. Use start_index for pagination when content is truncated.",
+            inputSchema: .object(
+                properties: [
+                    "url": .string(description: "The URL of the web page to fetch"),
+                    "max_length": .integer(description: "Maximum characters to return (default: 5000)"),
+                    "start_index": .integer(description: "Start position for pagination. Use when previous response indicated more content available (default: 0)")
+                ],
+                required: ["url"]
+            ),
+            annotations: ToolAnnotations(
+                title: "Fetch Web Page",
+                readOnlyHint: true,
+                openWorldHint: true
+            )
+        ) { [self] data in
+            let input = try JSONDecoder().decode(FetchPageInput.self, from: data)
+            let url = try validateURL(input.url)
+            let maxLength = input.maxLength ?? 5000
+            let startIndex = input.startIndex ?? 0
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+                forHTTPHeaderField: "User-Agent"
+            )
+            request.setValue("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", forHTTPHeaderField: "Accept")
+            request.setValue("ja,en;q=0.9", forHTTPHeaderField: "Accept-Language")
+
+            let (responseData, response) = try await session.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw WebToolKitError.invalidResponse
+            }
+
+            guard (200...299).contains(httpResponse.statusCode) else {
+                throw WebToolKitError.httpError(statusCode: httpResponse.statusCode)
+            }
+
+            guard responseData.count <= maxContentSize else {
+                throw WebToolKitError.contentTooLarge(size: responseData.count, maxSize: maxContentSize)
+            }
+
+            guard let html = String(data: responseData, encoding: .utf8)
+                    ?? String(data: responseData, encoding: .ascii) else {
+                throw WebToolKitError.encodingError
+            }
+
+            // タイトルとテキストを抽出
+            let title = HTMLContentExtractor.extractTitle(from: html)
+            let fullText = HTMLContentExtractor.extractText(from: html)
+
+            // ページネーション処理
+            let totalLength = fullText.count
+            let safeStartIndex = min(startIndex, max(0, totalLength - 1))
+
+            let endIndex = min(safeStartIndex + maxLength, totalLength)
+            let hasMore = endIndex < totalLength
+
+            let content: String
+            if safeStartIndex < totalLength {
+                let start = fullText.index(fullText.startIndex, offsetBy: safeStartIndex)
+                let end = fullText.index(fullText.startIndex, offsetBy: endIndex)
+                content = String(fullText[start..<end])
+            } else {
+                content = ""
+            }
+
+            let result = FetchPageResult(
+                url: url.absoluteString,
+                title: title,
+                content: content,
+                contentLength: totalLength,
+                startIndex: safeStartIndex,
+                hasMore: hasMore
+            )
+
+            let output = try JSONEncoder().encode(result)
+            return .json(output)
+        }
+    }
 }
 
 // MARK: - Input Types
@@ -311,6 +399,18 @@ private struct FetchURLInput: Codable {
 
 private struct FetchHeadersInput: Codable {
     var url: String
+}
+
+private struct FetchPageInput: Codable {
+    var url: String
+    var maxLength: Int?
+    var startIndex: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case url
+        case maxLength = "max_length"
+        case startIndex = "start_index"
+    }
 }
 
 // MARK: - Result Types
@@ -333,6 +433,153 @@ private struct FetchHeadersResult: Codable {
     var url: String
     var statusCode: Int
     var headers: [String: String]
+}
+
+private struct FetchPageResult: Codable {
+    var url: String
+    var title: String?
+    var content: String
+    var contentLength: Int
+    var startIndex: Int
+    var hasMore: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case url
+        case title
+        case content
+        case contentLength = "content_length"
+        case startIndex = "start_index"
+        case hasMore = "has_more"
+    }
+}
+
+// MARK: - HTML Content Extraction
+
+/// HTMLからテキストを抽出するためのヘルパー
+private enum HTMLContentExtractor {
+
+    /// HTMLからタイトルを抽出
+    static func extractTitle(from html: String) -> String? {
+        let pattern = #"<title[^>]*>([^<]+)</title>"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+              let match = regex.firstMatch(in: html, range: NSRange(html.startIndex..., in: html)),
+              let titleRange = Range(match.range(at: 1), in: html) else {
+            return nil
+        }
+
+        return String(html[titleRange])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .decodingHTMLEntities()
+    }
+
+    /// HTMLからメインコンテンツのテキストを抽出
+    static func extractText(from html: String) -> String {
+        var text = html
+
+        // 不要なタグを除去（script, style, head, nav, footer, コメント）
+        let removePatterns = [
+            #"<script[^>]*>[\s\S]*?</script>"#,
+            #"<style[^>]*>[\s\S]*?</style>"#,
+            #"<head[^>]*>[\s\S]*?</head>"#,
+            #"<nav[^>]*>[\s\S]*?</nav>"#,
+            #"<footer[^>]*>[\s\S]*?</footer>"#,
+            #"<aside[^>]*>[\s\S]*?</aside>"#,
+            #"<header[^>]*>[\s\S]*?</header>"#,
+            #"<!--[\s\S]*?-->"#
+        ]
+
+        for pattern in removePatterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+                text = regex.stringByReplacingMatches(
+                    in: text,
+                    range: NSRange(text.startIndex..., in: text),
+                    withTemplate: ""
+                )
+            }
+        }
+
+        // ブロックタグを改行に変換
+        let blockTags = ["</p>", "</div>", "</li>", "</h1>", "</h2>", "</h3>", "</h4>", "</h5>", "</h6>", "</tr>", "<br>", "<br/>", "<br />"]
+        for tag in blockTags {
+            text = text.replacingOccurrences(of: tag, with: "\n", options: .caseInsensitive)
+        }
+
+        // 残りのHTMLタグを除去
+        if let regex = try? NSRegularExpression(pattern: "<[^>]+>", options: []) {
+            text = regex.stringByReplacingMatches(
+                in: text,
+                range: NSRange(text.startIndex..., in: text),
+                withTemplate: ""
+            )
+        }
+
+        // HTMLエンティティをデコード
+        text = text.decodingHTMLEntities()
+
+        // 各行をトリムして空行を除去
+        let lines = text
+            .components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+
+        // 空行を最大1つにまとめる
+        var result: [String] = []
+        var previousWasEmpty = false
+
+        for line in lines {
+            if line.isEmpty {
+                if !previousWasEmpty && !result.isEmpty {
+                    result.append("")  // 空行は1つだけ許可
+                }
+                previousWasEmpty = true
+            } else {
+                result.append(line)
+                previousWasEmpty = false
+            }
+        }
+
+        return result.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+private extension String {
+    /// HTMLエンティティをデコード
+    func decodingHTMLEntities() -> String {
+        var result = self
+        let entities: [(String, String)] = [
+            ("&nbsp;", " "),
+            ("&amp;", "&"),
+            ("&lt;", "<"),
+            ("&gt;", ">"),
+            ("&quot;", "\""),
+            ("&apos;", "'"),
+            ("&#39;", "'"),
+            ("&ndash;", "–"),
+            ("&mdash;", "—"),
+            ("&hellip;", "…"),
+            ("&copy;", "©"),
+            ("&reg;", "®"),
+            ("&trade;", "™")
+        ]
+
+        for (entity, replacement) in entities {
+            result = result.replacingOccurrences(of: entity, with: replacement)
+        }
+
+        // 数値エンティティ &#123; 形式
+        if let regex = try? NSRegularExpression(pattern: "&#(\\d+);", options: []) {
+            let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result))
+            for match in matches.reversed() {
+                if let range = Range(match.range, in: result),
+                   let codeRange = Range(match.range(at: 1), in: result),
+                   let code = Int(result[codeRange]),
+                   let scalar = Unicode.Scalar(code) {
+                    result.replaceSubrange(range, with: String(Character(scalar)))
+                }
+            }
+        }
+
+        return result
+    }
 }
 
 // MARK: - Errors

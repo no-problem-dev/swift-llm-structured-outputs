@@ -1,8 +1,9 @@
 import SwiftUI
+import LLMStructuredOutputs
 
 // MARK: - Provider
 
-extension AgentSettings.Provider {
+extension AppState.Provider {
 
     var displayName: String { rawValue }
 
@@ -31,19 +32,9 @@ extension AgentSettings.Provider {
     }
 }
 
-// MARK: - ClaudeModelOption
+// MARK: - ClaudeModel.Preset UI Extensions
 
-extension AgentSettings.ClaudeModelOption {
-
-    var displayName: String { rawValue }
-
-    var shortName: String {
-        switch self {
-        case .opus: return "Opus"
-        case .sonnet: return "Sonnet"
-        case .haiku: return "Haiku"
-        }
-    }
+extension ClaudeModel.Preset {
 
     var icon: String {
         switch self {
@@ -62,25 +53,16 @@ extension AgentSettings.ClaudeModelOption {
     }
 }
 
-// MARK: - GPTModelOption
+// MARK: - GPTModel.Preset UI Extensions
 
-extension AgentSettings.GPTModelOption {
-
-    var displayName: String { rawValue }
-
-    var shortName: String {
-        switch self {
-        case .gpt4o: return "4o"
-        case .gpt4oMini: return "4o mini"
-        case .o1: return "o1"
-        }
-    }
+extension GPTModel.Preset {
 
     var icon: String {
         switch self {
         case .gpt4o: return "star.fill"
         case .gpt4oMini: return "bolt.fill"
         case .o1: return "brain"
+        case .o3Mini: return "brain.head.profile"
         }
     }
 
@@ -89,26 +71,18 @@ extension AgentSettings.GPTModelOption {
         case .gpt4o: return .green
         case .gpt4oMini: return .teal
         case .o1: return .indigo
+        case .o3Mini: return .purple
         }
     }
 }
 
-// MARK: - GeminiModelOption
+// MARK: - GeminiModel.Preset UI Extensions
 
-extension AgentSettings.GeminiModelOption {
-
-    var displayName: String { rawValue }
-
-    var shortName: String {
-        switch self {
-        case .pro25: return "2.5 Pro"
-        case .flash25: return "2.5 Flash"
-        case .flash25Lite: return "2.5 Flash-Lite"
-        }
-    }
+extension GeminiModel.Preset {
 
     var icon: String {
         switch self {
+        case .flash3: return "sparkles"
         case .pro25: return "star.fill"
         case .flash25: return "bolt.fill"
         case .flash25Lite: return "leaf.fill"
@@ -117,6 +91,7 @@ extension AgentSettings.GeminiModelOption {
 
     var tintColor: Color {
         switch self {
+        case .flash3: return .purple
         case .pro25: return .blue
         case .flash25: return .cyan
         case .flash25Lite: return .mint

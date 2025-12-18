@@ -1,13 +1,27 @@
 import Foundation
 
+// MARK: - LLMProvider
+
+/// LLMプロバイダー
+enum LLMProvider: String, CaseIterable, Identifiable, Codable, Sendable {
+    case anthropic = "Anthropic (Claude)"
+    case openai = "OpenAI (GPT)"
+    case gemini = "Google (Gemini)"
+
+    var id: String { rawValue }
+}
+
+// MARK: - SessionData
+
 /// セッションデータ
 ///
 /// 会話セッションの永続化用データモデル
-struct SessionData: Identifiable, Codable {
+struct SessionData: Identifiable, Codable, Sendable {
     let id: UUID
     var title: String
     var createdAt: Date
     var updatedAt: Date
+    var provider: LLMProvider
     var outputType: AgentOutputType
     var interactiveMode: Bool
     var steps: [ConversationStepInfo]
@@ -16,6 +30,7 @@ struct SessionData: Identifiable, Codable {
     /// 新規セッションを作成
     init(
         title: String = "新規セッション",
+        provider: LLMProvider = .anthropic,
         outputType: AgentOutputType = .research,
         interactiveMode: Bool = true
     ) {
@@ -23,6 +38,7 @@ struct SessionData: Identifiable, Codable {
         self.title = title
         self.createdAt = Date()
         self.updatedAt = Date()
+        self.provider = provider
         self.outputType = outputType
         self.interactiveMode = interactiveMode
         self.steps = []
@@ -35,6 +51,7 @@ struct SessionData: Identifiable, Codable {
         title: String,
         createdAt: Date,
         updatedAt: Date,
+        provider: LLMProvider,
         outputType: AgentOutputType,
         interactiveMode: Bool,
         steps: [ConversationStepInfo],
@@ -44,6 +61,7 @@ struct SessionData: Identifiable, Codable {
         self.title = title
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.provider = provider
         self.outputType = outputType
         self.interactiveMode = interactiveMode
         self.steps = steps

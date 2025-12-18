@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import LLMStructuredOutputs
 
 /// 設定画面
 ///

@@ -55,6 +55,7 @@ final class ProviderTests: XCTestCase {
 
     func testGeminiModelAliases() {
         // Aliases point to latest stable versions
+        XCTAssertEqual(GeminiModel.flash3.id, "gemini-3-flash-preview")
         XCTAssertEqual(GeminiModel.pro25.id, "gemini-2.5-pro")
         XCTAssertEqual(GeminiModel.flash25.id, "gemini-2.5-flash")
         XCTAssertEqual(GeminiModel.flash25Lite.id, "gemini-2.5-flash-lite")
@@ -65,6 +66,7 @@ final class ProviderTests: XCTestCase {
 
     func testGeminiModelPreviewVersions() {
         // Preview versions include preview suffix
+        XCTAssertEqual(GeminiModel.flash3_preview(version: "12-17").id, "gemini-3-flash-preview-12-17")
         XCTAssertEqual(GeminiModel.pro25_preview(version: "05-06").id, "gemini-2.5-pro-preview-05-06")
         XCTAssertEqual(GeminiModel.flash25_preview(version: "05-20").id, "gemini-2.5-flash-preview-05-20")
         XCTAssertEqual(GeminiModel.flash25Lite_preview(version: "06-17").id, "gemini-2.5-flash-lite-preview-06-17")
@@ -76,9 +78,52 @@ final class ProviderTests: XCTestCase {
 
     func testGeminiModelRawValueCompatibility() {
         // RawRepresentable compatibility
+        XCTAssertEqual(GeminiModel.flash3.rawValue, "gemini-3-flash-preview")
         XCTAssertEqual(GeminiModel.pro25.rawValue, "gemini-2.5-pro")
+        XCTAssertEqual(GeminiModel(rawValue: "gemini-3-flash-preview"), .flash3)
         XCTAssertEqual(GeminiModel(rawValue: "gemini-2.5-flash"), .flash25)
         XCTAssertEqual(GeminiModel(rawValue: "custom-model"), .custom("custom-model"))
+    }
+
+    // MARK: - Preset Tests
+
+    func testClaudeModelPreset() {
+        // Preset cases
+        XCTAssertEqual(ClaudeModel.Preset.allCases.count, 3)
+        XCTAssertEqual(ClaudeModel.Preset.opus.model, .opus)
+        XCTAssertEqual(ClaudeModel.Preset.sonnet.model, .sonnet)
+        XCTAssertEqual(ClaudeModel.Preset.haiku.model, .haiku)
+
+        // Display names
+        XCTAssertEqual(ClaudeModel.Preset.opus.displayName, "Claude Opus 4.5")
+        XCTAssertEqual(ClaudeModel.Preset.sonnet.shortName, "Sonnet")
+    }
+
+    func testGPTModelPreset() {
+        // Preset cases
+        XCTAssertEqual(GPTModel.Preset.allCases.count, 4)
+        XCTAssertEqual(GPTModel.Preset.gpt4o.model, .gpt4o)
+        XCTAssertEqual(GPTModel.Preset.gpt4oMini.model, .gpt4oMini)
+        XCTAssertEqual(GPTModel.Preset.o1.model, .o1)
+        XCTAssertEqual(GPTModel.Preset.o3Mini.model, .o3Mini)
+
+        // Display names
+        XCTAssertEqual(GPTModel.Preset.gpt4o.displayName, "GPT-4o")
+        XCTAssertEqual(GPTModel.Preset.gpt4oMini.shortName, "4o mini")
+        XCTAssertEqual(GPTModel.Preset.o3Mini.displayName, "o3-mini")
+    }
+
+    func testGeminiModelPreset() {
+        // Preset cases
+        XCTAssertEqual(GeminiModel.Preset.allCases.count, 4)
+        XCTAssertEqual(GeminiModel.Preset.flash3.model, .flash3)
+        XCTAssertEqual(GeminiModel.Preset.pro25.model, .pro25)
+        XCTAssertEqual(GeminiModel.Preset.flash25.model, .flash25)
+        XCTAssertEqual(GeminiModel.Preset.flash25Lite.model, .flash25Lite)
+
+        // Display names
+        XCTAssertEqual(GeminiModel.Preset.flash3.displayName, "Gemini 3 Flash")
+        XCTAssertEqual(GeminiModel.Preset.pro25.shortName, "2.5 Pro")
     }
 
     // MARK: - Internal LLMModel Tests (via @testable)
