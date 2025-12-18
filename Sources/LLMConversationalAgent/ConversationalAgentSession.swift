@@ -307,7 +307,7 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
                             continuation.yield(.toolCall(call))
 
                             // AskUserTool の場合は特別処理
-                            if call.name == AskUserTool.toolName {
+                            if call.name == "ask_user" {
                                 let question = extractQuestionFromAskUserTool(call)
                                 askUserCall = call
                                 askUserQuestion = question

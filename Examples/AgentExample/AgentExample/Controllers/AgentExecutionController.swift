@@ -78,6 +78,8 @@ final class AgentExecutionController {
             start(scenario: MultiToolScenario.self, prompt: prompt) { .multiTool($0) }
         case ReasoningScenario.id:
             start(scenario: ReasoningScenario.self, prompt: prompt) { .reasoning($0) }
+        case MemoryScenario.id:
+            start(scenario: MemoryScenario.self, prompt: prompt) { .memory($0) }
         default:
             state = .error("不明なシナリオID: \(scenarioID)")
         }
@@ -252,7 +254,8 @@ final class AgentExecutionController {
     }
 
     private func formatToolInput(_ data: Data) -> String? {
-        guard let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        guard let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              !dict.isEmpty else {
             return nil
         }
         return dict.map { "\($0.key): \($0.value)" }.joined(separator: ", ")

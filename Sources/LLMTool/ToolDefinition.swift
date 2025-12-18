@@ -43,7 +43,7 @@ public struct ToolDefinition: Sendable, Equatable {
 
 extension Tool {
     /// ToolDefinition に変換
-    public static var definition: ToolDefinition {
+    public var definition: ToolDefinition {
         ToolDefinition(
             name: toolName,
             description: toolDescription,

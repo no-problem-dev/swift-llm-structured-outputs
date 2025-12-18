@@ -14,6 +14,15 @@ import LLMStructuredOutputs
 /// ToolConfigurationと連携して、ユーザーが選択したツールのみを含むToolSetを生成できます。
 enum ResearchToolSet {
 
+    // MARK: - Shared MemoryToolKit
+
+    /// アプリ全体で共有されるMemoryToolKit（永続化あり）
+    private static let sharedMemoryToolKit: MemoryToolKit = {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let memoryPath = documentsPath.appendingPathComponent("agent_memory.jsonl").path
+        return MemoryToolKit(persistencePath: memoryPath)
+    }()
+
     // MARK: - ToolSet Creation
 
     /// すべてのツールを含むToolSetを作成
@@ -27,6 +36,7 @@ enum ResearchToolSet {
             UnitConverterTool()
             StringManipulationTool()
             RandomGeneratorTool()
+            sharedMemoryToolKit
         }
     }
 
@@ -40,7 +50,10 @@ enum ResearchToolSet {
     @MainActor
     static var configuredTools: ToolSet {
         let config = ToolConfiguration.shared
-        return buildToolSet(enabledTools: config.enabledTools)
+        var toolSet = buildToolSet(enabledTools: config.enabledTools)
+        // MemoryToolKitは常に追加（アプリ全体で共有・永続化）
+        toolSet = toolSet.appending(sharedMemoryToolKit)
+        return toolSet
     }
 
     /// 指定されたツール識別子のセットからToolSetを作成

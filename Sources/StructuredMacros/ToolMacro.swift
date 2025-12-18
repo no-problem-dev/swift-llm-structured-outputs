@@ -4,9 +4,9 @@ import SwiftSyntaxMacros
 /// `@Tool` マクロの実装
 ///
 /// 構造体に対して以下を生成します：
-/// - `toolName` 静的プロパティ
-/// - `toolDescription` 静的プロパティ
-/// - `inputSchema` 静的プロパティ
+/// - `toolName` インスタンスプロパティ
+/// - `toolDescription` インスタンスプロパティ
+/// - `inputSchema` インスタンスプロパティ
 /// - `Arguments` ネスト型（@ToolArgument プロパティから）
 /// - `arguments` プロパティ
 /// - `init(arguments:)` イニシャライザ
@@ -42,23 +42,23 @@ public struct ToolMacro: MemberMacro, ExtensionMacro {
 
         var members: [DeclSyntax] = []
 
-        // toolName 静的プロパティ
+        // toolName インスタンスプロパティ
         members.append("""
-            public static let toolName: String = "\(raw: toolName)"
+            public let toolName: String = "\(raw: toolName)"
             """)
 
-        // toolDescription 静的プロパティ
+        // toolDescription インスタンスプロパティ
         members.append("""
-            public static let toolDescription: String = "\(raw: toolDescription)"
+            public let toolDescription: String = "\(raw: toolDescription)"
             """)
 
         // Arguments 型を生成
         let argumentsDecl = generateArgumentsType(arguments: arguments)
         members.append(argumentsDecl)
 
-        // inputSchema 静的プロパティ
+        // inputSchema インスタンスプロパティ
         members.append("""
-            public static var inputSchema: JSONSchema {
+            public var inputSchema: JSONSchema {
                 Arguments.jsonSchema
             }
             """)

@@ -26,7 +26,8 @@ enum ScenarioRegistry {
         ScenarioInfo(CalculationScenario.self),
         ScenarioInfo(TemporalScenario.self),
         ScenarioInfo(MultiToolScenario.self),
-        ScenarioInfo(ReasoningScenario.self)
+        ScenarioInfo(ReasoningScenario.self),
+        ScenarioInfo(MemoryScenario.self)
     ]
 
     // MARK: - Lookup
@@ -53,6 +54,7 @@ enum AgentResult: Equatable, Sendable {
     case temporal(TemporalReport)
     case multiTool(MultiToolReport)
     case reasoning(ReasoningReport)
+    case memory(MemoryReport)
 
     /// レポートのタイトル
     var title: String {
@@ -62,6 +64,7 @@ enum AgentResult: Equatable, Sendable {
         case .temporal(let r): return r.title
         case .multiTool(let r): return r.title
         case .reasoning(let r): return r.title
+        case .memory(let r): return r.title
         }
     }
 
@@ -73,6 +76,7 @@ enum AgentResult: Equatable, Sendable {
         case .temporal: return TemporalScenario.id
         case .multiTool: return MultiToolScenario.id
         case .reasoning: return ReasoningScenario.id
+        case .memory: return MemoryScenario.id
         }
     }
 }

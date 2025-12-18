@@ -23,6 +23,8 @@ struct AgentResultView: View {
             MultiToolReportView(report: report)
         case .reasoning(let report):
             ReasoningReportView(report: report)
+        case .memory(let report):
+            MemoryReportView(report: report)
         }
     }
 }
@@ -442,6 +444,48 @@ private struct ReasoningStepRow: View {
                     }
                 }
             }
+        }
+    }
+}
+
+// MARK: - Memory Report View
+
+private struct MemoryReportView: View {
+    let report: MemoryReport
+    @State private var showingJSON = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("メモリレポート", systemImage: "memorychip")
+                .font(.headline)
+
+            ReportCard {
+                Text(report.title)
+                    .font(.title2.bold())
+
+                Divider()
+
+                SectionView(title: "操作内容", icon: "text.alignleft") {
+                    Text(report.description)
+                }
+
+                if !report.items.isEmpty {
+                    Divider()
+                    SectionView(title: "データ一覧", icon: "list.bullet") {
+                        BulletList(items: report.items)
+                    }
+                }
+
+                Divider()
+
+                SectionView(title: "結果", icon: "checkmark.circle.fill") {
+                    Text(report.summary)
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.green)
+                }
+            }
+
+            JSONDisclosure(showingJSON: $showingJSON, content: report)
         }
     }
 }
