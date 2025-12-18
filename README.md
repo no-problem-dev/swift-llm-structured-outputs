@@ -209,6 +209,35 @@ LLMToolkits には以下が含まれます：
 
 詳細は [LLMToolkits APIリファレンス](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/) を参照してください。
 
+### MCP統合と組み込みToolKit
+
+外部MCPサーバーへの接続と、MCP同等の機能を提供するSwiftネイティブのToolKitを利用できます：
+
+```swift
+import LLMStructuredOutputs
+
+let tools = ToolSet {
+    // 組み込みToolKit（iOS/macOS両対応）
+    MemoryToolKit(persistencePath: "~/memory.jsonl")  // ナレッジグラフメモリ
+    FileSystemToolKit(allowedPaths: ["/Users/user/projects"])  // ファイル操作
+    WebToolKit(allowedDomains: ["api.github.com"])  // Web取得
+    UtilityToolKit()  // 時刻、計算、UUID生成
+
+    // 外部MCPサーバー（認証付き）
+    MCPServer.notion(token: "ntn_xxxxx")
+}
+
+for try await step in client.runAgent(
+    prompt: "プロジェクトの情報をメモリに保存して",
+    model: .sonnet,
+    tools: tools
+) {
+    // エージェントがToolKitのツールを自動的に使用
+}
+```
+
+組み込みToolKitは外部プロセス不要で、iOS/macOS両方で動作します。詳細は [ToolKit ガイド](documentation/toolkit.md) を参照してください。
+
 ## インストール
 
 ```swift
@@ -239,11 +268,12 @@ dependencies: [
 | [ツールコール](documentation/tool-calling.md) | LLM に外部関数を呼び出させる |
 | [エージェントループ](documentation/agent-loop.md) | ツール自動実行と構造化出力の生成 |
 | [会話型エージェント](documentation/conversational-agent.md) | マルチターン会話を保持したエージェント |
+| [ToolKit](documentation/toolkit.md) | 組み込みToolKitとMCPサーバー統合 |
 | [プロバイダー](documentation/providers.md) | 各プロバイダーとモデルの詳細 |
 
 ### 📚 APIリファレンス（DocC）
 
-- [LLMStructuredOutputs](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) - 型安全な構造化出力 API
+- [LLMStructuredOutputs](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) - 型安全な構造化出力 API（MCP統合含む）
 - [LLMToolkits](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/) - 高レベルツールキット（プリセット、組み込みツール、共通出力）
 
 ## 対応プロバイダー

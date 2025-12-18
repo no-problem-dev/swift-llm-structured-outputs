@@ -254,7 +254,8 @@ final class AgentExecutionController {
     }
 
     private func formatToolInput(_ data: Data) -> String? {
-        guard let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        guard let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              !dict.isEmpty else {
             return nil
         }
         return dict.map { "\($0.key): \($0.value)" }.joined(separator: ", ")

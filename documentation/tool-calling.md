@@ -419,8 +419,47 @@ for call in plan.toolCalls {
 }
 ```
 
+## ToolKit による複数ツールの提供
+
+`@Tool` マクロで個別にツールを定義する代わりに、`ToolKit` を使って関連する複数のツールをまとめて提供できます。
+
+### 組み込み ToolKit
+
+`LLMMCP` モジュールには、MCP サーバーと同等の機能を提供する組み込み ToolKit が含まれています：
+
+```swift
+import LLMStructuredOutputs
+
+let tools = ToolSet {
+    // ナレッジグラフベースのメモリ
+    MemoryToolKit(persistencePath: "~/memory.jsonl")
+
+    // ファイルシステム操作（セキュアなパス制限付き）
+    FileSystemToolKit(allowedPaths: ["/Users/user/projects"])
+
+    // Web コンテンツ取得（ドメイン制限付き）
+    WebToolKit(allowedDomains: ["api.github.com"])
+
+    // ユーティリティ（時刻、計算、UUID）
+    UtilityToolKit()
+
+    // @Tool で定義した個別ツールも併用可能
+    GetWeather()
+}
+```
+
+### @Tool と ToolKit の比較
+
+| 方式 | 特徴 | 使い分け |
+|------|------|----------|
+| `@Tool` マクロ | 個別ツールを型安全に定義 | アプリ固有のツール |
+| `ToolKit` | 複数ツールをグループ化 | 汎用的な機能セット |
+
+詳細は [ToolKit ガイド](toolkit.md) を参照してください。
+
 ## 次のステップ
 
 - [はじめに](getting-started.md) で基本的なセットアップを確認
 - [プロバイダー](providers.md) で各プロバイダーとモデルの詳細を確認
 - [会話](conversation.md) でマルチターン会話の実装を学ぶ
+- [ToolKit](toolkit.md) で組み込み ToolKit と MCP 統合を確認

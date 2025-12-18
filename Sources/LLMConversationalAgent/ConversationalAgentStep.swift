@@ -61,34 +61,32 @@ public enum ConversationalAgentStep<Output: Sendable>: Sendable {
     /// AI がユーザーに質問している
     ///
     /// `AskUserTool` が呼び出された時に発生します。
-    /// このステップの直後に `.awaitingUserInput` が発生し、ストリームが終了します。
+    /// このステップの直後に `.awaitingUserInput` が発生し、ストリームが一時停止します。
     case askingUser(String)
 
-    /// ユーザー入力待ち状態（ストリーム終了）
+    /// ユーザー入力待ち状態（ストリーム一時停止）
     ///
-    /// `AskUserTool` が呼び出された後、ストリームはこのステップで終了します。
-    /// 構造化出力（`.finalResponse`）は生成されません。
+    /// `AskUserTool` が呼び出された後、ストリームはこのステップで一時停止します。
+    /// `session.reply()` で回答を提供すると、ストリームが自動的に再開されます。
     ///
     /// ユーザーの回答を処理するには:
-    /// 1. `session.provideAnswer()` で回答を提供
-    /// 2. `session.run()` を再度呼び出して会話を継続
+    /// 1. このステップを受信したら `session.reply()` で回答を提供
+    /// 2. ストリームが自動再開され、次のステップが yield される
     ///
     /// ```swift
     /// for try await step in session.run("こんにちは", model: .sonnet) {
     ///     switch step {
     ///     case .awaitingUserInput(let question):
-    ///         // ストリームはここで終了
+    ///         // ストリームはここで一時停止
     ///         print("❓ \(question)")
     ///         let answer = getUserInput()
-    ///         await session.provideAnswer(answer)
+    ///         await session.reply(answer)
+    ///         // reply() 後、ストリームが自動再開され、ループは継続
+    ///     case .finalResponse(let output):
+    ///         print("✅ \(output)")
     ///     default:
     ///         break
     ///     }
-    /// }
-    ///
-    /// // 回答提供後、会話を継続
-    /// for try await step in session.resume(model: .sonnet) {
-    ///     // 続きの処理...
     /// }
     /// ```
     case awaitingUserInput(String)
