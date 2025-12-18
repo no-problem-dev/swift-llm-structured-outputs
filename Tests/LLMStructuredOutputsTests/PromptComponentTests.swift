@@ -205,6 +205,50 @@ final class PromptComponentTests: XCTestCase {
         )
     }
 
+    // MARK: - Output Constraint Components
+
+    func testOutputConstraintComponent() {
+        let component = PromptComponent.outputConstraint("The 'age' field must be at least 0.")
+
+        XCTAssertEqual(component.tagName, "output_constraint")
+        XCTAssertEqual(
+            component.render(),
+            """
+            <output_constraint>
+            The 'age' field must be at least 0.
+            </output_constraint>
+            """
+        )
+    }
+
+    func testOutputConstraintWithArrayConstraint() {
+        let component = PromptComponent.outputConstraint("The 'tags' array must have at most 5 item(s).")
+
+        XCTAssertEqual(component.tagName, "output_constraint")
+        XCTAssertEqual(
+            component.render(),
+            """
+            <output_constraint>
+            The 'tags' array must have at most 5 item(s).
+            </output_constraint>
+            """
+        )
+    }
+
+    func testOutputConstraintVsConstraintDistinction() {
+        // outputConstraint はスキーマ由来の技術的制約
+        let outputConstraint = PromptComponent.outputConstraint("The 'age' field must be at least 0.")
+        // constraint はユーザー定義のビジネス制約
+        let constraint = PromptComponent.constraint("推測はしない")
+
+        // タグ名が異なる
+        XCTAssertEqual(outputConstraint.tagName, "output_constraint")
+        XCTAssertEqual(constraint.tagName, "constraint")
+
+        // 異なるコンポーネントとして扱われる
+        XCTAssertNotEqual(outputConstraint, constraint)
+    }
+
     // MARK: - Equality Tests
 
     func testRoleEquality() {
@@ -252,6 +296,7 @@ final class PromptComponentTests: XCTestCase {
         XCTAssertEqual(PromptComponent.example(input: "", output: "").tagName, "example")
         XCTAssertEqual(PromptComponent.important("").tagName, "important")
         XCTAssertEqual(PromptComponent.note("").tagName, "note")
+        XCTAssertEqual(PromptComponent.outputConstraint("").tagName, "output_constraint")
     }
 
     // MARK: - CustomStringConvertible Tests

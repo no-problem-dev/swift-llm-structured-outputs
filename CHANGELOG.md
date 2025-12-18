@@ -7,6 +7,41 @@
 
 ## [未リリース]
 
+## [1.0.17] - 2025-12-18
+
+### 追加
+
+- **LLMMCP モジュール**: 公式 MCP SDK を統合した新モジュール
+  - `MCPClientConnection`: MCP サーバーとの接続管理
+  - `MCPToolBridge`: MCP ツールを LLMTool として利用可能に
+  - OAuth 2.0 認証サポート（Authorization Code Flow with PKCE）
+  - DocC ドキュメントを追加
+
+- **ToolKit プロトコル**: ツールセットの組み込みとカスタマイズを簡素化
+  - `MemoryToolKit`: メモリ管理ツール（read/write/list/delete）
+  - `FileSystemToolKit`: ファイル操作ツール
+  - `HTTPToolKit`: HTTP リクエストツール
+  - `DateTimeToolKit`: 日時操作ツール
+  - DocC ドキュメントを追加
+
+- **スキーマ制約の Prompt DSL 統合**: 構造化出力の制約をプロンプトに自動反映
+  - `ConstraintsSection`: 制約情報を自動生成するプロンプトコンポーネント
+  - `RemovedConstraint` 抽出による API 互換性維持
+
+### 変更
+
+- **AgentExample アプリの改善**: MemoryToolKit シナリオを追加
+  - iOS/macOS 両対応
+  - ツールキットベースのシナリオ実行をサポート
+
+### ドキュメント
+
+- **DocC の改善**
+  - TechnologyRoot ランディングページを追加
+  - 全サブモジュールを combined documentation に統合
+  - モジュールナビゲーションを改善
+  - README に API リファレンスへのリンクを追加
+
 ## [1.0.16] - 2025-12-17
 
 ### 追加
@@ -381,7 +416,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.16...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.17...HEAD
+[1.0.17]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.16...v1.0.17
 [1.0.16]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.15...v1.0.16
 [1.0.15]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.14...v1.0.15
 [1.0.14]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.13...v1.0.14
@@ -418,3 +454,5 @@
 <!-- Auto-generated on 2025-12-16T01:03:39Z by release workflow -->
 
 <!-- Auto-generated on 2025-12-16T12:58:40Z by release workflow -->
+
+<!-- Auto-generated on 2025-12-16T15:12:51Z by release workflow -->

@@ -18,7 +18,7 @@ extension JSONSchema {
     /// let nameSchema = JSONSchema.string(description: "名前", minLength: 1)
     /// let emailSchema = JSONSchema.string(format: "email")
     /// ```
-    static func string(
+    public static func string(
         description: String? = nil,
         minLength: Int? = nil,
         maxLength: Int? = nil,
@@ -50,7 +50,7 @@ extension JSONSchema {
     /// ```swift
     /// let ageSchema = JSONSchema.integer(description: "年齢", minimum: 0, maximum: 150)
     /// ```
-    static func integer(
+    public static func integer(
         description: String? = nil,
         minimum: Int? = nil,
         maximum: Int? = nil,
@@ -78,7 +78,7 @@ extension JSONSchema {
     /// ```swift
     /// let priceSchema = JSONSchema.number(description: "価格", minimum: 0)
     /// ```
-    static func number(
+    public static func number(
         description: String? = nil,
         minimum: Int? = nil,
         maximum: Int? = nil
@@ -99,7 +99,7 @@ extension JSONSchema {
     /// ```swift
     /// let isActiveSchema = JSONSchema.boolean(description: "アクティブかどうか")
     /// ```
-    static func boolean(description: String? = nil) -> JSONSchema {
+    public static func boolean(description: String? = nil) -> JSONSchema {
         JSONSchema(type: .boolean, description: description)
     }
 
@@ -111,7 +111,7 @@ extension JSONSchema {
     /// ```swift
     /// let nullSchema = JSONSchema.null(description: "null値")
     /// ```
-    static func null(description: String? = nil) -> JSONSchema {
+    public static func null(description: String? = nil) -> JSONSchema {
         JSONSchema(type: .null, description: description)
     }
 
@@ -132,7 +132,7 @@ extension JSONSchema {
     ///     maxItems: 10
     /// )
     /// ```
-    static func array(
+    public static func array(
         description: String? = nil,
         items: JSONSchema,
         minItems: Int? = nil,
@@ -166,7 +166,7 @@ extension JSONSchema {
     ///     required: ["name", "age"]
     /// )
     /// ```
-    static func object(
+    public static func object(
         description: String? = nil,
         properties: [String: JSONSchema],
         required: [String]? = nil,
@@ -194,7 +194,7 @@ extension JSONSchema {
     ///     description: "ステータス"
     /// )
     /// ```
-    static func `enum`(
+    public static func `enum`(
         _ values: [String],
         description: String? = nil
     ) -> JSONSchema {

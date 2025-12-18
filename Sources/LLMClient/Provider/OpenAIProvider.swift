@@ -97,8 +97,38 @@ internal struct OpenAIProvider: LLMProvider, RetryableProviderProtocol {
         // メッセージを変換
         var messages: [OpenAIMessage] = []
 
-        // システムプロンプト
-        if let systemPrompt = request.systemPrompt {
+        // 構造化出力の設定と制約プロンプトの生成
+        var responseFormat: OpenAIResponseFormat?
+        var constraintPrompt: Prompt?
+
+        if let schema = request.responseSchema {
+            // OpenAI用にスキーマを適合（制約追跡付き）
+            // - additionalProperties: false を設定
+            // - required 配列にすべてのプロパティを含める
+            // - サポートされていない制約は PromptComponent.outputConstraint に変換
+            let adapter = OpenAISchemaAdapter()
+            let adaptationResult = adapter.adaptWithConstraints(schema)
+
+            responseFormat = OpenAIResponseFormat(
+                type: "json_schema",
+                jsonSchema: OpenAIJSONSchemaWrapper(
+                    name: "response",
+                    strict: true,
+                    schema: adaptationResult.schema
+                )
+            )
+
+            // 除去された制約を Prompt に変換（Prompt DSL を活用）
+            constraintPrompt = adaptationResult.toConstraintPrompt()
+        }
+
+        // システムプロンプトを構築（制約プロンプトを統合）
+        let effectiveSystemPrompt = buildEffectiveSystemPrompt(
+            base: request.systemPrompt,
+            constraints: constraintPrompt
+        )
+
+        if let systemPrompt = effectiveSystemPrompt {
             messages.append(OpenAIMessage(
                 role: "system",
                 content: systemPrompt,
@@ -112,23 +142,6 @@ internal struct OpenAIProvider: LLMProvider, RetryableProviderProtocol {
             messages.append(contentsOf: convertToOpenAIMessages(message))
         }
 
-        // 構造化出力の設定
-        var responseFormat: OpenAIResponseFormat?
-        if let schema = request.responseSchema {
-            // OpenAI用にスキーマを適合
-            // - additionalProperties: false を設定
-            // - required 配列にすべてのプロパティを含める
-            let adapter = OpenAISchemaAdapter()
-            responseFormat = OpenAIResponseFormat(
-                type: "json_schema",
-                jsonSchema: OpenAIJSONSchemaWrapper(
-                    name: "response",
-                    strict: true,
-                    schema: adapter.adapt(schema)
-                )
-            )
-        }
-
         return OpenAIRequestBody(
             model: request.model.id,
             messages: messages,
@@ -138,6 +151,29 @@ internal struct OpenAIProvider: LLMProvider, RetryableProviderProtocol {
             tools: nil,
             toolChoice: nil
         )
+    }
+
+    /// システムプロンプトと制約プロンプトを統合
+    ///
+    /// - Parameters:
+    ///   - base: ベースのシステムプロンプト
+    ///   - constraints: 制約プロンプト（Prompt DSL）
+    /// - Returns: 統合されたシステムプロンプト
+    private func buildEffectiveSystemPrompt(base: String?, constraints: Prompt?) -> String? {
+        switch (base, constraints) {
+        case (let base?, let constraints?):
+            // 両方ある場合：ベース + 制約プロンプト
+            return "\(base)\n\n\(constraints.render())"
+        case (let base?, nil):
+            // ベースのみ
+            return base
+        case (nil, let constraints?):
+            // 制約のみ
+            return constraints.render()
+        case (nil, nil):
+            // どちらもない
+            return nil
+        }
     }
 
     /// LLMMessage を OpenAI メッセージ形式に変換

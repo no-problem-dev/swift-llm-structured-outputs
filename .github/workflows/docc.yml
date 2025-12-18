@@ -43,6 +43,7 @@ jobs:
             --target LLMConversation \
             --target LLMAgent \
             --target LLMConversationalAgent \
+            --target LLMMCP \
             --target LLMToolkits \
             --disable-indexing \
             --transform-for-static-hosting \
