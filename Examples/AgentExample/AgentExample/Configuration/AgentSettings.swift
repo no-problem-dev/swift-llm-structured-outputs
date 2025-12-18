@@ -16,6 +16,13 @@ import LLMStructuredOutputs
 @Observable @MainActor
 final class AgentSettings {
 
+    // MARK: - Type Aliases
+
+    /// モデル Preset の型エイリアス（ライブラリ提供の Preset を使用）
+    typealias ClaudeModelOption = ClaudeModel.Preset
+    typealias GPTModelOption = GPTModel.Preset
+    typealias GeminiModelOption = GeminiModel.Preset
+
     // MARK: - Singleton
 
     static let shared = AgentSettings()
@@ -100,81 +107,6 @@ final class AgentSettings {
     private var _selectedProvider: Provider = .anthropic
 
     // MARK: - Model Selection
-
-    /// Claude モデル選択肢
-    enum ClaudeModelOption: String, CaseIterable, Identifiable {
-        case sonnet = "Claude Sonnet 4.5（バランス型）"
-        case opus = "Claude Opus 4.5（最高性能）"
-        case haiku = "Claude Haiku 4.5（高速）"
-
-        var id: String { rawValue }
-
-        var model: ClaudeModel {
-            switch self {
-            case .opus: return .opus
-            case .sonnet: return .sonnet
-            case .haiku: return .haiku
-            }
-        }
-
-        var shortName: String {
-            switch self {
-            case .opus: return "Opus"
-            case .sonnet: return "Sonnet"
-            case .haiku: return "Haiku"
-            }
-        }
-    }
-
-    /// GPT モデル選択肢
-    enum GPTModelOption: String, CaseIterable, Identifiable {
-        case gpt4o = "GPT-4o（マルチモーダル）"
-        case gpt4oMini = "GPT-4o mini（軽量版）"
-        case o1 = "o1（推論特化）"
-
-        var id: String { rawValue }
-
-        var model: GPTModel {
-            switch self {
-            case .gpt4o: return .gpt4o
-            case .gpt4oMini: return .gpt4oMini
-            case .o1: return .o1
-            }
-        }
-
-        var shortName: String {
-            switch self {
-            case .gpt4o: return "4o"
-            case .gpt4oMini: return "4o mini"
-            case .o1: return "o1"
-            }
-        }
-    }
-
-    /// Gemini モデル選択肢
-    enum GeminiModelOption: String, CaseIterable, Identifiable {
-        case pro25 = "Gemini 2.5 Pro（最高性能）"
-        case flash25 = "Gemini 2.5 Flash（高速）"
-        case flash25Lite = "Gemini 2.5 Flash-Lite（軽量）"
-
-        var id: String { rawValue }
-
-        var model: GeminiModel {
-            switch self {
-            case .pro25: return .pro25
-            case .flash25: return .flash25
-            case .flash25Lite: return .flash25Lite
-            }
-        }
-
-        var shortName: String {
-            switch self {
-            case .pro25: return "2.5 Pro"
-            case .flash25: return "2.5 Flash"
-            case .flash25Lite: return "2.5 Flash-Lite"
-            }
-        }
-    }
 
     /// 選択中の Claude モデル
     var claudeModelOption: ClaudeModelOption {

@@ -1,17 +1,16 @@
 import SwiftUI
+import LLMStructuredOutputs
 
-/// 統合設定ビュー
-///
-/// 「セッション設定」と「APIキー設定」を上タブで切り替えます。
 struct UnifiedSettingsView: View {
     enum Tab: String, CaseIterable {
         case session = "セッション"
         case apiKeys = "APIキー"
     }
 
+    @Environment(AppState.self) private var appState
+    @Environment(\.useCase) private var useCase
     @State private var selectedTab: Tab = .session
 
-    // セッション設定用
     @Binding var interactiveMode: Bool
     @Binding var outputType: AgentOutputType
     var isSessionDisabled: Bool
@@ -23,7 +22,6 @@ struct UnifiedSettingsView: View {
     @State private var showClearConfirm = false
     @State private var pendingInteractiveMode = false
 
-    // APIキー設定用
     @State private var anthropicKey = ""
     @State private var openAIKey = ""
     @State private var geminiKey = ""
@@ -33,12 +31,9 @@ struct UnifiedSettingsView: View {
     @State private var showingGeminiKey = false
     @State private var showingBraveSearchKey = false
 
-    private var settings: AgentSettings { AgentSettings.shared }
-
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // 上タブ
                 Picker("", selection: $selectedTab) {
                     ForEach(Tab.allCases, id: \.self) { tab in
                         Text(tab.rawValue).tag(tab)
@@ -47,7 +42,6 @@ struct UnifiedSettingsView: View {
                 .pickerStyle(.segmented)
                 .padding()
 
-                // コンテンツ
                 switch selectedTab {
                 case .session:
                     sessionSettingsContent
@@ -176,16 +170,15 @@ struct UnifiedSettingsView: View {
 
     private var apiKeysSettingsContent: some View {
         Form {
-            // MARK: - プロバイダー選択
             Section {
                 Picker("LLMプロバイダー", selection: Binding(
-                    get: { settings.selectedProvider },
-                    set: { settings.selectedProvider = $0 }
+                    get: { appState.selectedProvider },
+                    set: { appState.setSelectedProvider($0) }
                 )) {
-                    ForEach(AgentSettings.Provider.allCases) { provider in
+                    ForEach(AppState.Provider.allCases) { provider in
                         HStack {
                             Text(provider.rawValue)
-                            if provider.hasAPIKey {
+                            if hasAPIKey(for: provider) {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundStyle(.green)
                             }
@@ -197,32 +190,31 @@ struct UnifiedSettingsView: View {
                 Text("プロバイダー")
             }
 
-            // MARK: - モデル選択
             Section {
-                if settings.selectedProvider == .anthropic {
+                if appState.selectedProvider == .anthropic {
                     Picker("Claude モデル", selection: Binding(
-                        get: { settings.claudeModelOption },
-                        set: { settings.claudeModelOption = $0 }
+                        get: { appState.claudeModelOption },
+                        set: { appState.setClaudeModelOption($0) }
                     )) {
-                        ForEach(AgentSettings.ClaudeModelOption.allCases) { option in
+                        ForEach(AppState.ClaudeModelOption.allCases) { option in
                             Text(option.rawValue).tag(option)
                         }
                     }
-                } else if settings.selectedProvider == .openai {
+                } else if appState.selectedProvider == .openai {
                     Picker("GPT モデル", selection: Binding(
-                        get: { settings.gptModelOption },
-                        set: { settings.gptModelOption = $0 }
+                        get: { appState.gptModelOption },
+                        set: { appState.setGPTModelOption($0) }
                     )) {
-                        ForEach(AgentSettings.GPTModelOption.allCases) { option in
+                        ForEach(AppState.GPTModelOption.allCases) { option in
                             Text(option.rawValue).tag(option)
                         }
                     }
-                } else if settings.selectedProvider == .gemini {
+                } else if appState.selectedProvider == .gemini {
                     Picker("Gemini モデル", selection: Binding(
-                        get: { settings.geminiModelOption },
-                        set: { settings.geminiModelOption = $0 }
+                        get: { appState.geminiModelOption },
+                        set: { appState.setGeminiModelOption($0) }
                     )) {
-                        ForEach(AgentSettings.GeminiModelOption.allCases) { option in
+                        ForEach(AppState.GeminiModelOption.allCases) { option in
                             Text(option.rawValue).tag(option)
                         }
                     }
@@ -231,13 +223,12 @@ struct UnifiedSettingsView: View {
                 Text("モデル")
             }
 
-            // MARK: - エージェント設定
             Section {
                 Stepper(
-                    "最大ステップ数: \(settings.maxSteps)",
+                    "最大ステップ数: \(appState.maxSteps)",
                     value: Binding(
-                        get: { settings.maxSteps },
-                        set: { settings.maxSteps = $0 }
+                        get: { appState.maxSteps },
+                        set: { appState.setMaxSteps($0) }
                     ),
                     in: 1...20
                 )
@@ -247,30 +238,38 @@ struct UnifiedSettingsView: View {
                 Text("エージェントが実行できるツール呼び出しの最大回数です。")
             }
 
-            // MARK: - LLM APIキー
             Section {
                 APIKeyRow(
                     label: "Anthropic API Key",
                     key: $anthropicKey,
                     isVisible: $showingAnthropicKey,
-                    isSet: APIKeyManager.hasAnthropicKey,
-                    onSave: { APIKeyManager.setAnthropicKey($0) }
+                    isSet: appState.hasAnthropicKey,
+                    onSave: { key in
+                        try? useCase.apiKey.set(.anthropic, value: key)
+                        appState.syncKeyStatuses(from: useCase.apiKey)
+                    }
                 )
 
                 APIKeyRow(
                     label: "OpenAI API Key",
                     key: $openAIKey,
                     isVisible: $showingOpenAIKey,
-                    isSet: APIKeyManager.hasOpenAIKey,
-                    onSave: { APIKeyManager.setOpenAIKey($0) }
+                    isSet: appState.hasOpenAIKey,
+                    onSave: { key in
+                        try? useCase.apiKey.set(.openai, value: key)
+                        appState.syncKeyStatuses(from: useCase.apiKey)
+                    }
                 )
 
                 APIKeyRow(
                     label: "Gemini API Key",
                     key: $geminiKey,
                     isVisible: $showingGeminiKey,
-                    isSet: APIKeyManager.hasGeminiKey,
-                    onSave: { APIKeyManager.setGeminiKey($0) }
+                    isSet: appState.hasGeminiKey,
+                    onSave: { key in
+                        try? useCase.apiKey.set(.gemini, value: key)
+                        appState.syncKeyStatuses(from: useCase.apiKey)
+                    }
                 )
             } header: {
                 Text("LLM APIキー")
@@ -278,14 +277,16 @@ struct UnifiedSettingsView: View {
                 Text("少なくとも1つのLLM APIキーが必要です。")
             }
 
-            // MARK: - 外部APIキー
             Section {
                 APIKeyRow(
                     label: "Brave Search API Key",
                     key: $braveSearchKey,
                     isVisible: $showingBraveSearchKey,
-                    isSet: APIKeyManager.hasBraveSearchKey,
-                    onSave: { APIKeyManager.setBraveSearchKey($0) }
+                    isSet: appState.hasBraveSearchKey,
+                    onSave: { key in
+                        try? useCase.apiKey.set(.braveSearch, value: key)
+                        appState.syncKeyStatuses(from: useCase.apiKey)
+                    }
                 )
             } header: {
                 Text("外部APIキー（オプション）")
@@ -293,28 +294,37 @@ struct UnifiedSettingsView: View {
                 Text("Brave Search APIキーがない場合、Web検索ツールは利用できません。")
             }
 
-            // MARK: - ステータス
             Section {
-                StatusRow(label: "Anthropic", isConfigured: APIKeyManager.hasAnthropicKey)
-                StatusRow(label: "OpenAI", isConfigured: APIKeyManager.hasOpenAIKey)
-                StatusRow(label: "Gemini", isConfigured: APIKeyManager.hasGeminiKey)
-                StatusRow(label: "Brave Search", isConfigured: APIKeyManager.hasBraveSearchKey)
+                StatusRow(label: "Anthropic", isConfigured: appState.hasAnthropicKey)
+                StatusRow(label: "OpenAI", isConfigured: appState.hasOpenAIKey)
+                StatusRow(label: "Gemini", isConfigured: appState.hasGeminiKey)
+                StatusRow(label: "Brave Search", isConfigured: appState.hasBraveSearchKey)
             } header: {
                 Text("APIステータス")
             }
 
-            // MARK: - リセット
             Section {
                 Button(role: .destructive) {
-                    APIKeyManager.clearAllKeys()
+                    try? useCase.apiKey.deleteAll()
                     anthropicKey = ""
                     openAIKey = ""
                     geminiKey = ""
                     braveSearchKey = ""
+                    appState.syncKeyStatuses(from: useCase.apiKey)
                 } label: {
                     Label("すべてのAPIキーをクリア", systemImage: "trash")
                 }
             }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func hasAPIKey(for provider: AppState.Provider) -> Bool {
+        switch provider {
+        case .anthropic: return appState.hasAnthropicKey
+        case .openai: return appState.hasOpenAIKey
+        case .gemini: return appState.hasGeminiKey
         }
     }
 }
@@ -405,4 +415,5 @@ private struct StatusRow: View {
         onClearSession: {},
         onDismiss: {}
     )
+    .environment(AppState())
 }

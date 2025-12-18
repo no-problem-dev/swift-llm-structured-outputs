@@ -281,8 +281,8 @@ dependencies: [
 | プロバイダー | クライアント | モデル例 |
 |-------------|-------------|---------|
 | Anthropic | `AnthropicClient` | `.sonnet`, `.opus`, `.haiku` |
-| OpenAI | `OpenAIClient` | `.gpt4o`, `.gpt4oMini`, `.o1` |
-| Google | `GeminiClient` | `.pro25`, `.flash25`, `.flash25Lite` |
+| OpenAI | `OpenAIClient` | `.gpt4o`, `.gpt4oMini`, `.o1`, `.o3Mini` |
+| Google | `GeminiClient` | `.flash3`, `.pro25`, `.flash25`, `.flash25Lite` |
 
 ## 要件
 

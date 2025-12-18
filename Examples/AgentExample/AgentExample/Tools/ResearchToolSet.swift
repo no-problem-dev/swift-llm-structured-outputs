@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import LLMMCP
 import LLMStructuredOutputs
 
 /// エージェント用ツールセット
@@ -29,7 +30,7 @@ enum ResearchToolSet {
     static var allTools: ToolSet {
         ToolSet {
             WebSearchTool()
-            FetchWebPageTool()
+            WebToolKit()
             WeatherTool()
             CalculatorTool()
             CurrentTimeTool()
@@ -68,7 +69,7 @@ enum ResearchToolSet {
             case .webSearch:
                 toolSet = toolSet.appending(WebSearchTool())
             case .fetchWebPage:
-                toolSet = toolSet.appending(FetchWebPageTool())
+                toolSet = toolSet.appending(WebToolKit())
             case .weather:
                 toolSet = toolSet.appending(WeatherTool())
             case .calculator:

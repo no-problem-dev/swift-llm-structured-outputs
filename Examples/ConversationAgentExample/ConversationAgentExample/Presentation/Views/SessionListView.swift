@@ -1,16 +1,17 @@
 import SwiftUI
 
-/// セッション一覧ビュー
 struct SessionListView: View {
-    @Bindable var viewModel: SessionListViewModel
+    @Bindable var state: SessionListState
     @Binding var selectedSession: SessionData?
     let onNewSession: () -> Void
 
+    @Environment(\.useCase) private var useCase
+
     var body: some View {
         Group {
-            if viewModel.isLoading && viewModel.sessions.isEmpty {
+            if state.isLoading && state.sessions.isEmpty {
                 ProgressView("読み込み中...")
-            } else if viewModel.sessions.isEmpty {
+            } else if state.sessions.isEmpty {
                 emptyStateView
             } else {
                 sessionListContent
@@ -27,10 +28,10 @@ struct SessionListView: View {
             }
         }
         .task {
-            await viewModel.loadSessions()
+            await loadSessions()
         }
         .refreshable {
-            await viewModel.loadSessions()
+            await loadSessions()
         }
     }
 
@@ -53,17 +54,45 @@ struct SessionListView: View {
 
     private var sessionListContent: some View {
         List(selection: $selectedSession) {
-            ForEach(viewModel.sessions) { session in
+            ForEach(state.sessions) { session in
                 SessionRowView(session: session)
                     .tag(session)
             }
             .onDelete { offsets in
                 Task {
-                    await viewModel.deleteSessions(at: offsets)
+                    await deleteSessions(at: offsets)
                 }
             }
         }
         .listStyle(.insetGrouped)
+    }
+
+    // MARK: - Actions
+
+    private func loadSessions() async {
+        state.setLoading(true)
+        state.setError(nil)
+
+        do {
+            let sessions = try await useCase.session.listSessions()
+            state.setSessions(sessions)
+        } catch {
+            state.setError(error.localizedDescription)
+        }
+
+        state.setLoading(false)
+    }
+
+    private func deleteSessions(at offsets: IndexSet) async {
+        let idsToDelete = offsets.map { state.sessions[$0].id }
+        for id in idsToDelete {
+            do {
+                try await useCase.session.deleteSession(id: id)
+                state.removeSession(id: id)
+            } catch {
+                state.setError(error.localizedDescription)
+            }
+        }
     }
 }
 
@@ -113,12 +142,12 @@ extension SessionData: Hashable {
 }
 
 #Preview {
-    @Previewable @State var viewModel = SessionListViewModel()
+    @Previewable @State var state = SessionListState()
     @Previewable @State var selectedSession: SessionData?
 
     NavigationStack {
         SessionListView(
-            viewModel: viewModel,
+            state: state,
             selectedSession: $selectedSession,
             onNewSession: {}
         )

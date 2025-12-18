@@ -68,8 +68,8 @@ actor BraveSearchService {
     // MARK: - Public Methods
 
     /// Web検索を実行
-    func search(query: String, count: Int = 5) async throws -> [SearchResult] {
-        guard let apiKey = APIKeyManager.braveSearchKey else {
+    func search(query: String, count: Int = 5, apiKey: String?) async throws -> [SearchResult] {
+        guard let apiKey else {
             throw ServiceError.noAPIKey
         }
 
@@ -126,8 +126,8 @@ actor BraveSearchService {
     }
 
     /// 検索結果をフォーマットされた文字列として取得
-    func searchFormatted(query: String, count: Int = 5) async throws -> String {
-        let results = try await search(query: query, count: count)
+    func searchFormatted(query: String, count: Int = 5, apiKey: String?) async throws -> String {
+        let results = try await search(query: query, count: count, apiKey: apiKey)
 
         if results.isEmpty {
             return "「\(query)」に関する検索結果は見つかりませんでした。"
