@@ -1,4 +1,5 @@
 import Foundation
+import LLMClient
 
 // MARK: - LLMProvider
 
@@ -15,7 +16,9 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable, Sendable {
 
 /// セッションデータ
 ///
-/// 会話セッションの永続化用データモデル
+/// 会話セッションの永続化用データモデル。
+/// `messages` は会話履歴の Single Source of Truth として機能します。
+/// UI表示用の `ConversationStepInfo` は `messages` から動的に生成します。
 struct SessionData: Identifiable, Codable, Sendable {
     let id: UUID
     var title: String
@@ -24,7 +27,7 @@ struct SessionData: Identifiable, Codable, Sendable {
     var provider: LLMProvider
     var outputType: AgentOutputType
     var interactiveMode: Bool
-    var steps: [ConversationStepInfo]
+    var messages: [LLMMessage]
     var result: String?
 
     /// 新規セッションを作成
@@ -41,7 +44,7 @@ struct SessionData: Identifiable, Codable, Sendable {
         self.provider = provider
         self.outputType = outputType
         self.interactiveMode = interactiveMode
-        self.steps = []
+        self.messages = []
         self.result = nil
     }
 
@@ -54,7 +57,7 @@ struct SessionData: Identifiable, Codable, Sendable {
         provider: LLMProvider,
         outputType: AgentOutputType,
         interactiveMode: Bool,
-        steps: [ConversationStepInfo],
+        messages: [LLMMessage],
         result: String? = nil
     ) {
         self.id = id
@@ -64,7 +67,7 @@ struct SessionData: Identifiable, Codable, Sendable {
         self.provider = provider
         self.outputType = outputType
         self.interactiveMode = interactiveMode
-        self.steps = steps
+        self.messages = messages
         self.result = result
     }
 }
@@ -72,9 +75,9 @@ struct SessionData: Identifiable, Codable, Sendable {
 // MARK: - SessionData Helpers
 
 extension SessionData {
-    /// ステップを追加して更新日時を更新
-    mutating func addStep(_ step: ConversationStepInfo) {
-        steps.append(step)
+    /// メッセージを追加して更新日時を更新
+    mutating func addMessage(_ message: LLMMessage) {
+        messages.append(message)
         updatedAt = Date()
     }
 
@@ -82,24 +85,28 @@ extension SessionData {
     mutating func updateTitleFromFirstMessage() {
         guard title == "新規セッション" else { return }
 
-        if let firstUserMessage = steps.first(where: { $0.type == .userMessage }) {
-            let content = firstUserMessage.content
+        // 最初のユーザーメッセージを検索
+        if let firstUserMessage = messages.first(where: { $0.role == .user }),
+           let firstText = firstUserMessage.contents.compactMap({ content -> String? in
+               if case .text(let text) = content { return text }
+               return nil
+           }).first {
             // 最大30文字に制限
-            if content.count > 30 {
-                title = String(content.prefix(30)) + "..."
+            if firstText.count > 30 {
+                title = String(firstText.prefix(30)) + "..."
             } else {
-                title = content
+                title = firstText
             }
         }
     }
 
     /// セッションの表示用サマリー
     var summary: String {
-        let stepCount = steps.count
+        let messageCount = messages.count
         let formatter = RelativeDateTimeFormatter()
         formatter.locale = Locale(identifier: "ja_JP")
         formatter.unitsStyle = .abbreviated
         let relativeTime = formatter.localizedString(for: updatedAt, relativeTo: Date())
-        return "\(stepCount)ステップ • \(relativeTime)"
+        return "\(messageCount)メッセージ • \(relativeTime)"
     }
 }

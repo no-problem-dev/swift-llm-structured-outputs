@@ -8,8 +8,8 @@
 
 - **会話履歴の自動管理**: 複数ターンにわたる会話を自動追跡
 - **割り込みサポート**: 実行中のエージェントに追加指示を送信
-- **イベントストリーム**: UI 連携のための非同期イベント配信
-- **インタラクティブモード**: `AskUserTool` で AI がユーザーに質問可能
+- **型安全なストリーミング**: `SessionPhase<Output>` を通じた型付き出力
+- **インタラクティブモード**: AI がユーザーに質問可能
 
 ## 基本的な使い方
 
@@ -24,16 +24,16 @@ let session = ConversationalAgentSession(
     tools: ToolSet { WebSearchTool() }
 )
 
-let stream: some ConversationalAgentStepStream<ResearchResult> = session.run(
-    "AIエージェントについて調査して",
-    model: .sonnet
-)
-
-for try await step in stream {
-    switch step {
-    case .toolCall(let call):
-        print("🔧 \(call.name)")
-    case .finalResponse(let output):
+for try await phase in session.run("AIエージェントについて調査して", model: .sonnet, outputType: ResearchResult.self) {
+    switch phase {
+    case .running(let step):
+        switch step {
+        case .toolCall(let call):
+            print("🔧 \(call.name)")
+        default:
+            break
+        }
+    case .completed(let output):
         print("✅ \(output)")
     default:
         break
@@ -46,10 +46,11 @@ for try await step in stream {
 同じセッションで追加の質問ができます：
 
 ```swift
-let followUpStream: some ConversationalAgentStepStream<ResearchResult> = session.run(
-    "セキュリティ面についてもっと詳しく",
-    model: .sonnet
-)
+for try await phase in session.run("セキュリティ面についてもっと詳しく", model: .sonnet, outputType: ResearchResult.self) {
+    if case .completed(let output) = phase {
+        print("✅ \(output)")
+    }
+}
 ```
 
 ## 割り込み機能
@@ -60,26 +61,9 @@ let followUpStream: some ConversationalAgentStepStream<ResearchResult> = session
 await session.interrupt("特にセキュリティ面に焦点を当てて")
 ```
 
-## イベント監視
-
-UI 更新用のイベントストリーム：
-
-```swift
-for await event in session.eventStream {
-    switch event {
-    case .sessionStarted:
-        showLoading()
-    case .sessionCompleted:
-        hideLoading()
-    default:
-        break
-    }
-}
-```
-
 ## インタラクティブモード
 
-`interactiveMode: true` を指定すると、AI がユーザーに質問できるようになります（`AskUserTool` が自動追加）：
+`interactiveMode: true` を指定すると、AI がユーザーに質問できるようになります：
 
 ```swift
 let session = ConversationalAgentSession(
@@ -91,16 +75,16 @@ let session = ConversationalAgentSession(
     tools: ToolSet {
         WebSearchTool()
     },
-    interactiveMode: true  // AskUserTool が自動追加される
+    interactiveMode: true  // AI がユーザーに質問可能に
 )
 
-for try await step in stream {
-    switch step {
+for try await phase in session.run("調査して", model: .sonnet, outputType: Result.self) {
+    switch phase {
     case .awaitingUserInput(let question):
         // ユーザーに質問を表示
         let answer = getUserInput(question)
         await session.reply(answer)
-    case .finalResponse(let output):
+    case .completed(let output):
         print(output)
     default:
         break

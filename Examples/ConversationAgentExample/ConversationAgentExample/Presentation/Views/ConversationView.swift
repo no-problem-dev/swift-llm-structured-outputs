@@ -1,19 +1,10 @@
 import SwiftUI
+import LLMAgent
 import LLMStructuredOutputs
 import LLMToolkits
 
-private struct RunRequest: Equatable {
-    let id = UUID()
-    let prompt: String
-    let outputType: AgentOutputType
-
-    static func == (lhs: RunRequest, rhs: RunRequest) -> Bool {
-        lhs.id == rhs.id
-    }
-}
-
 struct ConversationView: View {
-    @Environment(ConversationState.self) private var state
+    @Environment(ActiveSessionState.self) private var sessionState
     @Environment(AppState.self) private var appState
     @Environment(\.useCase) private var useCase
 
@@ -23,9 +14,6 @@ struct ConversationView: View {
     @State private var showEventLog = false
     @State private var showResultSheet = false
     @State private var showSessionConfig = false
-    @State private var runRequest: RunRequest?
-    @State private var session: ProviderSession?
-    @State private var eventMonitorTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,13 +23,9 @@ struct ConversationView: View {
         }
         .navigationTitle("会話エージェント")
         .toolbar { toolbarContent }
-        .task(id: runRequest) {
-            guard let request = runRequest else { return }
-            await run(prompt: request.prompt, outputType: request.outputType)
-        }
         .sheet(isPresented: $showEventLog) {
             NavigationStack {
-                EventLogView(events: state.events)
+                EventLogView(events: sessionState.events)
                     .navigationTitle("イベントログ")
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
@@ -51,7 +35,7 @@ struct ConversationView: View {
             }
         }
         .sheet(isPresented: $showResultSheet) {
-            if let result = state.currentResult {
+            if let result = sessionState.currentResult {
                 ResultSheet(result: result) { showResultSheet = false }
             }
         }
@@ -65,9 +49,10 @@ struct ConversationView: View {
             Task {
                 try? await saveSession()
             }
-            eventMonitorTask?.cancel()
+            // タスクはActiveSessionStateで管理されているため
+            // ここではキャンセルしない（セッションはアプリ全体で共有される）
         }
-        .onChange(of: state.waitingForAnswer) { _, isWaiting in
+        .onChange(of: sessionState.waitingForAnswer) { _, isWaiting in
             if isWaiting {
                 Task {
                     try? await saveSession()
@@ -82,8 +67,8 @@ struct ConversationView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             HStack(spacing: 12) {
-                if state.turnCount > 0 {
-                    Text("ターン \(state.turnCount)")
+                if sessionState.turnCount > 0 {
+                    Text("ターン \(sessionState.turnCount)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -105,7 +90,7 @@ struct ConversationView: View {
         ZStack(alignment: .top) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    if case .completed(let result) = state.executionState {
+                    if case .completed(let result) = sessionState.executionState {
                         VStack(alignment: .leading, spacing: 8) {
                             Label("結果", systemImage: "checkmark.circle.fill")
                                 .font(.headline)
@@ -118,59 +103,74 @@ struct ConversationView: View {
                             .padding(.vertical, 8)
                     }
 
-                    if case .error(let message) = state.executionState {
-                        ErrorBanner(message: message)
+                    if case .error(let message) = sessionState.executionState {
+                        ErrorBanner(message: message, onResume: resumeSession)
                             .padding(.horizontal)
                     }
 
                     StepListView(
-                        steps: state.steps,
-                        isLoading: state.executionState.isRunning,
-                        onResultTap: state.currentResult != nil ? { showResultSheet = true } : nil
+                        steps: sessionState.steps,
+                        isLoading: sessionState.executionState.isRunning,
+                        onResultTap: sessionState.currentResult != nil ? { showResultSheet = true } : nil
                     )
                 }
                 .padding(.vertical)
-                .padding(.top, state.executionState.isRunning ? 80 : 0)
+                .padding(.top, sessionState.executionState.isRunning ? 80 : 0)
             }
             .scrollDismissesKeyboard(.interactively)
 
-            if state.executionState.isRunning {
+            if sessionState.executionState.isRunning {
                 ExecutionProgressBanner(
-                    currentPhase: state.steps.last?.type,
-                    startTime: state.steps.first?.timestamp
+                    currentPhase: sessionState.steps.last?.type,
+                    startTime: sessionState.steps.first?.timestamp
                 )
                 .padding(.horizontal)
                 .padding(.top, 8)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: state.executionState.isRunning)
+        .animation(.easeInOut(duration: 0.2), value: sessionState.executionState.isRunning)
     }
 
     // MARK: - Input
 
     private var inputSection: some View {
         VStack(spacing: 12) {
-            if state.waitingForAnswer, let question = state.pendingQuestion {
+            if sessionState.waitingForAnswer, let question = sessionState.pendingQuestion {
                 QuestionBanner(question: question)
             }
 
-            if state.waitingForAnswer {
+            // 再開可能な状態では再開バナーを表示
+            // （paused、error、または会話履歴がある idle/completed 状態）
+            if sessionState.canResume {
+                ResumeSessionBanner(onResume: resumeSession)
+            }
+
+            if sessionState.waitingForAnswer {
                 ConversationInputField(
                     mode: .answer,
                     text: $answerText,
                     isEnabled: true,
                     onSubmit: sendAnswer
                 )
-            } else if state.executionState.isRunning {
+            } else if sessionState.executionState.isRunning {
                 ConversationInputField(
                     mode: .interrupt,
                     text: $interruptText,
                     isEnabled: true,
                     onSubmit: sendInterrupt,
-                    onStop: { cancel() }
+                    onStop: { sessionState.stopExecution() }
+                )
+            } else if sessionState.canResume {
+                // 再開可能な状態では入力を無効化（再開バナーを使用させる）
+                ConversationInputField(
+                    mode: .prompt,
+                    text: $promptText,
+                    isEnabled: false,
+                    onSubmit: runQuery
                 )
             } else {
+                // 新規セッション（会話履歴なし）の場合のみ入力可能
                 ConversationInputField(
                     mode: .prompt,
                     text: $promptText,
@@ -194,14 +194,14 @@ struct ConversationView: View {
     private var sessionConfigSheet: some View {
         UnifiedSettingsView(
             interactiveMode: Binding(
-                get: { state.interactiveMode },
-                set: { state.setInteractiveMode($0) }
+                get: { sessionState.interactiveMode },
+                set: { sessionState.setInteractiveMode($0) }
             ),
             outputType: Binding(
-                get: { state.selectedOutputType },
-                set: { state.setSelectedOutputType($0) }
+                get: { sessionState.selectedOutputType },
+                set: { sessionState.setSelectedOutputType($0) }
             ),
-            isSessionDisabled: state.executionState.isRunning,
+            isSessionDisabled: sessionState.executionState.isRunning,
             onModeChange: {
                 Task {
                     await clearSession()
@@ -223,7 +223,7 @@ struct ConversationView: View {
     // MARK: - Helpers
 
     private var hasAPIKeyForCurrentProvider: Bool {
-        switch state.sessionData.provider {
+        switch sessionState.sessionData.provider {
         case .anthropic: return appState.hasAnthropicKey
         case .openai: return appState.hasOpenAIKey
         case .gemini: return appState.hasGeminiKey
@@ -241,16 +241,27 @@ struct ConversationView: View {
     // MARK: - Session Management
 
     private func createSessionIfNeeded() {
-        guard session == nil else { return }
+        guard sessionState.session == nil else { return }
         createSession()
     }
 
     private func createSession() {
-        let provider = state.sessionData.provider
+        let provider = sessionState.sessionData.provider
         guard let apiKey = apiKey(for: provider) else {
-            state.setExecutionState(.error("APIキーが設定されていません"))
+            sessionState.setExecutionState(.error("APIキーが設定されていません"))
             return
         }
+
+        // AppStateのmaxStepsを使用してAgentConfigurationを作成
+        let configuration = AgentConfiguration(
+            maxSteps: appState.maxSteps,
+            autoExecuteTools: true,
+            maxDuplicateToolCalls: 2,
+            maxToolCallsPerTool: nil  // ステップ数で制限するのでツール毎の制限は不要
+        )
+
+        // 復元する会話履歴
+        let initialMessages = sessionState.sessionData.messages
 
         let newSession: ProviderSession
         switch provider {
@@ -258,8 +269,10 @@ struct ConversationView: View {
             let client = useCase.conversation.createAnthropicClient(apiKey: apiKey)
             let s = useCase.conversation.createSession(
                 client: client,
-                outputType: state.selectedOutputType,
-                interactiveMode: state.interactiveMode
+                outputType: sessionState.selectedOutputType,
+                interactiveMode: sessionState.interactiveMode,
+                configuration: configuration,
+                initialMessages: initialMessages
             )
             newSession = .anthropic(s)
 
@@ -267,8 +280,10 @@ struct ConversationView: View {
             let client = useCase.conversation.createOpenAIClient(apiKey: apiKey)
             let s = useCase.conversation.createSession(
                 client: client,
-                outputType: state.selectedOutputType,
-                interactiveMode: state.interactiveMode
+                outputType: sessionState.selectedOutputType,
+                interactiveMode: sessionState.interactiveMode,
+                configuration: configuration,
+                initialMessages: initialMessages
             )
             newSession = .openai(s)
 
@@ -276,151 +291,73 @@ struct ConversationView: View {
             let client = useCase.conversation.createGeminiClient(apiKey: apiKey)
             let s = useCase.conversation.createSession(
                 client: client,
-                outputType: state.selectedOutputType,
-                interactiveMode: state.interactiveMode
+                outputType: sessionState.selectedOutputType,
+                interactiveMode: sessionState.interactiveMode,
+                configuration: configuration,
+                initialMessages: initialMessages
             )
             newSession = .gemini(s)
         }
 
-        session = newSession
-        startEventMonitoring()
+        sessionState.setSession(newSession)
 
-        if case .completed = state.executionState {
+        if case .completed = sessionState.executionState {
             // 復元された結果を維持
         } else {
-            state.setExecutionState(.idle)
+            sessionState.setExecutionState(.idle)
         }
 
-        state.setWaitingForAnswer(false)
-        state.setPendingQuestion(nil)
-        state.addEvent("セッションが作成されました（\(state.selectedOutputType.displayName) / \(state.interactiveMode ? "インタラクティブ" : "自動")モード）")
+        sessionState.setWaitingForAnswer(false)
+        sessionState.setPendingQuestion(nil)
+
+        let historyInfo = initialMessages.isEmpty ? "" : "（履歴: \(initialMessages.count)メッセージ）"
+        sessionState.addEvent("セッションが作成されました（\(sessionState.selectedOutputType.displayName) / \(sessionState.interactiveMode ? "インタラクティブ" : "自動")モード）\(historyInfo)")
     }
 
     private func clearSession() async {
-        eventMonitorTask?.cancel()
-        eventMonitorTask = nil
-
-        if let session = session {
+        if let session = sessionState.session {
             await session.clear()
         }
 
-        session = nil
-        state.reset()
-    }
-
-    private func cancel() {
-        guard state.executionState.isRunning else { return }
-
-        Task {
-            await session?.cancel()
-        }
-
-        state.setExecutionState(.idle)
-        state.setWaitingForAnswer(false)
-        state.setPendingQuestion(nil)
-        state.addStep(ConversationStepInfo(type: .event, content: "実行を停止しました"))
-    }
-
-    // MARK: - Execution
-
-    private func run(prompt: String, outputType: AgentOutputType) async {
-        guard let session = session else {
-            state.setExecutionState(.error("セッションが作成されていません"))
-            return
-        }
-        guard !state.executionState.isRunning else { return }
-
-        state.setExecutionState(.running)
-
-        do {
-            switch outputType {
-            case .research:
-                let stream = await session.runResearch(prompt)
-                try await processStream(stream) { $0.formatted }
-
-            case .articleSummary:
-                let stream = await session.runArticleSummary(prompt)
-                try await processStream(stream) { $0.formatted }
-
-            case .codeReview:
-                let stream = await session.runCodeReview(prompt)
-                try await processStream(stream) { $0.formatted }
-            }
-
-            state.setTurnCount(await session.turnCount)
-            try? await saveSession()
-
-        } catch {
-            state.setExecutionState(.error(error.localizedDescription))
-            state.addStep(ConversationStepInfo(type: .error, content: error.localizedDescription, isError: true))
-        }
-    }
-
-    private func processStream<Output: StructuredProtocol>(
-        _ stream: AsyncThrowingStream<ConversationalAgentStep<Output>, Error>,
-        formatResult: @escaping (Output) -> String
-    ) async throws {
-        var finalOutput: Output?
-
-        for try await step in stream {
-            state.addStep(step.toStepInfo())
-
-            switch step {
-            case .askingUser(let question):
-                state.setPendingQuestion(question)
-            case .awaitingUserInput:
-                state.setWaitingForAnswer(true)
-                state.setExecutionState(.idle)
-            case .finalResponse(let output):
-                finalOutput = output
-            default:
-                break
-            }
-        }
-
-        if let output = finalOutput {
-            state.setExecutionState(.completed(formatResult(output)))
-        } else {
-            state.setExecutionState(.completed("完了しました（テキスト応答）"))
-        }
-    }
-
-    // MARK: - Event Monitoring
-
-    private func startEventMonitoring() {
-        guard let session = session else { return }
-
-        eventMonitorTask?.cancel()
-        eventMonitorTask = Task {
-            for await event in session.eventStream {
-                state.addEvent(event.displayMessage)
-            }
-        }
+        sessionState.resetAll()
     }
 
     // MARK: - Actions
 
     private func runQuery() {
         guard !promptText.isEmpty, hasAPIKeyForCurrentProvider else { return }
-        runRequest = RunRequest(prompt: promptText, outputType: state.selectedOutputType)
+
+        let prompt = promptText
         promptText = ""
+
+        // ActiveSessionStateで実行タスクを管理
+        sessionState.startExecution(prompt: prompt) { [useCase, sessionState] in
+            try await ConversationView.saveSessionInternal(useCase: useCase, sessionState: sessionState)
+        }
     }
 
     private func sendInterrupt() {
         guard !interruptText.isEmpty else { return }
         Task {
-            await session?.interrupt(interruptText)
-            state.addStep(ConversationStepInfo(type: .interrupted, content: "割り込み送信: \(interruptText)"))
+            await sessionState.session?.interrupt(interruptText)
+            sessionState.addStep(ConversationStepInfo(type: .interrupted, content: "割り込み送信: \(interruptText)"))
             interruptText = ""
         }
     }
 
-    private func sendAnswer() {
-        guard !answerText.isEmpty, let session = session else { return }
+    private func resumeSession() {
+        // ActiveSessionStateで再開タスクを管理
+        sessionState.resumeExecution { [useCase, sessionState] in
+            try await ConversationView.saveSessionInternal(useCase: useCase, sessionState: sessionState)
+        }
+    }
 
-        state.setWaitingForAnswer(false)
-        state.setPendingQuestion(nil)
-        state.setExecutionState(.running)
+    private func sendAnswer() {
+        guard !answerText.isEmpty, let session = sessionState.session else { return }
+
+        sessionState.setWaitingForAnswer(false)
+        sessionState.setPendingQuestion(nil)
+        sessionState.setExecutionState(.running)
 
         Task {
             await session.reply(answerText)
@@ -429,22 +366,32 @@ struct ConversationView: View {
     }
 
     private func saveSession() async throws {
-        guard !state.steps.isEmpty else { return }
+        try await Self.saveSessionInternal(useCase: useCase, sessionState: sessionState)
+    }
 
-        state.updateTitleFromFirstMessage()
+    /// セッション保存の内部実装（クロージャから呼び出し可能）
+    @MainActor
+    private static func saveSessionInternal(
+        useCase: any UseCaseContainer,
+        sessionState: ActiveSessionState
+    ) async throws {
+        // messages が空の場合は保存しない
+        guard !sessionState.sessionData.messages.isEmpty else { return }
 
-        if case .completed(let result) = state.executionState {
-            state.updateSessionData(result: result)
+        sessionState.updateTitleFromFirstMessage()
+
+        if case .completed(let result) = sessionState.executionState {
+            sessionState.updateSessionData(result: result)
         }
 
-        try await useCase.session.saveSession(state.sessionData)
+        try await useCase.session.saveSession(sessionState.sessionData)
     }
 }
 
 #Preview {
     NavigationStack {
         ConversationView()
-            .environment(ConversationState())
+            .environment(ActiveSessionState())
             .environment(AppState())
     }
 }

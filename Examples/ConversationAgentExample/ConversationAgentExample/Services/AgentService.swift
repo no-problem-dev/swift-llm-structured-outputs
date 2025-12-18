@@ -1,4 +1,6 @@
 import Foundation
+import LLMAgent
+import LLMClient
 import LLMMCP
 import LLMStructuredOutputs
 import LLMToolkits
@@ -8,7 +10,9 @@ protocol AgentService: Sendable {
     func createSession<Client: AgentCapableClient>(
         client: Client,
         outputType: AgentOutputType,
-        interactiveMode: Bool
+        interactiveMode: Bool,
+        configuration: AgentConfiguration,
+        initialMessages: [LLMMessage]
     ) -> ConversationalAgentSession<Client> where Client.Model: Sendable
 
     func buildToolSet(for outputType: AgentOutputType) -> ToolSet
@@ -25,7 +29,9 @@ final class AgentServiceImpl: AgentService {
     func createSession<Client: AgentCapableClient>(
         client: Client,
         outputType: AgentOutputType,
-        interactiveMode: Bool
+        interactiveMode: Bool,
+        configuration: AgentConfiguration,
+        initialMessages: [LLMMessage]
     ) -> ConversationalAgentSession<Client> where Client.Model: Sendable {
         let tools = buildToolSet(for: outputType)
 
@@ -33,7 +39,9 @@ final class AgentServiceImpl: AgentService {
             client: client,
             systemPrompt: outputType.buildPrompt(interactiveMode: interactiveMode),
             tools: tools,
-            interactiveMode: interactiveMode
+            interactiveMode: interactiveMode,
+            configuration: configuration,
+            initialMessages: initialMessages
         )
     }
 

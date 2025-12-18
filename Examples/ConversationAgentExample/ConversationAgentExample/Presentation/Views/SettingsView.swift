@@ -107,12 +107,12 @@ struct SettingsView: View {
                     get: { appState.maxSteps },
                     set: { appState.setMaxSteps($0) }
                 ),
-                in: 1...20
+                in: 1...50
             )
         } header: {
             Text("エージェント設定")
         } footer: {
-            Text("エージェントが実行できるツール呼び出しの最大回数です。")
+            Text("エージェントが実行できるツール呼び出しの最大回数です。Web検索とFetchを組み合わせる場合は30以上推奨。")
         }
     }
 

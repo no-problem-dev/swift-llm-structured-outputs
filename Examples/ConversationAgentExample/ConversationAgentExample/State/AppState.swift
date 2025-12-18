@@ -30,7 +30,7 @@ final class AppState {
 
     // MARK: - Agent Configuration
 
-    private(set) var maxSteps: Int = 10
+    private(set) var maxSteps: Int = 30
     private(set) var maxTokens: Int = 16384
 
     // MARK: - Computed Properties
@@ -90,7 +90,7 @@ final class AppState {
     }
 
     func setMaxSteps(_ value: Int) {
-        maxSteps = max(1, min(20, value))
+        maxSteps = max(1, min(50, value))
     }
 
     func setMaxTokens(_ value: Int) {

@@ -29,7 +29,7 @@ import Foundation
 ///     isError: true
 /// )
 /// ```
-public struct ToolResponse: Sendable {
+public struct ToolResponse: Sendable, Equatable {
     /// 対応する ToolCall の ID
     public let callId: String
 

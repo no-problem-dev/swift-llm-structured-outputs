@@ -1,8 +1,12 @@
 import XCTest
-@testable import LLMStructuredOutputs
 @testable import LLMClient
 @testable import LLMTool
 @testable import LLMAgent
+
+// Note: このファイルは LLMAgent モジュールのテストです。
+// LLMAgent.AgentStep<Output>（ジェネリック）をテストします。
+// LLMConversationalAgent.AgentStep（非ジェネリック）との名前衝突を避けるため、
+// LLMStructuredOutputs はインポートしていません。
 
 final class AgentTests: XCTestCase {
 
