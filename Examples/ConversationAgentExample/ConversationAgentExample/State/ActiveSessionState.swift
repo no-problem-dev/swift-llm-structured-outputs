@@ -421,9 +421,12 @@ final class ActiveSessionState {
         await syncMessagesFromSession()
 
         if let output = finalOutput {
+            // 構造化出力が得られた場合のみ「完了」状態
             setExecutionState(.completed(formatResult(output)))
         } else {
-            setExecutionState(.completed("完了しました（テキスト応答）"))
+            // 構造化出力がない場合は「一時停止」状態（再開可能）
+            // ユーザー入力待ちや途中停止の場合がここに該当
+            setExecutionState(.paused)
         }
 
         setTurnCount(await session.turnCount)

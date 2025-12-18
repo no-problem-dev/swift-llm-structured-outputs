@@ -88,36 +88,46 @@ struct ConversationView: View {
 
     private var mainContentSection: some View {
         ZStack(alignment: .top) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    if case .completed(let result) = sessionState.executionState {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("結果", systemImage: "checkmark.circle.fill")
-                                .font(.headline)
-                                .foregroundStyle(.green)
-                            ResultView(result: result)
-                        }
-                        .padding(.horizontal)
-
-                        Divider()
-                            .padding(.vertical, 8)
-                    }
-
-                    if case .error(let message) = sessionState.executionState {
-                        ErrorBanner(message: message, onResume: resumeSession)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if case .completed(let result) = sessionState.executionState {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("結果", systemImage: "checkmark.circle.fill")
+                                    .font(.headline)
+                                    .foregroundStyle(.green)
+                                ResultView(result: result)
+                            }
                             .padding(.horizontal)
-                    }
 
-                    StepListView(
-                        steps: sessionState.steps,
-                        isLoading: sessionState.executionState.isRunning,
-                        onResultTap: sessionState.currentResult != nil ? { showResultSheet = true } : nil
-                    )
+                            Divider()
+                                .padding(.vertical, 8)
+                        }
+
+                        if case .error(let message) = sessionState.executionState {
+                            ErrorBanner(message: message, onResume: resumeSession)
+                                .padding(.horizontal)
+                        }
+
+                        StepListView(
+                            steps: sessionState.steps,
+                            isLoading: sessionState.executionState.isRunning,
+                            onResultTap: sessionState.currentResult != nil ? { showResultSheet = true } : nil
+                        )
+                    }
+                    .padding(.vertical)
+                    .padding(.top, sessionState.executionState.isRunning ? 80 : 0)
                 }
-                .padding(.vertical)
-                .padding(.top, sessionState.executionState.isRunning ? 80 : 0)
+                .defaultScrollAnchor(.bottom)
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: sessionState.steps.count) { _, _ in
+                    if let lastStep = sessionState.steps.last {
+                        withAnimation {
+                            proxy.scrollTo(lastStep.id, anchor: .bottom)
+                        }
+                    }
+                }
             }
-            .scrollDismissesKeyboard(.interactively)
 
             if sessionState.executionState.isRunning {
                 ExecutionProgressBanner(
