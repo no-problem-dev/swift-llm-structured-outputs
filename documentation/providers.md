@@ -99,9 +99,10 @@ let client = GeminiClient(apiKey: "...")
 
 | エイリアス | モデル ID | 説明 |
 |-----------|----------|------|
-| `.pro25` | gemini-2.5-pro-preview-06-05 | 最も高性能 |
-| `.flash25` | gemini-2.5-flash-preview-05-20 | 高速で効率的 |
-| `.flash25Lite` | gemini-2.5-flash-lite-preview-06-17 | 軽量版 |
+| `.flash3` | gemini-3-flash-preview | 最高性能・高速（Gemini 3世代） |
+| `.pro25` | gemini-2.5-pro | 高性能 |
+| `.flash25` | gemini-2.5-flash | 高速で効率的 |
+| `.flash25Lite` | gemini-2.5-flash-lite | 軽量版 |
 | `.flash20` | gemini-2.0-flash | 安定版フラッシュモデル |
 | `.pro15` | gemini-1.5-pro | 前世代プロモデル |
 | `.flash15` | gemini-1.5-flash | 前世代フラッシュモデル |

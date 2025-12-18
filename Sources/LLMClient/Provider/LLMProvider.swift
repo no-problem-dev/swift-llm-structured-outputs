@@ -168,7 +168,7 @@ public struct TokenUsage: Sendable {
 ///     content: "晴れ、25度"
 /// )
 /// ```
-public struct LLMMessage: Sendable {
+public struct LLMMessage: Sendable, Codable {
     /// メッセージの役割
     public let role: Role
 
@@ -176,13 +176,13 @@ public struct LLMMessage: Sendable {
     public let contents: [MessageContent]
 
     /// 役割
-    public enum Role: String, Sendable {
+    public enum Role: String, Sendable, Codable {
         case user
         case assistant
     }
 
     /// メッセージコンテンツの種類
-    public enum MessageContent: Sendable, Equatable {
+    public enum MessageContent: Sendable, Equatable, Codable {
         /// テキストコンテンツ
         case text(String)
 
@@ -196,6 +196,68 @@ public struct LLMMessage: Sendable {
         ///   - content: 実行結果の文字列
         ///   - isError: エラー結果かどうか
         case toolResult(toolCallId: String, name: String, content: String, isError: Bool)
+
+        // MARK: - Codable
+
+        private enum CodingKeys: String, CodingKey {
+            case type
+            case text
+            case id
+            case name
+            case input
+            case toolCallId
+            case content
+            case isError
+        }
+
+        private enum ContentType: String, Codable {
+            case text
+            case toolUse
+            case toolResult
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            let type = try container.decode(ContentType.self, forKey: .type)
+
+            switch type {
+            case .text:
+                let text = try container.decode(String.self, forKey: .text)
+                self = .text(text)
+            case .toolUse:
+                let id = try container.decode(String.self, forKey: .id)
+                let name = try container.decode(String.self, forKey: .name)
+                let input = try container.decode(Data.self, forKey: .input)
+                self = .toolUse(id: id, name: name, input: input)
+            case .toolResult:
+                let toolCallId = try container.decode(String.self, forKey: .toolCallId)
+                let name = try container.decode(String.self, forKey: .name)
+                let content = try container.decode(String.self, forKey: .content)
+                let isError = try container.decode(Bool.self, forKey: .isError)
+                self = .toolResult(toolCallId: toolCallId, name: name, content: content, isError: isError)
+            }
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+
+            switch self {
+            case .text(let text):
+                try container.encode(ContentType.text, forKey: .type)
+                try container.encode(text, forKey: .text)
+            case .toolUse(let id, let name, let input):
+                try container.encode(ContentType.toolUse, forKey: .type)
+                try container.encode(id, forKey: .id)
+                try container.encode(name, forKey: .name)
+                try container.encode(input, forKey: .input)
+            case .toolResult(let toolCallId, let name, let content, let isError):
+                try container.encode(ContentType.toolResult, forKey: .type)
+                try container.encode(toolCallId, forKey: .toolCallId)
+                try container.encode(name, forKey: .name)
+                try container.encode(content, forKey: .content)
+                try container.encode(isError, forKey: .isError)
+            }
+        }
     }
 
     // MARK: - Initializers
@@ -456,6 +518,57 @@ public enum ClaudeModel: Sendable, Equatable {
     }
 }
 
+// MARK: - Preset
+
+extension ClaudeModel {
+    /// UI選択用のプリセットモデル
+    ///
+    /// `CaseIterable` に準拠しており、SwiftUI の `ForEach` などで使用できます。
+    ///
+    /// ```swift
+    /// ForEach(ClaudeModel.Preset.allCases) { preset in
+    ///     Text(preset.displayName)
+    /// }
+    /// ```
+    public enum Preset: String, CaseIterable, Identifiable, Sendable {
+        /// Claude Opus 4.5（最高性能）
+        case opus = "opus"
+        /// Claude Sonnet 4.5（バランス型）
+        case sonnet = "sonnet"
+        /// Claude Haiku 4.5（高速・低コスト）
+        case haiku = "haiku"
+
+        public var id: String { rawValue }
+
+        /// 対応する `ClaudeModel` を取得
+        public var model: ClaudeModel {
+            switch self {
+            case .opus: return .opus
+            case .sonnet: return .sonnet
+            case .haiku: return .haiku
+            }
+        }
+
+        /// 表示名
+        public var displayName: String {
+            switch self {
+            case .opus: return "Claude Opus 4.5"
+            case .sonnet: return "Claude Sonnet 4.5"
+            case .haiku: return "Claude Haiku 4.5"
+            }
+        }
+
+        /// 短い表示名
+        public var shortName: String {
+            switch self {
+            case .opus: return "Opus"
+            case .sonnet: return "Sonnet"
+            case .haiku: return "Haiku"
+            }
+        }
+    }
+}
+
 // MARK: - GPT Models
 
 /// OpenAI GPT モデル
@@ -587,6 +700,62 @@ public enum GPTModel: Sendable, Equatable {
     }
 }
 
+// MARK: - Preset
+
+extension GPTModel {
+    /// UI選択用のプリセットモデル
+    ///
+    /// `CaseIterable` に準拠しており、SwiftUI の `ForEach` などで使用できます。
+    ///
+    /// ```swift
+    /// ForEach(GPTModel.Preset.allCases) { preset in
+    ///     Text(preset.displayName)
+    /// }
+    /// ```
+    public enum Preset: String, CaseIterable, Identifiable, Sendable {
+        /// GPT-4o（マルチモーダル）
+        case gpt4o = "gpt4o"
+        /// GPT-4o mini（軽量版）
+        case gpt4oMini = "gpt4oMini"
+        /// o1（推論特化）
+        case o1 = "o1"
+        /// o3-mini（軽量推論）
+        case o3Mini = "o3Mini"
+
+        public var id: String { rawValue }
+
+        /// 対応する `GPTModel` を取得
+        public var model: GPTModel {
+            switch self {
+            case .gpt4o: return .gpt4o
+            case .gpt4oMini: return .gpt4oMini
+            case .o1: return .o1
+            case .o3Mini: return .o3Mini
+            }
+        }
+
+        /// 表示名
+        public var displayName: String {
+            switch self {
+            case .gpt4o: return "GPT-4o"
+            case .gpt4oMini: return "GPT-4o mini"
+            case .o1: return "o1"
+            case .o3Mini: return "o3-mini"
+            }
+        }
+
+        /// 短い表示名
+        public var shortName: String {
+            switch self {
+            case .gpt4o: return "4o"
+            case .gpt4oMini: return "4o mini"
+            case .o1: return "o1"
+            case .o3Mini: return "o3-mini"
+            }
+        }
+    }
+}
+
 // MARK: - Gemini Models
 
 /// Google Gemini モデル
@@ -620,7 +789,10 @@ public enum GPTModel: Sendable, Equatable {
 public enum GeminiModel: Sendable, Equatable {
     // MARK: - Aliases (推奨)
 
-    /// Gemini 2.5 Pro 最新版（最高性能）
+    /// Gemini 3 Flash 最新版（最高性能・高速）
+    case flash3
+
+    /// Gemini 2.5 Pro 最新版（高性能）
     case pro25
 
     /// Gemini 2.5 Flash 最新版（高速・バランス型）
@@ -639,6 +811,10 @@ public enum GeminiModel: Sendable, Equatable {
     case flash15
 
     // MARK: - Preview/Experimental Versions
+
+    /// Gemini 3 Flash プレビューバージョン
+    /// - Parameter version: バージョン文字列（例: "12-17"）
+    case flash3_preview(version: String)
 
     /// Gemini 2.5 Pro プレビューバージョン
     /// - Parameter version: バージョン文字列（例: "05-06"）
@@ -664,6 +840,8 @@ public enum GeminiModel: Sendable, Equatable {
     public var id: String {
         switch self {
         // Aliases
+        case .flash3:
+            return "gemini-3-flash-preview"
         case .pro25:
             return "gemini-2.5-pro"
         case .flash25:
@@ -677,6 +855,8 @@ public enum GeminiModel: Sendable, Equatable {
         case .flash15:
             return "gemini-1.5-flash"
         // Preview versions
+        case .flash3_preview(let version):
+            return "gemini-3-flash-preview-\(version)"
         case .pro25_preview(let version):
             return "gemini-2.5-pro-preview-\(version)"
         case .flash25_preview(let version):
@@ -699,6 +879,8 @@ extension GeminiModel: RawRepresentable {
 
     public init?(rawValue: String) {
         switch rawValue {
+        case "gemini-3-flash-preview":
+            self = .flash3
         case "gemini-2.5-pro":
             self = .pro25
         case "gemini-2.5-flash":
@@ -713,6 +895,62 @@ extension GeminiModel: RawRepresentable {
             self = .flash15
         default:
             self = .custom(rawValue)
+        }
+    }
+}
+
+// MARK: - Preset
+
+extension GeminiModel {
+    /// UI選択用のプリセットモデル
+    ///
+    /// `CaseIterable` に準拠しており、SwiftUI の `ForEach` などで使用できます。
+    ///
+    /// ```swift
+    /// ForEach(GeminiModel.Preset.allCases) { preset in
+    ///     Text(preset.displayName)
+    /// }
+    /// ```
+    public enum Preset: String, CaseIterable, Identifiable, Sendable {
+        /// Gemini 3 Flash（最高性能・高速）
+        case flash3 = "flash3"
+        /// Gemini 2.5 Pro（高性能）
+        case pro25 = "pro25"
+        /// Gemini 2.5 Flash（高速・バランス型）
+        case flash25 = "flash25"
+        /// Gemini 2.5 Flash-Lite（軽量・低コスト）
+        case flash25Lite = "flash25Lite"
+
+        public var id: String { rawValue }
+
+        /// 対応する `GeminiModel` を取得
+        public var model: GeminiModel {
+            switch self {
+            case .flash3: return .flash3
+            case .pro25: return .pro25
+            case .flash25: return .flash25
+            case .flash25Lite: return .flash25Lite
+            }
+        }
+
+        /// 表示名
+        public var displayName: String {
+            switch self {
+            case .flash3: return "Gemini 3 Flash"
+            case .pro25: return "Gemini 2.5 Pro"
+            case .flash25: return "Gemini 2.5 Flash"
+            case .flash25Lite: return "Gemini 2.5 Flash-Lite"
+            }
+        }
+
+        /// 短い表示名
+        public var shortName: String {
+            switch self {
+            case .flash3: return "3 Flash"
+            case .pro25: return "2.5 Pro"
+            case .flash25: return "2.5 Flash"
+            case .flash25Lite: return "2.5 Flash-Lite"
+            }
         }
     }
 }

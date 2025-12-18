@@ -82,7 +82,8 @@ let client = GeminiClient(apiKey: "...")
 
 | エイリアス | 説明 |
 |-----------|------|
-| `.pro25` | Gemini 2.5 Pro - 最も高性能 |
+| `.flash3` | Gemini 3 Flash - 最高性能・高速 |
+| `.pro25` | Gemini 2.5 Pro - 高性能 |
 | `.flash25` | Gemini 2.5 Flash - 高速 |
 | `.flash25Lite` | Gemini 2.5 Flash Lite - 軽量 |
 | `.flash20` | Gemini 2.0 Flash - 安定版 |
@@ -92,7 +93,7 @@ let client = GeminiClient(apiKey: "...")
 ```swift
 let result: MyType = try await client.generate(
     prompt: "...",
-    model: .flash25
+    model: .flash3
 )
 ```
 
