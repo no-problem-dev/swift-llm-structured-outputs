@@ -5,7 +5,11 @@ import LLMAgent
 
 // MARK: - LoopPhase
 
-/// 会話エージェントループのフェーズ
+/// エージェントループの内部フェーズ
+///
+/// LLMの応答に基づいて次の処理を決定するための内部フェーズです。
+/// `SessionStatus`（セッション全体のライフサイクル）とは異なり、
+/// これはループ内でLLMがどのような出力を返すかを管理します。
 private enum LoopPhase: Sendable {
     /// ツール使用フェーズ
     ///
@@ -37,6 +41,38 @@ private enum FinalOutputConstants {
 /// `ConversationalAgentSessionProtocol` の標準実装
 ///
 /// Actor として実装され、スレッドセーフな会話型エージェントセッションを提供します。
+///
+/// ## 状態管理
+///
+/// - `status`: 型パラメータなしの内部状態（`SessionStatus`）
+/// - `run()` の戻り値: 型付きのストリーム（`AsyncThrowingStream<SessionPhase<Output>, Error>`）
+///
+/// ## 使用例
+///
+/// ```swift
+/// let session = ConversationalAgentSession(
+///     client: AnthropicClient(apiKey: "..."),
+///     systemPrompt: Prompt { "あなたはリサーチアシスタントです。" },
+///     tools: ToolSet {
+///         WebSearchTool.self
+///     }
+/// )
+///
+/// // 状態確認
+/// if await session.status.canRun {
+///     // ストリームで型付き結果を取得
+///     for try await phase in session.run("調査して", model: .sonnet, outputType: ResearchResult.self) {
+///         switch phase {
+///         case .running(let step):
+///             print("Step: \(step)")
+///         case .completed(let output):
+///             print("Result: \(output.summary)")
+///         default:
+///             break
+///         }
+///     }
+/// }
+/// ```
 public actor ConversationalAgentSession<Client: AgentCapableClient>: ConversationalAgentSessionProtocol
     where Client.Model: Sendable
 {
@@ -48,8 +84,9 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
     private let tools: ToolSet
     private let configuration: AgentConfiguration
     private var interruptQueue: [String] = []
-    private var _isRunning: Bool = false
-    private let eventContinuation: AsyncStream<ConversationalAgentEvent>.Continuation
+
+    /// 現在のセッション状態（型パラメータなし）
+    public private(set) var status: SessionStatus = .idle
 
     /// 保留中の ask_user ツール呼び出し
     private var pendingAskUserCall: ToolCall?
@@ -58,8 +95,6 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
     ///
     /// `ask_user` ツール呼び出し時に設定され、`reply(_:)` で再開されます。
     private var answerContinuation: CheckedContinuation<String, Never>?
-
-    public nonisolated let eventStream: AsyncStream<ConversationalAgentEvent>
 
     // MARK: - Initialization
 
@@ -70,8 +105,7 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
     ///   - systemPrompt: システムプロンプト（オプション）
     ///   - tools: 使用するツールセット
     ///   - interactiveMode: 対話モードを有効にするか（デフォルト: false）
-    ///     `true` の場合、`AskUserTool` が自動的に追加され、
-    ///     AI がユーザーに質問できるようになります。
+    ///     `true` の場合、AI がユーザーに質問できるようになります。
     ///   - configuration: エージェント設定（オプション）
     public init(
         client: Client,
@@ -82,23 +116,15 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
     ) {
         self.client = client
         self.systemPrompt = systemPrompt
-        // 対話モードの場合は AskUserTool を自動追加
+        // 対話モードの場合は ask_user ツールを自動追加
         self.tools = interactiveMode ? tools.appending(AskUserTool()) : tools
         self.configuration = configuration
-
-        let (stream, continuation) = AsyncStream<ConversationalAgentEvent>.makeStream()
-        self.eventStream = stream
-        self.eventContinuation = continuation
-    }
-
-    deinit {
-        eventContinuation.finish()
     }
 
     // MARK: - Protocol Conformance: Properties
 
     public var running: Bool {
-        _isRunning
+        status.isActive
     }
 
     public var turnCount: Int {
@@ -108,8 +134,8 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
     // MARK: - Protocol Conformance: Interrupt API
 
     public func interrupt(_ message: String) {
+        guard status.canInterrupt else { return }
         interruptQueue.append(message)
-        eventContinuation.yield(.interruptQueued(message))
     }
 
     public func clearInterrupts() {
@@ -123,45 +149,45 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
     }
 
     public func clear() {
+        guard status.canClear else { return }
         messages.removeAll()
         interruptQueue.removeAll()
-        eventContinuation.yield(.cleared)
+        status = .idle
     }
 
     public func cancel() {
-        guard _isRunning else { return }
-        _isRunning = false
+        guard status.canCancel else { return }
+        status = .paused
         interruptQueue.removeAll()
         pendingAskUserCall = nil
+
         // キャンセル時は空文字列で再開（ループ内でエラーハンドリング）
         if let continuation = answerContinuation {
             answerContinuation = nil
             continuation.resume(returning: "")
         }
-        eventContinuation.yield(.sessionCancelled)
     }
 
     // MARK: - Protocol Conformance: User Interaction API
 
     public var waitingForAnswer: Bool {
-        answerContinuation != nil
+        status.canReply
     }
 
     public func reply(_ answer: String) {
         // 回答待ち状態でない場合は何もしない
-        guard let continuation = answerContinuation else { return }
+        guard status.canReply, let continuation = answerContinuation else { return }
         answerContinuation = nil
-        eventContinuation.yield(.userAnswerProvided(answer))
         continuation.resume(returning: answer)
     }
 
     // MARK: - Protocol Conformance: Core API
 
-    public func run<Output: StructuredProtocol>(
+    nonisolated public func run<Output: StructuredProtocol>(
         _ userMessage: String,
         model: Client.Model,
         outputType: Output.Type = Output.self
-    ) -> AsyncThrowingStream<ConversationalAgentStep<Output>, Error> {
+    ) -> AsyncThrowingStream<SessionPhase<Output>, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 await self.executeLoop(
@@ -174,33 +200,52 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
         }
     }
 
+    // MARK: - Resume API
+
+    nonisolated public func resume<Output: StructuredProtocol>(
+        model: Client.Model,
+        outputType: Output.Type
+    ) -> AsyncThrowingStream<SessionPhase<Output>, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                await self.executeResumeLoop(
+                    model: model,
+                    outputType: Output.self,
+                    continuation: continuation
+                )
+            }
+        }
+    }
+
     // MARK: - Internal Loop
 
-    private func executeLoop<Output: StructuredProtocol>(
-        userMessage: String,
+    private func executeResumeLoop<Output: StructuredProtocol>(
         model: Client.Model,
         outputType: Output.Type,
-        continuation: AsyncThrowingStream<ConversationalAgentStep<Output>, Error>.Continuation
+        continuation: AsyncThrowingStream<SessionPhase<Output>, Error>.Continuation
     ) async {
-        guard !_isRunning else {
+        guard status.canResume else {
             let error = ConversationalAgentError.sessionAlreadyRunning
-            eventContinuation.yield(.error(error))
             continuation.finish(throwing: error)
             return
         }
 
-        _isRunning = true
-        eventContinuation.yield(.sessionStarted)
-        defer {
-            _isRunning = false
-            eventContinuation.yield(.sessionCompleted)
+        // 会話履歴がない場合はエラー
+        guard !messages.isEmpty else {
+            let error = ConversationalAgentError.invalidState("No conversation history to resume. Use run() instead.")
+            continuation.finish(throwing: error)
+            return
         }
 
-        // ユーザーメッセージを追加
-        let userMsg = LLMMessage.user(userMessage)
-        messages.append(userMsg)
-        eventContinuation.yield(.userMessage(userMsg))
-        continuation.yield(.userMessage(userMessage))
+        // 不完全な tool_use を修復
+        repairIncompleteToolUses()
+
+        // 継続メッセージを追加
+        let continueMsg = "Please continue where you left off."
+        messages.append(LLMMessage.user(continueMsg))
+
+        // userMessage ステップを発行
+        updateStatusAndYield(.running(step: .userMessage(continueMsg)), continuation: continuation)
 
         await runAgentLoop(
             model: model,
@@ -209,35 +254,99 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
         )
     }
 
+    private func executeLoop<Output: StructuredProtocol>(
+        userMessage: String,
+        model: Client.Model,
+        outputType: Output.Type,
+        continuation: AsyncThrowingStream<SessionPhase<Output>, Error>.Continuation
+    ) async {
+        guard status.canRun else {
+            let error = ConversationalAgentError.sessionAlreadyRunning
+            continuation.finish(throwing: error)
+            return
+        }
+
+        // ユーザーメッセージを追加
+        messages.append(LLMMessage.user(userMessage))
+
+        // userMessage ステップを発行
+        updateStatusAndYield(.running(step: .userMessage(userMessage)), continuation: continuation)
+
+        await runAgentLoop(
+            model: model,
+            outputType: Output.self,
+            continuation: continuation
+        )
+    }
+
+    /// 不完全な tool_use を検出して修復
+    ///
+    /// アシスタントメッセージの tool_use に対応する tool_result がない場合、
+    /// ダミーの tool_result を追加してセッションを継続可能にします。
+    private func repairIncompleteToolUses() {
+        // 最後のアシスタントメッセージから tool_use を抽出
+        var pendingToolUseIds: [(id: String, name: String)] = []
+
+        for message in messages {
+            if message.role == .assistant {
+                // tool_use を収集
+                for content in message.contents {
+                    if case .toolUse(let id, let name, _) = content {
+                        pendingToolUseIds.append((id: id, name: name))
+                    }
+                }
+            } else if message.role == .user {
+                // tool_result で解決
+                for content in message.contents {
+                    if case .toolResult(let toolCallId, _, _, _) = content {
+                        pendingToolUseIds.removeAll { $0.id == toolCallId }
+                    }
+                }
+            }
+        }
+
+        // 未解決の tool_use があれば、ダミーの tool_result を追加
+        if !pendingToolUseIds.isEmpty {
+            let dummyResults = pendingToolUseIds.map { toolUse in
+                LLMMessage.MessageContent.toolResult(
+                    toolCallId: toolUse.id,
+                    name: toolUse.name,
+                    content: "Session was interrupted. Continuing from where we left off.",
+                    isError: false
+                )
+            }
+            messages.append(LLMMessage(role: .user, contents: dummyResults))
+        }
+    }
+
     private func runAgentLoop<Output: StructuredProtocol>(
         model: Client.Model,
         outputType: Output.Type,
-        continuation: AsyncThrowingStream<ConversationalAgentStep<Output>, Error>.Continuation
+        continuation: AsyncThrowingStream<SessionPhase<Output>, Error>.Continuation
     ) async {
         var step = 0
         let maxSteps = configuration.maxSteps
-        var phase: LoopPhase = .toolUse
+        var loopPhase: LoopPhase = .toolUse
 
         do {
             while step < maxSteps {
                 step += 1
 
                 // 割り込みチェックポイント（toolUse フェーズのみ）
-                if case .toolUse = phase, !interruptQueue.isEmpty {
+                if case .toolUse = loopPhase, !interruptQueue.isEmpty {
                     for interruptMsg in interruptQueue {
-                        let msg = LLMMessage.user(interruptMsg)
-                        messages.append(msg)
-                        eventContinuation.yield(.userMessage(msg))
-                        eventContinuation.yield(.interruptProcessed(interruptMsg))
-                        continuation.yield(.interrupted(interruptMsg))
+                        messages.append(LLMMessage.user(interruptMsg))
+                        updateStatusAndYield(.running(step: .interrupted(interruptMsg)), continuation: continuation)
                     }
                     interruptQueue.removeAll()
                 }
 
-                // フェーズに応じて LLM 呼び出し
+                // LoopPhaseに応じて LLM 呼び出し
+                updateStatusAndYield(.running(step: .thinking), continuation: continuation)
+
                 let response: LLMResponse
                 do {
-                    switch phase {
+                    switch loopPhase {
                     case .toolUse:
                         // ツール使用フェーズ: ツール有効、構造化出力なし
                         response = try await client.executeAgentStep(
@@ -265,10 +374,9 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
                 }
 
                 addAssistantResponse(response)
-                continuation.yield(.thinking(response))
 
-                // フェーズに応じた処理
-                switch phase {
+                // LoopPhaseに応じた処理
+                switch loopPhase {
                 case .toolUse:
                     let toolCalls = extractToolCalls(from: response)
 
@@ -276,22 +384,27 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
                         // ツール呼び出しがない → 最終出力フェーズへ移行
                         if !tools.isEmpty {
                             // ツールがある場合は finalOutput フェーズへ移行
-                            phase = .finalOutput(retryCount: 0)
+                            loopPhase = .finalOutput(retryCount: 0)
                             addFinalOutputRequest()
                             // ループ継続（次のイテレーションで finalOutput フェーズの処理）
                             continue
                         } else {
                             // ツールがない場合は直接デコードを試行
                             if let output = try? decodeOutput(response, as: Output.self) {
-                                let assistantMsg = LLMMessage(role: .assistant, content: String(describing: output))
-                                eventContinuation.yield(.assistantMessage(assistantMsg))
-                                continuation.yield(.finalResponse(output))
+                                status = .idle
+                                continuation.yield(.completed(output: output))
                                 continuation.finish()
                                 return
                             } else {
-                                let text = extractTextContent(from: response)
-                                continuation.yield(.textResponse(text))
-                                continuation.finish()
+                                // デコード失敗時はエラー
+                                let error = ConversationalAgentError.outputDecodingFailed(
+                                    NSError(domain: "ConversationalAgentSession", code: -1, userInfo: [
+                                        NSLocalizedDescriptionKey: "Failed to decode output"
+                                    ])
+                                )
+                                status = .failed(error: error.localizedDescription)
+                                continuation.yield(.failed(error: error.localizedDescription))
+                                continuation.finish(throwing: error)
                                 return
                             }
                         }
@@ -304,20 +417,19 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
                         var askUserQuestion: String?
 
                         for call in toolCalls {
-                            continuation.yield(.toolCall(call))
+                            updateStatusAndYield(.running(step: .toolCall(call)), continuation: continuation)
 
-                            // AskUserTool の場合は特別処理
+                            // ask_user ツールの場合は特別処理
                             if call.name == "ask_user" {
-                                let question = extractQuestionFromAskUserTool(call)
+                                let question = extractQuestion(from: call)
                                 askUserCall = call
                                 askUserQuestion = question
-                                continuation.yield(.askingUser(question))
-                                eventContinuation.yield(.askingUser(question))
+                                updateStatusAndYield(.running(step: .askingUser(question)), continuation: continuation)
                                 // ask_user の結果は後で追加するので、ここでは toolResults に追加しない
                             } else {
                                 let result = await executeToolSafely(call)
                                 toolResults.append(result)
-                                continuation.yield(.toolResult(result))
+                                updateStatusAndYield(.running(step: .toolResult(result)), continuation: continuation)
                             }
                         }
 
@@ -329,18 +441,24 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
                         // ask_user が呼ばれた場合は一時停止してユーザーの回答を待つ
                         if let call = askUserCall, let question = askUserQuestion {
                             pendingAskUserCall = call
-                            continuation.yield(.awaitingUserInput(question))
+                            status = .awaitingUserInput(question: question)
+                            continuation.yield(.awaitingUserInput(question: question))
 
                             // withCheckedContinuation で一時停止
                             let answer = await withCheckedContinuation { cont in
                                 self.answerContinuation = cont
                             }
 
-                            // キャンセルされた場合（空文字かつ実行中でない）は終了
-                            guard _isRunning else {
+                            // キャンセルされた場合（paused状態）は終了
+                            guard status != .paused else {
+                                // cancel() で paused に変更されている場合
+                                continuation.yield(.paused)
                                 continuation.finish()
                                 return
                             }
+
+                            // running に戻る
+                            updateStatusAndYield(.running(step: .userMessage(answer)), continuation: continuation)
 
                             // ツール結果として回答を追加
                             let result = ToolResponse(
@@ -350,7 +468,7 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
                                 isError: false
                             )
                             addToolResults([result])
-                            continuation.yield(.toolResult(result))
+                            updateStatusAndYield(.running(step: .toolResult(result)), continuation: continuation)
                             pendingAskUserCall = nil
                             // ループ継続（次のイテレーションで LLM に回答を渡す）
                         }
@@ -363,9 +481,8 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
                     // 構造化出力のデコードを試行
                     do {
                         let output = try decodeOutput(response, as: Output.self)
-                        let assistantMsg = LLMMessage(role: .assistant, content: String(describing: output))
-                        eventContinuation.yield(.assistantMessage(assistantMsg))
-                        continuation.yield(.finalResponse(output))
+                        status = .idle
+                        continuation.yield(.completed(output: output))
                         continuation.finish()
                         return
                     } catch {
@@ -374,7 +491,7 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
                         if newRetryCount >= FinalOutputConstants.maxDecodeRetries {
                             throw ConversationalAgentError.outputDecodingFailed(error)
                         }
-                        phase = .finalOutput(retryCount: newRetryCount)
+                        loopPhase = .finalOutput(retryCount: newRetryCount)
                         addFinalOutputRequest()
                         // ループ継続（リトライ）
                         continue
@@ -383,17 +500,31 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
             }
 
             let error = ConversationalAgentError.maxStepsExceeded(steps: maxSteps)
-            eventContinuation.yield(.error(error))
+            status = .failed(error: error.localizedDescription)
+            continuation.yield(.failed(error: error.localizedDescription))
             continuation.finish(throwing: error)
 
         } catch let error as ConversationalAgentError {
-            eventContinuation.yield(.error(error))
+            status = .failed(error: error.localizedDescription)
+            continuation.yield(.failed(error: error.localizedDescription))
             continuation.finish(throwing: error)
         } catch {
             let wrappedError = ConversationalAgentError.invalidState(error.localizedDescription)
-            eventContinuation.yield(.error(wrappedError))
+            status = .failed(error: wrappedError.localizedDescription)
+            continuation.yield(.failed(error: wrappedError.localizedDescription))
             continuation.finish(throwing: wrappedError)
         }
+    }
+
+    // MARK: - Status Update Helper
+
+    /// ステータスを更新し、対応するフェーズをストリームに送信
+    private func updateStatusAndYield<Output: StructuredProtocol>(
+        _ newStatus: SessionStatus,
+        continuation: AsyncThrowingStream<SessionPhase<Output>, Error>.Continuation
+    ) {
+        status = newStatus
+        continuation.yield(newStatus.toPhase())
     }
 
     // MARK: - Private Helpers
@@ -484,8 +615,8 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
         }.joined()
     }
 
-    /// AskUserTool の引数から質問文を抽出
-    private func extractQuestionFromAskUserTool(_ call: ToolCall) -> String {
+    /// ask_user ツールの引数から質問文を抽出
+    private func extractQuestion(from call: ToolCall) -> String {
         // JSON から question フィールドを抽出
         if let dict = try? JSONSerialization.jsonObject(with: call.arguments) as? [String: Any],
            let question = dict["question"] as? String {
@@ -500,5 +631,29 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
     private func addFinalOutputRequest() {
         let message = LLMMessage.user(FinalOutputConstants.requestMessage)
         messages.append(message)
+    }
+}
+
+// MARK: - SessionStatus to SessionPhase Conversion
+
+extension SessionStatus {
+    /// SessionStatus を SessionPhase に変換
+    ///
+    /// - Note: `SessionPhase.completed(output:)` は出力値が必要なため、
+    ///   この変換では `SessionStatus.idle` から `SessionPhase.idle` への変換のみ行います。
+    ///   完了時は呼び出し側で直接 `SessionPhase.completed(output:)` を使用してください。
+    func toPhase<Output: StructuredProtocol>() -> SessionPhase<Output> {
+        switch self {
+        case .idle:
+            return .idle
+        case .running(let step):
+            return .running(step: step)
+        case .awaitingUserInput(let question):
+            return .awaitingUserInput(question: question)
+        case .paused:
+            return .paused
+        case .failed(let error):
+            return .failed(error: error)
+        }
     }
 }

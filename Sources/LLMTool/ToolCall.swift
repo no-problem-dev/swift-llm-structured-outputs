@@ -26,7 +26,7 @@ import Foundation
 ///     }
 /// }
 /// ```
-public struct ToolCall: Sendable {
+public struct ToolCall: Sendable, Equatable {
     /// 呼び出し ID
     ///
     /// ツール実行結果を返す際に、どの呼び出しに対する応答かを

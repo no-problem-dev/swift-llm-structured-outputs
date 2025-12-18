@@ -1,4 +1,5 @@
 import Foundation
+import LLMAgent
 import LLMStructuredOutputs
 import LLMToolkits
 
@@ -8,7 +9,8 @@ protocol ConversationUseCase: Sendable {
     func createSession<Client: AgentCapableClient>(
         client: Client,
         outputType: AgentOutputType,
-        interactiveMode: Bool
+        interactiveMode: Bool,
+        configuration: AgentConfiguration
     ) -> ConversationalAgentSession<Client> where Client.Model: Sendable
 
     /// プロバイダーに応じたクライアントを作成
@@ -28,12 +30,14 @@ final class ConversationUseCaseImpl: ConversationUseCase {
     func createSession<Client: AgentCapableClient>(
         client: Client,
         outputType: AgentOutputType,
-        interactiveMode: Bool
+        interactiveMode: Bool,
+        configuration: AgentConfiguration
     ) -> ConversationalAgentSession<Client> where Client.Model: Sendable {
         agentService.createSession(
             client: client,
             outputType: outputType,
-            interactiveMode: interactiveMode
+            interactiveMode: interactiveMode,
+            configuration: configuration
         )
     }
 

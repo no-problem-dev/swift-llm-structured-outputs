@@ -1,6 +1,7 @@
 import Foundation
 import LLMStructuredOutputs
 import LLMToolkits
+import LLMConversationalAgent
 
 /// 各プロバイダーのセッションを統一的に扱うための enum
 enum ProviderSession: Sendable {
@@ -8,17 +9,17 @@ enum ProviderSession: Sendable {
     case openai(ConversationalAgentSession<OpenAIClient>)
     case gemini(ConversationalAgentSession<GeminiClient>)
 
-    // MARK: - Event Stream
+    // MARK: - Properties
 
-    var eventStream: AsyncStream<ConversationalAgentEvent> {
-        switch self {
-        case .anthropic(let session): session.eventStream
-        case .openai(let session): session.eventStream
-        case .gemini(let session): session.eventStream
+    var status: SessionStatus {
+        get async {
+            switch self {
+            case .anthropic(let session): await session.status
+            case .openai(let session): await session.status
+            case .gemini(let session): await session.status
+            }
         }
     }
-
-    // MARK: - Properties
 
     var running: Bool {
         get async {
@@ -86,36 +87,71 @@ enum ProviderSession: Sendable {
 
     // MARK: - Run Methods
 
-    func runResearch(_ prompt: String) async -> AsyncThrowingStream<ConversationalAgentStep<AnalysisResult>, Error> {
+    func runResearch(_ prompt: String) -> AsyncThrowingStream<SessionPhase<AnalysisResult>, Error> {
         switch self {
         case .anthropic(let session):
-            await session.run(prompt, model: .sonnet, outputType: AnalysisResult.self)
+            session.run(prompt, model: .sonnet, outputType: AnalysisResult.self)
         case .openai(let session):
-            await session.run(prompt, model: .gpt4o, outputType: AnalysisResult.self)
+            session.run(prompt, model: .gpt4o, outputType: AnalysisResult.self)
         case .gemini(let session):
-            await session.run(prompt, model: .flash25, outputType: AnalysisResult.self)
+            session.run(prompt, model: .flash25, outputType: AnalysisResult.self)
         }
     }
 
-    func runArticleSummary(_ prompt: String) async -> AsyncThrowingStream<ConversationalAgentStep<Summary>, Error> {
+    func runArticleSummary(_ prompt: String) -> AsyncThrowingStream<SessionPhase<Summary>, Error> {
         switch self {
         case .anthropic(let session):
-            await session.run(prompt, model: .sonnet, outputType: Summary.self)
+            session.run(prompt, model: .sonnet, outputType: Summary.self)
         case .openai(let session):
-            await session.run(prompt, model: .gpt4o, outputType: Summary.self)
+            session.run(prompt, model: .gpt4o, outputType: Summary.self)
         case .gemini(let session):
-            await session.run(prompt, model: .flash25, outputType: Summary.self)
+            session.run(prompt, model: .flash25, outputType: Summary.self)
         }
     }
 
-    func runCodeReview(_ prompt: String) async -> AsyncThrowingStream<ConversationalAgentStep<CodeReview>, Error> {
+    func runCodeReview(_ prompt: String) -> AsyncThrowingStream<SessionPhase<CodeReview>, Error> {
         switch self {
         case .anthropic(let session):
-            await session.run(prompt, model: .sonnet, outputType: CodeReview.self)
+            session.run(prompt, model: .sonnet, outputType: CodeReview.self)
         case .openai(let session):
-            await session.run(prompt, model: .gpt4o, outputType: CodeReview.self)
+            session.run(prompt, model: .gpt4o, outputType: CodeReview.self)
         case .gemini(let session):
-            await session.run(prompt, model: .flash25, outputType: CodeReview.self)
+            session.run(prompt, model: .flash25, outputType: CodeReview.self)
+        }
+    }
+
+    // MARK: - Resume Methods
+
+    func resumeResearch() -> AsyncThrowingStream<SessionPhase<AnalysisResult>, Error> {
+        switch self {
+        case .anthropic(let session):
+            session.resume(model: .sonnet, outputType: AnalysisResult.self)
+        case .openai(let session):
+            session.resume(model: .gpt4o, outputType: AnalysisResult.self)
+        case .gemini(let session):
+            session.resume(model: .flash25, outputType: AnalysisResult.self)
+        }
+    }
+
+    func resumeArticleSummary() -> AsyncThrowingStream<SessionPhase<Summary>, Error> {
+        switch self {
+        case .anthropic(let session):
+            session.resume(model: .sonnet, outputType: Summary.self)
+        case .openai(let session):
+            session.resume(model: .gpt4o, outputType: Summary.self)
+        case .gemini(let session):
+            session.resume(model: .flash25, outputType: Summary.self)
+        }
+    }
+
+    func resumeCodeReview() -> AsyncThrowingStream<SessionPhase<CodeReview>, Error> {
+        switch self {
+        case .anthropic(let session):
+            session.resume(model: .sonnet, outputType: CodeReview.self)
+        case .openai(let session):
+            session.resume(model: .gpt4o, outputType: CodeReview.self)
+        case .gemini(let session):
+            session.resume(model: .flash25, outputType: CodeReview.self)
         }
     }
 }

@@ -16,14 +16,36 @@ import LLMAgent
 ///
 /// - **会話履歴の自動管理**: 複数ターンにわたる会話を自動的に追跡
 /// - **割り込みサポート**: 実行中のエージェントに新しい指示を注入
-/// - **イベントストリーム**: UI 更新用の非同期イベント配信
+/// - **セッション状態管理**: `SessionStatus` を通じたライフサイクル管理
+/// - **型安全なストリーミング**: `SessionPhase<Output>` を通じた型付き出力
 /// - **柔軟な出力**: ターンごとに異なる構造化出力型を使用可能
+///
+/// ## 設計概念
+///
+/// ### SessionStatus と SessionPhase の違い
+///
+/// | 型 | 用途 | 型パラメータ |
+/// |---|------|------------|
+/// | `SessionStatus` | 内部状態 & 公開プロパティ | なし |
+/// | `SessionPhase<Output>` | ストリームで流れるイベント | あり |
+///
+/// `SessionStatus` は Actor の内部状態として保持され、公開プロパティとしても使用します。
+/// 型パラメータがないため、異なる Output 型を使う複数ターンでも一貫して使用できます。
+///
+/// `SessionPhase<Output>` はストリームイベントとして使用し、
+/// `completed(output: Output)` で型安全に構造化出力を取得できます。
 ///
 /// ## 典型的なユースケース
 ///
 /// ### 調査タスクの対話的実行
 ///
 /// ```swift
+/// @Structured("調査結果")
+/// struct ResearchResult {
+///     @StructuredField("要約")
+///     var summary: String
+/// }
+///
 /// // 1. セッション作成
 /// let session = ConversationalAgentSession(
 ///     client: AnthropicClient(apiKey: "..."),
@@ -34,34 +56,30 @@ import LLMAgent
 ///     }
 /// )
 ///
-/// // 2. ストリームを取得（型アノテーションで Output を指定）
-/// let stream: some ConversationalAgentStepStream<ResearchResult> = session.run(
-///     "AIエージェントについて調査して",
-///     model: .sonnet
-/// )
-///
-/// // 3. ストリームをイテレート
-/// for try await step in stream {
-///     switch step {
-///     case .toolCall(let call):
-///         print("ツール実行: \(call.name)")
-///     case .finalResponse(let output):
-///         print("調査結果: \(output)")
+/// // 2. ストリームを取得して各フェーズを処理
+/// for try await phase in session.run("AIエージェントについて調査して", model: .sonnet, outputType: ResearchResult.self) {
+///     switch phase {
+///     case .running(let step):
+///         switch step {
+///         case .toolCall(let call):
+///             print("ツール実行: \(call.name)")
+///         case .thinking:
+///             print("思考中...")
+///         default:
+///             break
+///         }
+///     case .completed(let result):
+///         // 型安全に ResearchResult を取得
+///         print("調査結果: \(result.summary)")
 ///     default:
 ///         break
 ///     }
 /// }
 ///
-/// // 4. 深掘り依頼（前の会話を自動で保持）
-/// let deepDiveStream: some ConversationalAgentStepStream<ResearchResult> = session.run(
-///     "それをもうちょっと深掘りして",
-///     model: .sonnet
-/// )
-///
-/// // 5. 深掘り結果をイテレート
-/// for try await step in deepDiveStream {
-///     if case .finalResponse(let output) = step {
-///         print("深掘り結果: \(output)")
+/// // 3. 深掘り依頼（前の会話を自動で保持）
+/// for try await phase in session.run("それをもうちょっと深掘りして", model: .sonnet, outputType: ResearchResult.self) {
+///     if case .completed(let result) = phase {
+///         print("深掘り結果: \(result.summary)")
 ///     }
 /// }
 /// ```
@@ -78,63 +96,34 @@ import LLMAgent
 ///     tools: tools
 /// )
 ///
-/// // 2. ストリームを取得
-/// let stream: some ConversationalAgentStepStream<ResearchResult> = session.run(
-///     "長時間の調査タスク",
-///     model: .sonnet
-/// )
-///
-/// // 3. バックグラウンドでイテレート開始
+/// // 2. バックグラウンドでストリームをイテレート
 /// let task = Task {
-///     for try await step in stream {
-///         switch step {
-///         case .interrupted(let message):
-///             print("⚡ 割り込み処理: \(message)")
-///         case .toolCall(let call):
-///             print("🔧 ツール実行: \(call.name)")
+///     for try await phase in session.run("長時間の調査タスク", model: .sonnet, outputType: Result.self) {
+///         switch phase {
+///         case .running(let step):
+///             switch step {
+///             case .interrupted(let message):
+///                 print("⚡ 割り込み処理: \(message)")
+///             case .toolCall(let call):
+///                 print("🔧 ツール実行: \(call.name)")
+///             default:
+///                 break
+///             }
 ///         default:
 ///             break
 ///         }
 ///     }
 /// }
 ///
-/// // 4. セッションに対して割り込み
+/// // 3. セッションに対して割り込み
 /// try await Task.sleep(for: .seconds(2))
 /// await session.interrupt("特にセキュリティ面に焦点を当てて")
 ///
-/// // 5. さらに追加指示
+/// // 4. さらに追加指示
 /// try await Task.sleep(for: .seconds(3))
 /// await session.interrupt("コード例も含めて")
 ///
 /// await task.value
-/// ```
-///
-/// ## イベント監視
-///
-/// UI 更新やログ記録のためにイベントストリームを監視できます：
-///
-/// ```swift
-/// // イベントを監視するタスク
-/// Task {
-///     for await event in session.eventStream {
-///         switch event {
-///         case .userMessage(let msg):
-///             updateChatUI(with: msg, isUser: true)
-///         case .assistantMessage(let msg):
-///             updateChatUI(with: msg, isUser: false)
-///         case .interruptQueued(let message):
-///             showInterruptNotification(message)
-///         case .sessionStarted:
-///             showLoadingIndicator()
-///         case .sessionCompleted:
-///             hideLoadingIndicator()
-///         case .error(let error):
-///             showError(error)
-///         default:
-///             break
-///         }
-///     }
-/// }
 /// ```
 ///
 /// ## カスタム実装
@@ -158,41 +147,42 @@ public protocol ConversationalAgentSessionProtocol<Client>: Actor {
 
     // MARK: - Properties
 
-    /// イベントストリーム
+    /// セッションの現在の状態
     ///
-    /// セッションの状態変化を監視するための非同期ストリームです。
-    /// UI 更新、ログ記録、分析などに使用できます。
+    /// セッションのライフサイクルを表す状態です。
+    /// UI はこのプロパティを監視して適切な表示を行うことができます。
     ///
-    /// ## イベントの種類
+    /// ## 状態の種類
     ///
-    /// - `userMessage`: ユーザーメッセージが履歴に追加された
-    /// - `assistantMessage`: アシスタントメッセージが履歴に追加された
-    /// - `interruptQueued`: 割り込みメッセージがキューに追加された
-    /// - `interruptProcessed`: 割り込みメッセージが処理された
-    /// - `sessionStarted`: セッションが開始された
-    /// - `sessionCompleted`: セッションが完了した
-    /// - `cleared`: 会話履歴がクリアされた
-    /// - `error`: エラーが発生した
+    /// - `idle`: 待機中（未開始、完了済み、または clear() 後）
+    /// - `running(step:)`: 実行中（現在のステップを保持）
+    /// - `awaitingUserInput(question:)`: ユーザーの回答待ち（インタラクティブモード）
+    /// - `paused`: 一時停止（cancel後、再開可能）
+    /// - `failed(error:)`: エラー発生（再開可能）
     ///
     /// ## 使用例
     ///
     /// ```swift
-    /// for await event in session.eventStream {
-    ///     switch event {
-    ///     case .userMessage(let msg):
-    ///         print("User: \(msg)")
-    ///     case .error(let error):
-    ///         print("Error: \(error)")
-    ///     default:
-    ///         break
-    ///     }
+    /// switch await session.status {
+    /// case .idle:
+    ///     showStartButton()
+    /// case .running(let step):
+    ///     showProgressIndicator()
+    ///     updateStepDisplay(step)
+    /// case .awaitingUserInput(let question):
+    ///     showQuestionUI(question)
+    /// case .paused:
+    ///     showResumeButton()
+    /// case .failed(let error):
+    ///     showError(error)
     /// }
     /// ```
-    nonisolated var eventStream: AsyncStream<ConversationalAgentEvent> { get }
+    var status: SessionStatus { get async }
 
     /// 現在実行中かどうか
     ///
-    /// `run()` の実行中は `true` を返します。
+    /// `status.isActive` と同等です。
+    /// `run()` の実行中または `awaitingUserInput` 状態の場合に `true` を返します。
     /// 同時に複数の `run()` を実行することはできません。
     var running: Bool { get async }
 
@@ -214,10 +204,9 @@ public protocol ConversationalAgentSessionProtocol<Client>: Actor {
     /// ## 動作
     ///
     /// 1. メッセージが割り込みキューに追加される
-    /// 2. `interruptQueued` イベントが発行される
-    /// 3. 次の LLM 呼び出し前にメッセージが会話履歴に追加される
-    /// 4. `interrupted` ステップがストリームに送信される
-    /// 5. LLM は追加されたメッセージを含む履歴で応答を生成する
+    /// 2. 次の LLM 呼び出し前にメッセージが会話履歴に追加される
+    /// 3. `running(step: .interrupted(message))` がストリームに送信される
+    /// 4. LLM は追加されたメッセージを含む履歴で応答を生成する
     ///
     /// ## 注意事項
     ///
@@ -266,7 +255,7 @@ public protocol ConversationalAgentSessionProtocol<Client>: Actor {
     /// ## 注意事項
     ///
     /// - 実行中のセッションをクリアすると、動作が不安定になる可能性があります
-    /// - クリア後は `cleared` イベントが発行されます
+    /// - `status.canClear` が `true` の場合のみ実行されます
     func clear() async
 
     /// 実行中のセッションをキャンセル
@@ -278,12 +267,12 @@ public protocol ConversationalAgentSessionProtocol<Client>: Actor {
     ///
     /// 1. 実行フラグ (`running`) を `false` にリセット
     /// 2. 割り込みキューをクリア
-    /// 3. `sessionCancelled` イベントを発行
+    /// 3. `paused` 状態に遷移
     ///
     /// ## 注意事項
     ///
     /// - キャンセル後も会話履歴は保持されます
-    /// - 次の `run()` 呼び出しは正常に開始できます
+    /// - 次の `run()` または `resume()` 呼び出しは正常に開始できます
     /// - 実行中でない場合は何もしません
     ///
     /// ## 使用例
@@ -294,44 +283,97 @@ public protocol ConversationalAgentSessionProtocol<Client>: Actor {
     /// ```
     func cancel() async
 
+    /// エラー後にセッションを再開
+    ///
+    /// maxStepsExceeded などのエラーで中断したセッションを再開します。
+    /// 不完全な tool_use に対してダミーの tool_result を追加し、
+    /// エージェントループを継続します。
+    ///
+    /// ## 動作
+    ///
+    /// 1. 不完全な tool_use を検出してダミーの tool_result を追加
+    /// 2. ステップカウンタをリセット
+    /// 3. エージェントループを再開
+    ///
+    /// ## 使用例
+    ///
+    /// ```swift
+    /// @Structured("結果")
+    /// struct Result {
+    ///     @StructuredField("内容")
+    ///     var content: String
+    /// }
+    ///
+    /// // エラー発生後に「続ける」ボタンが押されたとき
+    /// for try await phase in session.resume(model: .sonnet, outputType: Result.self) {
+    ///     switch phase {
+    ///     case .running(let step):
+    ///         // ステップ処理
+    ///     case .completed(let result):
+    ///         // 型安全に Result を取得
+    ///         print("結果: \(result.content)")
+    ///     default:
+    ///         break
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - model: 使用するモデル
+    ///   - outputType: 期待する出力の型
+    /// - Returns: 各フェーズを返す `AsyncThrowingStream`
+    nonisolated func resume<Output: StructuredProtocol>(
+        model: Client.Model,
+        outputType: Output.Type
+    ) -> AsyncThrowingStream<SessionPhase<Output>, Error>
+
     // MARK: - User Interaction API
 
     /// ユーザーの回答を待っているかどうか
     ///
-    /// `AskUserTool` が呼び出され、セッションがユーザーの回答を待っている場合に `true` を返します。
+    /// `status.canReply` と同等です。
+    /// インタラクティブモードで AI が質問し、ユーザーの回答を待っている場合に `true` を返します。
     var waitingForAnswer: Bool { get async }
 
     /// AI の質問に回答する
     ///
-    /// `AskUserTool` が呼び出された後、ユーザーの回答を提供します。
+    /// インタラクティブモードで AI が質問した後、ユーザーの回答を提供します。
     /// 回答はツール結果として AI に渡され、一時停止していたストリームが自動的に再開されます。
     ///
     /// ## 動作
     ///
     /// 1. 回答をツール結果として記録
-    /// 2. `userAnswerProvided` イベントを発行
+    /// 2. `running(step: .userMessage(answer))` がストリームに送信される
     /// 3. 一時停止していたストリームが自動的に再開
     ///
     /// ## 注意事項
     ///
     /// - `waitingForAnswer` が `false` の場合、この呼び出しは無視されます
     /// - 回答は AI にとってツール実行結果として扱われます
-    /// - ストリームは `finalResponse` まで継続します
+    /// - ストリームは `completed` まで継続します
     ///
     /// ## 使用例
     ///
     /// ```swift
-    /// for try await step in session.run("調査して", model: .sonnet) {
-    ///     switch step {
-    ///     case .askingUser(let question):
-    ///         print("❓ \(question)")
+    /// @Structured("結果")
+    /// struct Result {
+    ///     @StructuredField("内容")
+    ///     var content: String
+    /// }
+    ///
+    /// for try await phase in session.run("調査して", model: .sonnet, outputType: Result.self) {
+    ///     switch phase {
+    ///     case .running(let step):
+    ///         if case .askingUser(let question) = step {
+    ///             print("❓ \(question)")
+    ///         }
     ///     case .awaitingUserInput:
     ///         // ストリームは一時停止中 - ユーザー入力を取得して回答
     ///         let answer = getUserInput()
     ///         await session.reply(answer)
     ///         // ストリームは自動的に再開される
-    ///     case .finalResponse(let output):
-    ///         print("✅ \(output)")
+    ///     case .completed(let result):
+    ///         print("✅ \(result.content)")
     ///     default:
     ///         break
     ///     }
@@ -353,17 +395,25 @@ public protocol ConversationalAgentSessionProtocol<Client>: Actor {
     ///   - userMessage: ユーザーメッセージ
     ///   - model: 使用するモデル
     ///   - outputType: 期待する出力の型
-    /// - Returns: 各ステップを返す `AsyncThrowingStream`
+    /// - Returns: 各フェーズを返す `AsyncThrowingStream`
     ///
-    /// ## ステップの種類
+    /// ## フェーズとステップの種類
     ///
+    /// **SessionPhase**:
+    /// - `idle`: 待機中
+    /// - `running(step:)`: 実行中（AgentStep を含む）
+    /// - `awaitingUserInput(question:)`: ユーザー回答待ち
+    /// - `paused`: 一時停止
+    /// - `completed(output:)`: 正常完了（型安全な出力）
+    /// - `failed(error:)`: エラー発生
+    ///
+    /// **AgentStep** (`running` 中のステップ):
     /// - `userMessage`: ユーザーメッセージが送信された
     /// - `thinking`: LLM が思考中
     /// - `toolCall`: ツール呼び出しが要求された
     /// - `toolResult`: ツール実行結果
     /// - `interrupted`: ユーザー割り込みが発生
-    /// - `textResponse`: テキスト応答（構造化出力なし）
-    /// - `finalResponse`: 最終構造化出力
+    /// - `askingUser`: AI がユーザーに質問中
     ///
     /// ## エラー
     ///
@@ -375,78 +425,48 @@ public protocol ConversationalAgentSessionProtocol<Client>: Actor {
     /// ## 使用例
     ///
     /// ```swift
-    /// for try await step in session.run(
-    ///     "AIエージェントについて調査して",
-    ///     model: .sonnet,
-    ///     outputType: ResearchResult.self
-    /// ) {
-    ///     switch step {
-    ///     case .userMessage(let msg):
-    ///         print("👤 \(msg)")
-    ///     case .thinking(let response):
-    ///         print("🤔 思考中...")
-    ///     case .toolCall(let call):
-    ///         print("🔧 \(call.name)")
-    ///     case .toolResult(let result):
-    ///         print("📄 \(result.output)")
-    ///     case .interrupted(let msg):
-    ///         print("⚡ \(msg)")
-    ///     case .textResponse(let text):
-    ///         print("💬 \(text)")
-    ///     case .finalResponse(let output):
-    ///         print("✅ \(output)")
-    ///     }
-    /// }
-    /// ```
-    func run<Output: StructuredProtocol>(
-        _ userMessage: String,
-        model: Client.Model,
-        outputType: Output.Type
-    ) -> AsyncThrowingStream<ConversationalAgentStep<Output>, Error>
-}
-
-// MARK: - Default Implementation
-
-extension ConversationalAgentSessionProtocol {
-    /// 型推論を活用したエージェントループ実行
-    ///
-    /// `outputType` パラメータを省略し、戻り値の型から `Output` を推論します。
-    /// `AgentCapableClient.runAgent` と同じパターンで、型アノテーションにより
-    /// 出力型を指定できます。
-    ///
-    /// ## 使用例
-    ///
-    /// ```swift
     /// @Structured("調査結果")
     /// struct ResearchResult {
     ///     @StructuredField("要約")
     ///     var summary: String
     /// }
     ///
-    /// // 型アノテーションで Output を指定
-    /// let stream: some ConversationalAgentStepStream<ResearchResult> = session.run(
+    /// for try await phase in session.run(
     ///     "AIエージェントについて調査して",
-    ///     model: .sonnet
-    /// )
-    ///
-    /// for try await step in stream {
-    ///     if case .finalResponse(let result) = step {
-    ///         print(result.summary)
+    ///     model: .sonnet,
+    ///     outputType: ResearchResult.self
+    /// ) {
+    ///     switch phase {
+    ///     case .running(let step):
+    ///         switch step {
+    ///         case .userMessage(let msg):
+    ///             print("👤 \(msg)")
+    ///         case .thinking:
+    ///             print("🤔 思考中...")
+    ///         case .toolCall(let call):
+    ///             print("🔧 \(call.name)")
+    ///         case .toolResult(let result):
+    ///             print("📄 \(result.output)")
+    ///         case .interrupted(let msg):
+    ///             print("⚡ \(msg)")
+    ///         case .askingUser(let question):
+    ///             print("❓ \(question)")
+    ///         }
+    ///     case .awaitingUserInput(let question):
+    ///         print("回答待ち: \(question)")
+    ///     case .completed(let result):
+    ///         // 型安全に ResearchResult を取得
+    ///         print("✅ \(result.summary)")
+    ///     case .failed(let error):
+    ///         print("❌ \(error)")
+    ///     default:
+    ///         break
     ///     }
     /// }
     /// ```
-    ///
-    /// - Parameters:
-    ///   - userMessage: ユーザーメッセージ
-    ///   - model: 使用するモデル
-    /// - Returns: 各ステップを返す `ConversationalAgentStepStream`
-    public func run<Output: StructuredProtocol>(
+    nonisolated func run<Output: StructuredProtocol>(
         _ userMessage: String,
-        model: Client.Model
-    ) -> some ConversationalAgentStepStream<Output> {
-        ConversationalAgentStepSequence(
-            stream: run(userMessage, model: model, outputType: Output.self)
-        )
-    }
-
+        model: Client.Model,
+        outputType: Output.Type
+    ) -> AsyncThrowingStream<SessionPhase<Output>, Error>
 }
