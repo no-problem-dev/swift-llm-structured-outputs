@@ -16,7 +16,8 @@ internal actor SDKClientAdapter {
 
     // MARK: - Initialization
 
-    /// stdio接続用のアダプターを作成
+    #if os(macOS)
+    /// stdio接続用のアダプターを作成（macOSのみ）
     ///
     /// - Parameters:
     ///   - command: MCPサーバーのコマンドパス
@@ -37,6 +38,7 @@ internal actor SDKClientAdapter {
             version: "1.0.0"
         )
     }
+    #endif
 
     /// HTTP接続用のアダプターを作成
     ///

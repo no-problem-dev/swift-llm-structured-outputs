@@ -134,8 +134,10 @@ public struct MCPConfiguration: Sendable {
 
 /// MCPサーバーへのトランスポート種別
 public enum MCPTransport: Sendable {
-    /// 標準入出力（stdio）経由
+    #if os(macOS)
+    /// 標準入出力（stdio）経由（macOSのみ）
     case stdio(command: String, arguments: [String])
+    #endif
 
     /// HTTP/SSE 経由
     case http(url: URL)
@@ -302,15 +304,18 @@ public struct MCPServer: MCPServerProtocol {
 
     /// アダプター作成用のパラメータ
     private enum AdapterConfig: @unchecked Sendable {
+        #if os(macOS)
         case stdio(command: String, arguments: [String], environment: [String: String])
+        #endif
         case http(url: URL, authorization: MCPAuthorization)
     }
 
     private let adapterConfig: AdapterConfig
 
+    #if os(macOS)
     // MARK: - Initialization (stdio)
 
-    /// stdioトランスポートでMCPサーバーに接続
+    /// stdioトランスポートでMCPサーバーに接続（macOSのみ）
     ///
     /// - Parameters:
     ///   - command: MCPサーバーのコマンドパス
@@ -334,6 +339,7 @@ public struct MCPServer: MCPServerProtocol {
         self.toolSelection = .all
         self.adapterConfig = .stdio(command: command, arguments: arguments, environment: environment)
     }
+    #endif
 
     // MARK: - Initialization (HTTP)
 
@@ -396,8 +402,10 @@ public struct MCPServer: MCPServerProtocol {
 
     private func createAdapter() -> SDKClientAdapter {
         switch adapterConfig {
+        #if os(macOS)
         case .stdio(let command, let arguments, let environment):
             return SDKClientAdapter(command: command, arguments: arguments, environment: environment)
+        #endif
         case .http(let url, let authorization):
             return SDKClientAdapter(url: url, authorization: authorization)
         }

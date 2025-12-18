@@ -27,6 +27,7 @@ enum ResearchToolSet {
             UnitConverterTool()
             StringManipulationTool()
             RandomGeneratorTool()
+            MemoryToolKit()
         }
     }
 
@@ -40,7 +41,10 @@ enum ResearchToolSet {
     @MainActor
     static var configuredTools: ToolSet {
         let config = ToolConfiguration.shared
-        return buildToolSet(enabledTools: config.enabledTools)
+        var toolSet = buildToolSet(enabledTools: config.enabledTools)
+        // MemoryToolKitは常に追加（組み込みToolKit）
+        toolSet = toolSet.appending(MemoryToolKit())
+        return toolSet
     }
 
     /// 指定されたツール識別子のセットからToolSetを作成
