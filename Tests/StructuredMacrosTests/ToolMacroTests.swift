@@ -40,9 +40,9 @@ final class ToolMacroTests: XCTestCase {
                     return "晴れ"
                 }
 
-                public static let toolName: String = "get_weather"
+                public let toolName: String = "get_weather"
 
-                public static let toolDescription: String = "指定された都市の天気を取得します"
+                public let toolDescription: String = "指定された都市の天気を取得します"
 
                 @Structured
                 public struct Arguments {
@@ -50,7 +50,7 @@ final class ToolMacroTests: XCTestCase {
                     public var location: String = ""
                 }
 
-                public static var inputSchema: JSONSchema {
+                public var inputSchema: JSONSchema {
                     Arguments.jsonSchema
                 }
 
@@ -113,9 +113,9 @@ final class ToolMacroTests: XCTestCase {
                     return "42"
                 }
 
-                public static let toolName: String = "calculator"
+                public let toolName: String = "calculator"
 
-                public static let toolDescription: String = "計算を実行します"
+                public let toolDescription: String = "計算を実行します"
 
                 @Structured
                 public struct Arguments {
@@ -123,7 +123,7 @@ final class ToolMacroTests: XCTestCase {
                     public var expression: String = ""
                 }
 
-                public static var inputSchema: JSONSchema {
+                public var inputSchema: JSONSchema {
                     Arguments.jsonSchema
                 }
 
@@ -183,13 +183,13 @@ final class ToolMacroTests: XCTestCase {
                     return "2024-01-01T00:00:00Z"
                 }
 
-                public static let toolName: String = "get_current_time"
+                public let toolName: String = "get_current_time"
 
-                public static let toolDescription: String = "現在の日時を取得します"
+                public let toolDescription: String = "現在の日時を取得します"
 
                 public typealias Arguments = EmptyArguments
 
-                public static var inputSchema: JSONSchema {
+                public var inputSchema: JSONSchema {
                     Arguments.jsonSchema
                 }
 
@@ -247,9 +247,9 @@ final class ToolMacroTests: XCTestCase {
                     return "結果"
                 }
 
-                public static let toolName: String = "search_products"
+                public let toolName: String = "search_products"
 
-                public static let toolDescription: String = "商品を検索します"
+                public let toolDescription: String = "商品を検索します"
 
                 @Structured
                 public struct Arguments {
@@ -261,7 +261,7 @@ final class ToolMacroTests: XCTestCase {
                     public var category: String? = nil
                 }
 
-                public static var inputSchema: JSONSchema {
+                public var inputSchema: JSONSchema {
                     Arguments.jsonSchema
                 }
 
@@ -332,9 +332,9 @@ final class ToolMacroTests: XCTestCase {
                     return "data"
                 }
 
-                public static let toolName: String = "get_user_data"
+                public let toolName: String = "get_user_data"
 
-                public static let toolDescription: String = "ユーザーデータを取得"
+                public let toolDescription: String = "ユーザーデータを取得"
 
                 @Structured
                 public struct Arguments {
@@ -342,7 +342,7 @@ final class ToolMacroTests: XCTestCase {
                     public var userId: String = ""
                 }
 
-                public static var inputSchema: JSONSchema {
+                public var inputSchema: JSONSchema {
                     Arguments.jsonSchema
                 }
 
@@ -437,9 +437,9 @@ final class ToolMacroTests: XCTestCase {
                     return "処理完了"
                 }
 
-                public static let toolName: String = "process_files"
+                public let toolName: String = "process_files"
 
-                public static let toolDescription: String = "ファイルを処理します"
+                public let toolDescription: String = "ファイルを処理します"
 
                 @Structured
                 public struct Arguments {
@@ -447,7 +447,7 @@ final class ToolMacroTests: XCTestCase {
                     public var filePaths: [String] = []
                 }
 
-                public static var inputSchema: JSONSchema {
+                public var inputSchema: JSONSchema {
                     Arguments.jsonSchema
                 }
 
@@ -524,9 +524,9 @@ final class ToolMacroTests: XCTestCase {
                     return "検索結果"
                 }
 
-                public static let toolName: String = "web_search"
+                public let toolName: String = "web_search"
 
-                public static let toolDescription: String = "Web検索を実行します"
+                public let toolDescription: String = "Web検索を実行します"
 
                 @Structured
                 public struct Arguments {
@@ -540,7 +540,7 @@ final class ToolMacroTests: XCTestCase {
                     public var safeSearch: Bool = false
                 }
 
-                public static var inputSchema: JSONSchema {
+                public var inputSchema: JSONSchema {
                     Arguments.jsonSchema
                 }
 

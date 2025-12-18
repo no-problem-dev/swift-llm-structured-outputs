@@ -49,6 +49,58 @@ public protocol MCPServerProtocol: Sendable {
     func executeTool(named toolName: String, arguments: Data) async throws -> ToolResult
 }
 
+// MARK: - MCPAuthorization
+
+/// MCPサーバーへの認証方式
+///
+/// Streamable HTTP トランスポートで使用される認証設定です。
+/// OAuth 2.1 の Bearer トークンが標準的な認証方式です。
+///
+/// ## 使用例
+///
+/// ```swift
+/// // Bearer トークン認証
+/// MCPServer(url: url, authorization: .bearer("your-access-token"))
+///
+/// // カスタムヘッダー認証
+/// MCPServer(url: url, authorization: .header("X-API-Key", "your-api-key"))
+/// ```
+public enum MCPAuthorization: Sendable {
+    /// Bearer トークン認証（OAuth 2.1 標準）
+    ///
+    /// `Authorization: Bearer <token>` ヘッダーを追加します。
+    case bearer(String)
+
+    /// カスタムヘッダー認証
+    ///
+    /// 指定したヘッダー名と値を追加します。
+    case header(String, String)
+
+    /// 複数のカスタムヘッダー
+    ///
+    /// 複数のヘッダーを追加します。
+    case headers([String: String])
+
+    /// 認証なし
+    case none
+
+    /// URLRequestに認証ヘッダーを適用
+    internal func apply(to request: inout URLRequest) {
+        switch self {
+        case .bearer(let token):
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        case .header(let name, let value):
+            request.setValue(value, forHTTPHeaderField: name)
+        case .headers(let headers):
+            for (name, value) in headers {
+                request.setValue(value, forHTTPHeaderField: name)
+            }
+        case .none:
+            break
+        }
+    }
+}
+
 // MARK: - MCPConfiguration
 
 /// MCPサーバーの接続設定
@@ -62,14 +114,19 @@ public struct MCPConfiguration: Sendable {
     /// 環境変数
     public let environment: [String: String]
 
+    /// 認証設定（HTTP接続用）
+    public let authorization: MCPAuthorization
+
     public init(
         transport: MCPTransport,
         timeout: TimeInterval = 30,
-        environment: [String: String] = [:]
+        environment: [String: String] = [:],
+        authorization: MCPAuthorization = .none
     ) {
         self.transport = transport
         self.timeout = timeout
         self.environment = environment
+        self.authorization = authorization
     }
 }
 
@@ -246,7 +303,7 @@ public struct MCPServer: MCPServerProtocol {
     /// アダプター作成用のパラメータ
     private enum AdapterConfig: @unchecked Sendable {
         case stdio(command: String, arguments: [String], environment: [String: String])
-        case http(url: URL)
+        case http(url: URL, authorization: MCPAuthorization)
     }
 
     private let adapterConfig: AdapterConfig
@@ -280,24 +337,43 @@ public struct MCPServer: MCPServerProtocol {
 
     // MARK: - Initialization (HTTP)
 
-    /// HTTPトランスポートでMCPサーバーに接続
+    /// HTTPトランスポート（Streamable HTTP）でMCPサーバーに接続
+    ///
+    /// リモートMCPサーバーに接続するための標準的な方法です。
+    /// OAuth 2.1 Bearer トークン認証をサポートしています。
+    ///
+    /// ## 使用例
+    ///
+    /// ```swift
+    /// // 認証なし（公開サーバー）
+    /// MCPServer(url: URL(string: "https://example.com/mcp")!)
+    ///
+    /// // Bearer トークン認証
+    /// MCPServer(
+    ///     url: URL(string: "https://mcp.notion.com/mcp")!,
+    ///     authorization: .bearer("ntn_xxxxx")
+    /// )
+    /// ```
     ///
     /// - Parameters:
     ///   - url: MCPサーバーのURL
     ///   - name: サーバー名（デフォルトはホスト名）
+    ///   - authorization: 認証設定（デフォルト: なし）
     ///   - timeout: タイムアウト（秒）
     public init(
         url: URL,
         name: String? = nil,
+        authorization: MCPAuthorization = .none,
         timeout: TimeInterval = 30
     ) {
         self.serverName = name ?? url.host ?? "http-mcp"
         self.configuration = MCPConfiguration(
             transport: .http(url: url),
-            timeout: timeout
+            timeout: timeout,
+            authorization: authorization
         )
         self.toolSelection = .all
-        self.adapterConfig = .http(url: url)
+        self.adapterConfig = .http(url: url, authorization: authorization)
     }
 
     // MARK: - MCPServerProtocol
@@ -322,8 +398,8 @@ public struct MCPServer: MCPServerProtocol {
         switch adapterConfig {
         case .stdio(let command, let arguments, let environment):
             return SDKClientAdapter(command: command, arguments: arguments, environment: environment)
-        case .http(let url):
-            return SDKClientAdapter(url: url)
+        case .http(let url, let authorization):
+            return SDKClientAdapter(url: url, authorization: authorization)
         }
     }
 }
@@ -378,6 +454,43 @@ extension MCPServer {
         var copy = self
         copy.toolSelection = .excluding(toolNames)
         return copy
+    }
+}
+
+// MARK: - MCPServer Presets
+
+extension MCPServer {
+    /// Notion MCPサーバーに接続
+    ///
+    /// Notionの公式ホステッドMCPサーバーに接続します。
+    /// Streamable HTTP トランスポートを使用し、Bearer トークン認証を行います。
+    ///
+    /// ## 使用例
+    ///
+    /// ```swift
+    /// let notion = MCPServer.notion(token: "ntn_xxxxx")
+    ///
+    /// let tools = ToolSet {
+    ///     notion
+    /// }
+    /// ```
+    ///
+    /// ## 事前準備
+    ///
+    /// 1. https://www.notion.so/profile/integrations でインテグレーションを作成
+    /// 2. インテグレーションシークレット（`ntn_`で始まる）を取得
+    /// 3. 対象のページ/データベースにインテグレーションを接続
+    ///
+    /// - Parameter token: Notionインテグレーショントークン（`ntn_`で始まる）
+    /// - Returns: Notion MCPサーバー
+    ///
+    /// - SeeAlso: [Notion MCP Documentation](https://developers.notion.com/docs/mcp)
+    public static func notion(token: String) -> MCPServer {
+        MCPServer(
+            url: URL(string: "https://mcp.notion.com/mcp")!,
+            name: "notion",
+            authorization: .bearer(token)
+        )
     }
 }
 

@@ -46,7 +46,7 @@ public struct ToolSet: Sendable {
     // MARK: - Properties
 
     /// 内部のツール配列
-    internal let tools: [any Tool]
+    package let tools: [any Tool]
 
     // MARK: - Initializers
 
@@ -64,8 +64,8 @@ public struct ToolSet: Sendable {
         self.tools = builder()
     }
 
-    /// 内部配列から直接初期化（内部使用）
-    internal init(tools: [any Tool]) {
+    /// 内部配列から直接初期化（パッケージ内部使用）
+    package init(tools: [any Tool]) {
         self.tools = tools
     }
 
@@ -103,14 +103,7 @@ public struct ToolSet: Sendable {
 
     /// ツール定義のリストを取得
     public var definitions: [ToolDefinition] {
-        tools.map { tool in
-            let toolType = type(of: tool)
-            return ToolDefinition(
-                name: toolType.toolName,
-                description: toolType.toolDescription,
-                inputSchema: toolType.inputSchema
-            )
-        }
+        tools.map { $0.definition }
     }
 
     /// 名前でツールを実行
@@ -197,23 +190,17 @@ extension ToolSet: CustomStringConvertible {
 extension ToolSet {
     /// Anthropic API 形式に変換
     package func toAnthropicFormat() -> [[String: Any]] {
-        tools.map { tool in
-            type(of: tool).toAnthropicFormat()
-        }
+        tools.map { $0.toAnthropicFormat() }
     }
 
     /// OpenAI API 形式に変換
     package func toOpenAIFormat() -> [[String: Any]] {
-        tools.map { tool in
-            type(of: tool).toOpenAIFormat()
-        }
+        tools.map { $0.toOpenAIFormat() }
     }
 
     /// Gemini API 形式に変換
     package func toGeminiFormat() -> [[String: Any]] {
-        tools.map { tool in
-            type(of: tool).toGeminiFormat()
-        }
+        tools.map { $0.toGeminiFormat() }
     }
 }
 
@@ -229,7 +216,7 @@ extension Tool {
     ///   "input_schema": { ... }
     /// }
     /// ```
-    static func toAnthropicFormat() -> [String: Any] {
+    func toAnthropicFormat() -> [String: Any] {
         var result: [String: Any] = [
             "name": toolName,
             "description": toolDescription
@@ -258,7 +245,7 @@ extension Tool {
     ///   }
     /// }
     /// ```
-    static func toOpenAIFormat() -> [String: Any] {
+    func toOpenAIFormat() -> [String: Any] {
         var functionDict: [String: Any] = [
             "name": toolName,
             "description": toolDescription,
@@ -287,7 +274,7 @@ extension Tool {
     ///   "parameters": { ... }
     /// }
     /// ```
-    static func toGeminiFormat() -> [String: Any] {
+    func toGeminiFormat() -> [String: Any] {
         var result: [String: Any] = [
             "name": toolName,
             "description": toolDescription

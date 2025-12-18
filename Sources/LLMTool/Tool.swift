@@ -43,18 +43,18 @@ public protocol Tool: Sendable {
     ///
     /// API で使用される名前です。
     /// `^[a-zA-Z0-9_-]{1,64}$` のパターンに従う必要があります。
-    static var toolName: String { get }
+    var toolName: String { get }
 
     /// ツールの説明
     ///
     /// LLM がツールを選択する際に参照する説明文です。
     /// 詳細に記述することで、適切なタイミングでツールが呼び出されやすくなります。
-    static var toolDescription: String { get }
+    var toolDescription: String { get }
 
     /// 引数の JSON Schema
     ///
     /// ツールの入力パラメータを定義する JSON Schema です。
-    static var inputSchema: JSONSchema { get }
+    var inputSchema: JSONSchema { get }
 
     /// ツールを実行
     ///
@@ -67,14 +67,14 @@ public protocol Tool: Sendable {
     func execute(with argumentsData: Data) async throws -> ToolResult
 }
 
-// MARK: - Tool Default Implementations
+// MARK: - Tool Convenience Properties
 
 extension Tool {
-    /// ツール名への便利アクセス
-    public var name: String { Self.toolName }
+    /// ツール名へのエイリアス
+    public var name: String { toolName }
 
-    /// ツールの説明への便利アクセス
-    public var description: String { Self.toolDescription }
+    /// ツールの説明へのエイリアス
+    public var description: String { toolDescription }
 }
 
 // MARK: - EmptyArguments

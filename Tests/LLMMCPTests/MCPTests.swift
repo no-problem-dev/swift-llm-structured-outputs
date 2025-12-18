@@ -267,6 +267,95 @@ final class MCPTests: XCTestCase {
         XCTAssertTrue(toolSet.mcpPlaceholders.isEmpty)
     }
 
+    // MARK: - Authorization Tests
+
+    func testMCPAuthorizationBearer() {
+        var request = URLRequest(url: URL(string: "https://example.com")!)
+        let auth = MCPAuthorization.bearer("test-token-123")
+
+        auth.apply(to: &request)
+
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token-123")
+    }
+
+    func testMCPAuthorizationHeader() {
+        var request = URLRequest(url: URL(string: "https://example.com")!)
+        let auth = MCPAuthorization.header("X-API-Key", "my-api-key")
+
+        auth.apply(to: &request)
+
+        XCTAssertEqual(request.value(forHTTPHeaderField: "X-API-Key"), "my-api-key")
+    }
+
+    func testMCPAuthorizationHeaders() {
+        var request = URLRequest(url: URL(string: "https://example.com")!)
+        let auth = MCPAuthorization.headers([
+            "X-API-Key": "key123",
+            "X-Client-ID": "client456"
+        ])
+
+        auth.apply(to: &request)
+
+        XCTAssertEqual(request.value(forHTTPHeaderField: "X-API-Key"), "key123")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "X-Client-ID"), "client456")
+    }
+
+    func testMCPAuthorizationNone() {
+        var request = URLRequest(url: URL(string: "https://example.com")!)
+        let auth = MCPAuthorization.none
+
+        auth.apply(to: &request)
+
+        XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+    }
+
+    func testMCPServerHTTPWithBearerAuth() {
+        let url = URL(string: "https://api.example.com/mcp")!
+        let server = MCPServer(
+            url: url,
+            name: "auth-server",
+            authorization: .bearer("my-token")
+        )
+
+        XCTAssertEqual(server.serverName, "auth-server")
+        if case .bearer(let token) = server.configuration.authorization {
+            XCTAssertEqual(token, "my-token")
+        } else {
+            XCTFail("Expected bearer authorization")
+        }
+    }
+
+    func testMCPServerHTTPDefaultAuthorizationIsNone() {
+        let url = URL(string: "https://api.example.com/mcp")!
+        let server = MCPServer(url: url)
+
+        if case .none = server.configuration.authorization {
+            // Success
+        } else {
+            XCTFail("Expected no authorization by default")
+        }
+    }
+
+    // MARK: - Preset Tests
+
+    func testMCPServerNotionPreset() {
+        let server = MCPServer.notion(token: "ntn_test_token_12345")
+
+        XCTAssertEqual(server.serverName, "notion")
+
+        if case .http(let url) = server.configuration.transport {
+            XCTAssertEqual(url.absoluteString, "https://mcp.notion.com/mcp")
+        } else {
+            XCTFail("Expected HTTP transport")
+        }
+
+        if case .bearer(let token) = server.configuration.authorization {
+            XCTAssertEqual(token, "ntn_test_token_12345")
+        } else {
+            XCTFail("Expected bearer authorization")
+        }
+    }
+
     // MARK: - Configuration Tests
 
     func testMCPConfigurationDefaults() {
@@ -276,6 +365,11 @@ final class MCPTests: XCTestCase {
 
         XCTAssertEqual(config.timeout, 30)
         XCTAssertTrue(config.environment.isEmpty)
+        if case .none = config.authorization {
+            // Success
+        } else {
+            XCTFail("Expected no authorization by default")
+        }
     }
 
     func testMCPTransportStdio() {
@@ -298,5 +392,209 @@ final class MCPTests: XCTestCase {
         } else {
             XCTFail("Expected http transport")
         }
+    }
+
+    // MARK: - ToolKit Protocol Tests
+
+    func testToolKitProtocol() {
+        let toolkit = MockToolKit()
+
+        XCTAssertEqual(toolkit.name, "mock-toolkit")
+        XCTAssertEqual(toolkit.toolCount, 2)
+        XCTAssertEqual(toolkit.toolNames, ["mock_tool_1", "mock_tool_2"])
+    }
+
+    func testToolKitToolLookup() {
+        let toolkit = MockToolKit()
+
+        let tool1 = toolkit.tool(named: "mock_tool_1")
+        XCTAssertNotNil(tool1)
+        XCTAssertEqual(tool1?.toolName, "mock_tool_1")
+
+        let nonexistent = toolkit.tool(named: "nonexistent")
+        XCTAssertNil(nonexistent)
+    }
+
+    func testToolKitInToolSet() {
+        let toolkit = MockToolKit()
+
+        let toolSet = ToolSet {
+            toolkit
+        }
+
+        XCTAssertEqual(toolSet.count, 2)
+        XCTAssertNotNil(toolSet.tool(named: "mock_tool_1"))
+        XCTAssertNotNil(toolSet.tool(named: "mock_tool_2"))
+    }
+
+    func testToolKitMixedWithTools() {
+        let toolkit = MockToolKit()
+
+        let toolSet = ToolSet {
+            toolkit
+            MockSingleTool()
+        }
+
+        XCTAssertEqual(toolSet.count, 3)
+        XCTAssertNotNil(toolSet.tool(named: "mock_tool_1"))
+        XCTAssertNotNil(toolSet.tool(named: "mock_tool_2"))
+        XCTAssertNotNil(toolSet.tool(named: "mock_single_tool"))
+    }
+
+    func testToolSetAppendingToolKit() {
+        let toolSet = ToolSet {
+            MockSingleTool()
+        }
+        let toolkit = MockToolKit()
+
+        let extended = toolSet.appending(toolkit)
+
+        XCTAssertEqual(extended.count, 3)
+    }
+
+    func testToolSetPlusToolKit() {
+        let toolSet = ToolSet {
+            MockSingleTool()
+        }
+        let toolkit = MockToolKit()
+
+        let extended = toolSet + toolkit
+
+        XCTAssertEqual(extended.count, 3)
+    }
+
+    // MARK: - ToolAnnotations Tests
+
+    func testToolAnnotationsDefault() {
+        let annotations = ToolAnnotations()
+
+        XCTAssertNil(annotations.title)
+        XCTAssertNil(annotations.readOnlyHint)
+        XCTAssertNil(annotations.destructiveHint)
+        XCTAssertNil(annotations.idempotentHint)
+        XCTAssertNil(annotations.openWorldHint)
+    }
+
+    func testToolAnnotationsReadOnlyPreset() {
+        let annotations = ToolAnnotations.readOnly
+
+        XCTAssertEqual(annotations.readOnlyHint, true)
+    }
+
+    func testToolAnnotationsDestructivePreset() {
+        let annotations = ToolAnnotations.destructive
+
+        XCTAssertEqual(annotations.readOnlyHint, false)
+        XCTAssertEqual(annotations.destructiveHint, true)
+    }
+
+    func testToolAnnotationsIdempotentWritePreset() {
+        let annotations = ToolAnnotations.idempotentWrite
+
+        XCTAssertEqual(annotations.readOnlyHint, false)
+        XCTAssertEqual(annotations.destructiveHint, true)
+        XCTAssertEqual(annotations.idempotentHint, true)
+    }
+
+    func testToolAnnotationsClosedWorldPreset() {
+        let annotations = ToolAnnotations.closedWorld
+
+        XCTAssertEqual(annotations.openWorldHint, false)
+    }
+
+    // MARK: - BuiltInTool Tests
+
+    func testBuiltInToolCreation() {
+        let tool = BuiltInTool(
+            name: "test_tool",
+            description: "A test tool",
+            inputSchema: .object(properties: [:], required: []),
+            annotations: .readOnly
+        ) { _ in
+            .text("result")
+        }
+
+        XCTAssertEqual(tool.toolName, "test_tool")
+        XCTAssertEqual(tool.toolDescription, "A test tool")
+        XCTAssertEqual(tool.annotations.readOnlyHint, true)
+    }
+
+    func testBuiltInToolCapabilitiesConversion() {
+        let readOnlyTool = BuiltInTool(
+            name: "read_tool",
+            description: "Reads data",
+            inputSchema: .object(properties: [:], required: []),
+            annotations: .readOnly
+        ) { _ in .text("") }
+
+        XCTAssertTrue(readOnlyTool.capabilities.isReadOnly)
+        XCTAssertFalse(readOnlyTool.capabilities.isDangerous)
+
+        let destructiveTool = BuiltInTool(
+            name: "delete_tool",
+            description: "Deletes data",
+            inputSchema: .object(properties: [:], required: []),
+            annotations: .destructive
+        ) { _ in .text("") }
+
+        XCTAssertFalse(destructiveTool.capabilities.isReadOnly)
+        XCTAssertTrue(destructiveTool.capabilities.isDangerous)
+    }
+
+    func testBuiltInToolExecution() async throws {
+        let tool = BuiltInTool(
+            name: "echo_tool",
+            description: "Echoes input",
+            inputSchema: .object(
+                properties: ["message": .string()],
+                required: ["message"]
+            )
+        ) { data in
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let message = json?["message"] as? String ?? ""
+            return .text("Echo: \(message)")
+        }
+
+        let input = try JSONSerialization.data(withJSONObject: ["message": "Hello"])
+        let result = try await tool.execute(with: input)
+
+        if case .text(let text) = result {
+            XCTAssertEqual(text, "Echo: Hello")
+        } else {
+            XCTFail("Expected text result")
+        }
+    }
+}
+
+// MARK: - Mock Types for Testing
+
+/// テスト用のモックToolKit
+private struct MockToolKit: ToolKit {
+    var name: String { "mock-toolkit" }
+
+    var tools: [any Tool] {
+        [
+            BuiltInTool(
+                name: "mock_tool_1",
+                description: "Mock tool 1",
+                inputSchema: .object(properties: [:], required: [])
+            ) { _ in .text("result1") },
+            BuiltInTool(
+                name: "mock_tool_2",
+                description: "Mock tool 2",
+                inputSchema: .object(properties: [:], required: [])
+            ) { _ in .text("result2") }
+        ]
+    }
+}
+
+/// テスト用の単一ツール
+private struct MockSingleTool: Tool {
+    var toolName: String { "mock_single_tool" }
+    var toolDescription: String { "A single mock tool" }
+    var inputSchema: JSONSchema { .object(properties: [:], required: []) }
+
+    func execute(with argumentsData: Data) async throws -> ToolResult {
+        .text("single result")
     }
 }

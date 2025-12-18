@@ -40,9 +40,36 @@ internal actor SDKClientAdapter {
 
     /// HTTP接続用のアダプターを作成
     ///
-    /// - Parameter url: MCPサーバーのURL
-    init(url: URL) {
-        self.transport = HTTPClientTransport(endpoint: url)
+    /// - Parameters:
+    ///   - url: MCPサーバーのURL
+    ///   - authorization: 認証設定
+    init(url: URL, authorization: MCPAuthorization = .none) {
+        // 認証設定に基づいてトランスポートを作成
+        switch authorization {
+        case .none:
+            self.transport = HTTPClientTransport(endpoint: url)
+        case .bearer(let token):
+            self.transport = HTTPClientTransport(endpoint: url) { request in
+                var modifiedRequest = request
+                modifiedRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                return modifiedRequest
+            }
+        case .header(let name, let value):
+            self.transport = HTTPClientTransport(endpoint: url) { request in
+                var modifiedRequest = request
+                modifiedRequest.setValue(value, forHTTPHeaderField: name)
+                return modifiedRequest
+            }
+        case .headers(let headers):
+            self.transport = HTTPClientTransport(endpoint: url) { request in
+                var modifiedRequest = request
+                for (name, value) in headers {
+                    modifiedRequest.setValue(value, forHTTPHeaderField: name)
+                }
+                return modifiedRequest
+            }
+        }
+
         self.client = MCP.Client(
             name: "swift-llm-structured-outputs",
             version: "1.0.0"
