@@ -4,8 +4,15 @@ struct SessionListView: View {
     @Bindable var state: SessionListState
     @Binding var selectedSession: SessionData?
     let onNewSession: () -> Void
+    let onDeleteSession: (SessionData) -> Void
 
     @Environment(\.useCase) private var useCase
+
+    @State private var showDeleteConfirmation = false
+    @State private var sessionToDelete: SessionData?
+    @State private var showRenameDialog = false
+    @State private var sessionToRename: SessionData?
+    @State private var newSessionTitle = ""
 
     var body: some View {
         Group {
@@ -33,6 +40,41 @@ struct SessionListView: View {
         .refreshable {
             await loadSessions()
         }
+        .alert("セッションを削除しますか？", isPresented: $showDeleteConfirmation) {
+            Button("キャンセル", role: .cancel) {
+                sessionToDelete = nil
+            }
+            Button("削除", role: .destructive) {
+                if let session = sessionToDelete {
+                    Task {
+                        await deleteSession(session)
+                    }
+                }
+                sessionToDelete = nil
+            }
+        } message: {
+            if let session = sessionToDelete {
+                Text("「\(session.title)」を削除します。この操作は取り消せません。")
+            }
+        }
+        .alert("セッション名を変更", isPresented: $showRenameDialog) {
+            TextField("セッション名", text: $newSessionTitle)
+            Button("キャンセル", role: .cancel) {
+                sessionToRename = nil
+                newSessionTitle = ""
+            }
+            Button("変更") {
+                if let session = sessionToRename, !newSessionTitle.isEmpty {
+                    Task {
+                        await renameSession(session, newTitle: newSessionTitle)
+                    }
+                }
+                sessionToRename = nil
+                newSessionTitle = ""
+            }
+        } message: {
+            Text("新しいセッション名を入力してください")
+        }
     }
 
     // MARK: - Empty State
@@ -57,10 +99,28 @@ struct SessionListView: View {
             ForEach(state.sessions) { session in
                 SessionRowView(session: session)
                     .tag(session)
+                    .contextMenu {
+                        Button {
+                            sessionToRename = session
+                            newSessionTitle = session.title
+                            showRenameDialog = true
+                        } label: {
+                            Label("名前を変更", systemImage: "pencil")
+                        }
+
+                        Button(role: .destructive) {
+                            sessionToDelete = session
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("削除", systemImage: "trash")
+                        }
+                    }
             }
             .onDelete { offsets in
-                Task {
-                    await deleteSessions(at: offsets)
+                // 確認ダイアログを表示するため、最初のセッションのみを対象にする
+                if let index = offsets.first {
+                    sessionToDelete = state.sessions[index]
+                    showDeleteConfirmation = true
                 }
             }
         }
@@ -83,15 +143,24 @@ struct SessionListView: View {
         state.setLoading(false)
     }
 
-    private func deleteSessions(at offsets: IndexSet) async {
-        let idsToDelete = offsets.map { state.sessions[$0].id }
-        for id in idsToDelete {
-            do {
-                try await useCase.session.deleteSession(id: id)
-                state.removeSession(id: id)
-            } catch {
-                state.setError(error.localizedDescription)
-            }
+    private func deleteSession(_ session: SessionData) async {
+        do {
+            try await useCase.session.deleteSession(id: session.id)
+            state.removeSession(id: session.id)
+            // コールバックを呼び出してアクティブセッションの処理を委譲
+            onDeleteSession(session)
+        } catch {
+            state.setError(error.localizedDescription)
+        }
+    }
+
+    private func renameSession(_ session: SessionData, newTitle: String) async {
+        do {
+            try await useCase.session.renameSession(id: session.id, newTitle: newTitle)
+            // セッション一覧を再読み込み
+            await loadSessions()
+        } catch {
+            state.setError(error.localizedDescription)
         }
     }
 }
@@ -149,7 +218,8 @@ extension SessionData: Hashable {
         SessionListView(
             state: state,
             selectedSession: $selectedSession,
-            onNewSession: {}
+            onNewSession: {},
+            onDeleteSession: { _ in }
         )
     }
 }

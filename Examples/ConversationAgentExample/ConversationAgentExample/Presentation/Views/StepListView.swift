@@ -51,31 +51,20 @@ struct StepListView: View {
     }
 
     private var stepList: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
-                        let isLastStep = index == steps.count - 1
-                        StepRow(
-                            step: step,
-                            isLast: isLastStep,
-                            isLatestActive: isLastStep && isLoading,
-                            onResultTap: step.type == .finalResponse ? onResultTap : nil
-                        )
-                        .id(step.id)
-                    }
-                }
-                .padding()
-            }
-            .background(Color(.systemGray6))
-            .onChange(of: steps.count) { _, _ in
-                if let lastStep = steps.last {
-                    withAnimation {
-                        proxy.scrollTo(lastStep.id, anchor: .bottom)
-                    }
-                }
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
+                let isLastStep = index == steps.count - 1
+                StepRow(
+                    step: step,
+                    isLast: isLastStep,
+                    isLatestActive: isLastStep && isLoading,
+                    onResultTap: step.type == .finalResponse ? onResultTap : nil
+                )
+                .id(step.id)
             }
         }
+        .padding()
+        .background(Color(.systemGray6))
     }
 }
 

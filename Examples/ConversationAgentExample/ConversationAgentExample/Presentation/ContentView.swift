@@ -15,9 +15,9 @@ struct ContentView: View {
     private var shouldShowActiveSessionBar: Bool {
         // ConversationView表示中は非表示（重複を避ける）
         guard navigationPath.isEmpty else { return false }
-        // セッションがアクティブな場合に表示
-        return activeSessionState.hasActiveSession ||
-               !activeSessionState.steps.isEmpty ||
+        // 会話履歴がある、または実行中の場合に表示
+        // （新規セッションで何も実行していない場合は表示しない）
+        return activeSessionState.hasConversationHistory ||
                activeSessionState.executionState.isRunning
     }
 
@@ -27,7 +27,8 @@ struct ContentView: View {
                 SessionListView(
                     state: sessionListState,
                     selectedSession: $selectedSession,
-                    onNewSession: createNewSession
+                    onNewSession: createNewSession,
+                    onDeleteSession: handleDeletedSession
                 )
                 .navigationDestination(for: SessionData.self) { session in
                     // ActiveSessionStateのsessionDataがこのセッションと一致する場合のみ表示
@@ -143,6 +144,24 @@ struct ContentView: View {
     private func navigateToActiveSession() {
         // 既にアクティブなセッションのデータを使って遷移
         navigationPath.append(activeSessionState.sessionData)
+    }
+
+    /// セッション削除時の処理
+    ///
+    /// 削除されたセッションがアクティブセッションの場合、
+    /// アクティブセッションをリセットして一覧に戻る。
+    private func handleDeletedSession(_ deletedSession: SessionData) {
+        // 削除されたセッションがアクティブセッションの場合
+        if activeSessionState.sessionData.id == deletedSession.id {
+            // 実行中なら停止
+            if activeSessionState.isExecuting {
+                activeSessionState.stopExecution()
+            }
+            // アクティブセッションをリセット
+            activeSessionState.resetAll()
+            // ナビゲーションをルートに戻す
+            navigationPath = NavigationPath()
+        }
     }
 }
 

@@ -13,12 +13,12 @@ final class WebToolKitTests: XCTestCase {
 
     func testWebToolKitToolCount() {
         let toolkit = WebToolKit()
-        XCTAssertEqual(toolkit.toolCount, 3)
+        XCTAssertEqual(toolkit.toolCount, 4)
     }
 
     func testWebToolKitToolNames() {
         let toolkit = WebToolKit()
-        let expectedNames = ["fetch_url", "fetch_json", "fetch_headers"]
+        let expectedNames = ["fetch_url", "fetch_json", "fetch_headers", "fetch_page"]
         XCTAssertEqual(toolkit.toolNames, expectedNames)
     }
 
@@ -28,27 +28,28 @@ final class WebToolKitTests: XCTestCase {
             toolkit
         }
 
-        XCTAssertEqual(toolSet.count, 3)
+        XCTAssertEqual(toolSet.count, 4)
         XCTAssertNotNil(toolSet.tool(named: "fetch_url"))
         XCTAssertNotNil(toolSet.tool(named: "fetch_json"))
         XCTAssertNotNil(toolSet.tool(named: "fetch_headers"))
+        XCTAssertNotNil(toolSet.tool(named: "fetch_page"))
     }
 
     // MARK: - Initialization Tests
 
     func testWebToolKitDefaultInit() {
         let toolkit = WebToolKit()
-        XCTAssertEqual(toolkit.toolCount, 3)
+        XCTAssertEqual(toolkit.toolCount, 4)
     }
 
     func testWebToolKitWithAllowedDomains() {
         let toolkit = WebToolKit(allowedDomains: ["api.example.com"])
-        XCTAssertEqual(toolkit.toolCount, 3)
+        XCTAssertEqual(toolkit.toolCount, 4)
     }
 
     func testWebToolKitWithCustomTimeout() {
         let toolkit = WebToolKit(timeout: 60)
-        XCTAssertEqual(toolkit.toolCount, 3)
+        XCTAssertEqual(toolkit.toolCount, 4)
     }
 
     // MARK: - URL Validation Tests
@@ -110,7 +111,7 @@ final class WebToolKitTests: XCTestCase {
 
         // ドメインが許可リストに含まれていることを確認
         // (実際のfetchはネットワーク接続が必要なのでスキップ)
-        XCTAssertEqual(toolkit.toolCount, 3)
+        XCTAssertEqual(toolkit.toolCount, 4)
     }
 
     // MARK: - Annotations Tests
