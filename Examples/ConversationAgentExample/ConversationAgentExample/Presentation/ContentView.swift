@@ -15,9 +15,9 @@ struct ContentView: View {
     private var shouldShowActiveSessionBar: Bool {
         // ConversationView表示中は非表示（重複を避ける）
         guard navigationPath.isEmpty else { return false }
-        // セッションがアクティブな場合に表示
-        return activeSessionState.hasActiveSession ||
-               !activeSessionState.steps.isEmpty ||
+        // 会話履歴がある、または実行中の場合に表示
+        // （新規セッションで何も実行していない場合は表示しない）
+        return activeSessionState.hasConversationHistory ||
                activeSessionState.executionState.isRunning
     }
 
