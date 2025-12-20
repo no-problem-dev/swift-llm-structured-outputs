@@ -146,20 +146,14 @@ struct ContentView: View {
         navigationPath.append(activeSessionState.sessionData)
     }
 
-    /// セッション削除時の処理
-    ///
-    /// 削除されたセッションがアクティブセッションの場合、
-    /// アクティブセッションをリセットして一覧に戻る。
     private func handleDeletedSession(_ deletedSession: SessionData) {
-        // 削除されたセッションがアクティブセッションの場合
         if activeSessionState.sessionData.id == deletedSession.id {
-            // 実行中なら停止
-            if activeSessionState.isExecuting {
-                activeSessionState.stopExecution()
+            if activeSessionState.isExecuting, let session = activeSessionState.session {
+                Task {
+                    await useCase.execution.stop(session: session)
+                }
             }
-            // アクティブセッションをリセット
             activeSessionState.resetAll()
-            // ナビゲーションをルートに戻す
             navigationPath = NavigationPath()
         }
     }

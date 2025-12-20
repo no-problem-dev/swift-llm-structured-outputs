@@ -4,6 +4,7 @@ import SwiftUI
 protocol UseCaseContainer: Sendable {
     var session: SessionUseCase { get }
     var conversation: ConversationUseCase { get }
+    var execution: SessionExecutionUseCase { get }
     var apiKey: APIKeyUseCase { get }
 }
 
@@ -11,36 +12,35 @@ protocol UseCaseContainer: Sendable {
 struct AppDependencies: UseCaseContainer, Sendable {
     let session: SessionUseCase
     let conversation: ConversationUseCase
+    let execution: SessionExecutionUseCase
     let apiKey: APIKeyUseCase
 
     init() {
-        // Infrastructure
         let fileStorage = FileStorageServiceImpl()
         let keychain = KeychainServiceImpl()
 
-        // Repository
         let sessionRepository = SessionRepositoryImpl(storage: fileStorage)
         let apiKeyRepository = APIKeyRepositoryImpl(keychain: keychain)
 
-        // UseCase (APIKey first - needed by AgentService)
         let apiKeyUseCase = APIKeyUseCaseImpl(repository: apiKeyRepository)
         self.apiKey = apiKeyUseCase
 
-        // Service (depends on APIKeyUseCase)
         let agentService = AgentServiceImpl(apiKeyUseCase: apiKeyUseCase)
 
-        // UseCase
         self.session = SessionUseCaseImpl(repository: sessionRepository)
         self.conversation = ConversationUseCaseImpl(agentService: agentService)
+        self.execution = SessionExecutionUseCaseImpl()
     }
 
     init(
         session: SessionUseCase,
         conversation: ConversationUseCase,
+        execution: SessionExecutionUseCase,
         apiKey: APIKeyUseCase
     ) {
         self.session = session
         self.conversation = conversation
+        self.execution = execution
         self.apiKey = apiKey
     }
 }
