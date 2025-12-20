@@ -4,67 +4,56 @@ import LLMDynamicStructured
 import LLMClient
 import ExamplesCommon
 
-struct ConversationView: View {
+/// チャット画面
+struct ChatView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.useCase) private var useCase
-    @Environment(\.dismiss) private var dismiss
 
-    let builtType: BuiltType
+    let session: Session
+    let agent: Agent
 
-    @State private var sessionState: AgentSessionState
+    @State private var chatState: ChatState
     @State private var inputText = ""
     @State private var showResultSheet = false
     @State private var executionTask: Task<Void, Never>?
 
-    init(builtType: BuiltType) {
-        self.builtType = builtType
-        self._sessionState = State(initialValue: AgentSessionState(builtType: builtType))
+    init(session: Session, agent: Agent) {
+        self.session = session
+        self.agent = agent
+        self._chatState = State(initialValue: ChatState(outputSchema: agent.outputSchema))
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // 型情報ヘッダー
-                TypeInfoHeader(type: builtType)
+        VStack(spacing: 0) {
+            SchemaInfoHeader(schema: agent.outputSchema)
 
-                Divider()
+            Divider()
 
-                // メインコンテンツ
-                mainContentSection
+            mainContentSection
 
-                Divider()
+            Divider()
 
-                // 入力エリア
-                inputSection
-            }
-            .navigationTitle("実行")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("閉じる") {
-                        dismiss()
-                    }
-                }
-
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Button(role: .destructive) {
-                            Task {
-                                await clearSession()
-                            }
-                        } label: {
-                            Label("セッションをクリア", systemImage: "trash")
-                        }
-                        .disabled(sessionState.executionState.isRunning)
+            inputSection
+        }
+        .navigationTitle(session.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button(role: .destructive) {
+                        Task { await clearSession() }
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Label("セッションをクリア", systemImage: "trash")
                     }
+                    .disabled(chatState.executionState.isRunning)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
             }
-            .sheet(isPresented: $showResultSheet) {
-                if let result = sessionState.result {
-                    ResultSheet(result: result, builtType: builtType)
-                }
+        }
+        .sheet(isPresented: $showResultSheet) {
+            if let result = chatState.result {
+                ResultSheet(result: result, outputSchema: agent.outputSchema)
             }
         }
     }
@@ -76,24 +65,24 @@ struct ConversationView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        if sessionState.steps.isEmpty && !sessionState.executionState.isRunning {
+                        if chatState.steps.isEmpty && !chatState.executionState.isRunning {
                             emptyStateView
                         } else {
                             StepListView(
-                                steps: sessionState.steps,
-                                isLoading: sessionState.executionState.isRunning,
-                                isCompleted: sessionState.isCompleted,
-                                onResultTap: sessionState.result != nil ? { showResultSheet = true } : nil
+                                steps: chatState.steps,
+                                isLoading: chatState.executionState.isRunning,
+                                isCompleted: chatState.isCompleted,
+                                onResultTap: chatState.result != nil ? { showResultSheet = true } : nil
                             )
                         }
                     }
                     .padding(.vertical)
-                    .padding(.top, sessionState.executionState.isRunning ? 80 : 0)
+                    .padding(.top, chatState.executionState.isRunning ? 80 : 0)
                 }
                 .defaultScrollAnchor(.bottom)
                 .scrollDismissesKeyboard(.interactively)
-                .onChange(of: sessionState.steps.count) { _, _ in
-                    if let lastStep = sessionState.steps.last {
+                .onChange(of: chatState.steps.count) { _, _ in
+                    if let lastStep = chatState.steps.last {
                         withAnimation {
                             proxy.scrollTo(lastStep.id, anchor: .bottom)
                         }
@@ -101,24 +90,24 @@ struct ConversationView: View {
                 }
             }
 
-            if sessionState.executionState.isRunning {
+            if chatState.executionState.isRunning {
                 ExecutionProgressBanner(
-                    currentPhase: sessionState.steps.last?.type,
-                    startTime: sessionState.steps.first?.timestamp
+                    currentPhase: chatState.steps.last?.type,
+                    startTime: chatState.steps.first?.timestamp
                 )
                 .padding(.horizontal)
                 .padding(.top, 8)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: sessionState.executionState.isRunning)
+        .animation(.easeInOut(duration: 0.2), value: chatState.executionState.isRunning)
     }
 
     private var emptyStateView: some View {
         ContentUnavailableView {
             Label("会話を開始", systemImage: "bubble.left.and.bubble.right")
         } description: {
-            Text("下の入力欄からプロンプトを送信して\n\(builtType.name) の生成を開始します")
+            Text("下の入力欄からプロンプトを送信して\n\(agent.outputSchema.name) の生成を開始します")
         }
         .padding(.top, 40)
     }
@@ -144,7 +133,7 @@ struct ConversationView: View {
     // MARK: - Input Configuration
 
     private var inputConfiguration: InputField.Configuration {
-        switch sessionState.inputMode {
+        switch chatState.inputMode {
         case .prompt:
             return .init(
                 placeholder: "プロンプトを入力...",
@@ -152,7 +141,6 @@ struct ConversationView: View {
                 submitTint: .accentColor
             )
         case .interrupt:
-            // 現在の実装ではinterruptはサポートされていない
             return .init(
                 placeholder: "処理中...",
                 submitIcon: "ellipsis",
@@ -169,7 +157,7 @@ struct ConversationView: View {
     }
 
     private var isInputEnabled: Bool {
-        switch sessionState.inputMode {
+        switch chatState.inputMode {
         case .prompt, .resume:
             return hasAPIKeyForCurrentProvider
         case .interrupt:
@@ -201,19 +189,18 @@ struct ConversationView: View {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         inputText = ""
 
-        switch sessionState.inputMode {
+        switch chatState.inputMode {
         case .prompt:
             guard !text.isEmpty else { return }
             createSessionIfNeeded()
             startExecution(prompt: text)
 
         case .interrupt:
-            // 現在の実装ではinterruptはサポートされていない
             break
 
         case .resume:
             if !text.isEmpty {
-                sessionState.addStep(ConversationStepInfo(type: .userMessage, content: text))
+                chatState.addStep(ConversationStepInfo(type: .userMessage, content: text))
             }
             resumeExecution()
         }
@@ -222,14 +209,14 @@ struct ConversationView: View {
     // MARK: - Session Management
 
     private func createSessionIfNeeded() {
-        guard sessionState.session == nil else { return }
+        guard chatState.session == nil else { return }
         createSession()
     }
 
     private func createSession() {
         let provider = appState.selectedProvider
         guard let apiKey = apiKey(for: provider) else {
-            sessionState.setExecutionState(.error("APIキーが設定されていません"))
+            chatState.setExecutionState(.error("APIキーが設定されていません"))
             return
         }
 
@@ -248,29 +235,35 @@ struct ConversationView: View {
         let newSession = ProviderSession(
             client: client,
             systemPrompt: systemPrompt,
-            initialMessages: sessionState.messages
+            initialMessages: []
         )
 
-        sessionState.setSession(newSession)
+        chatState.setSession(newSession)
 
-        if !sessionState.executionState.isCompleted {
-            sessionState.setExecutionState(.idle)
+        if !chatState.executionState.isCompleted {
+            chatState.setExecutionState(.idle)
         }
 
-        sessionState.addEvent("セッションが作成されました")
+        chatState.addEvent("セッションが作成されました")
     }
 
     private func buildSystemPrompt() -> String {
-        var prompt = "あなたはユーザーの要求に基づいて構造化データを生成するアシスタントです。\n\n"
-        prompt += "出力する型: \(builtType.name)\n"
+        // Use agent's system prompt if defined
+        if !agent.systemPrompt.isEmpty {
+            return agent.systemPrompt.render()
+        }
 
-        if let description = builtType.description {
+        // Default system prompt
+        var prompt = "あなたはユーザーの要求に基づいて構造化データを生成するアシスタントです。\n\n"
+        prompt += "出力する型: \(agent.outputSchema.name)\n"
+
+        if let description = agent.outputSchema.description {
             prompt += "説明: \(description)\n"
         }
 
         prompt += "\nフィールド:\n"
-        for field in builtType.fields {
-            var fieldDesc = "- \(field.name): \(field.fieldType.displayName)"
+        for field in agent.outputSchema.fields {
+            var fieldDesc = "- \(field.name): \(field.type.displayName)"
             if !field.isRequired {
                 fieldDesc += " (optional)"
             }
@@ -288,25 +281,25 @@ struct ConversationView: View {
     private func clearSession() async {
         executionTask?.cancel()
         executionTask = nil
-        if let session = sessionState.session {
+        if let session = chatState.session {
             await session.clear()
         }
-        sessionState.resetAll()
+        chatState.resetAll()
     }
 
     // MARK: - Execution
 
     private func startExecution(prompt: String) {
-        guard let session = sessionState.session else {
-            sessionState.setExecutionState(.error("セッションが作成されていません"))
+        guard let session = chatState.session else {
+            chatState.setExecutionState(.error("セッションが作成されていません"))
             return
         }
 
         executionTask?.cancel()
-        sessionState.initializeLiveSteps()
-        sessionState.setExecutionState(.running)
+        chatState.initializeLiveSteps()
+        chatState.setExecutionState(.running)
 
-        let dynamicStructured = builtType.toDynamicStructured()
+        let dynamicStructured = agent.outputSchema.toDynamicStructured()
 
         executionTask = Task {
             await runSession(session: session, prompt: prompt, dynamicStructured: dynamicStructured)
@@ -314,19 +307,19 @@ struct ConversationView: View {
     }
 
     private func resumeExecution() {
-        guard let session = sessionState.session else {
-            sessionState.setExecutionState(.error("セッションが存在しません"))
+        guard let session = chatState.session else {
+            chatState.setExecutionState(.error("セッションが存在しません"))
             return
         }
 
         executionTask?.cancel()
         executionTask = nil
 
-        sessionState.initializeLiveSteps()
-        sessionState.setExecutionState(.running)
-        sessionState.addStep(ConversationStepInfo(type: .event, content: "セッションを再開しています..."))
+        chatState.initializeLiveSteps()
+        chatState.setExecutionState(.running)
+        chatState.addStep(ConversationStepInfo(type: .event, content: "セッションを再開しています..."))
 
-        let dynamicStructured = builtType.toDynamicStructured()
+        let dynamicStructured = agent.outputSchema.toDynamicStructured()
 
         executionTask = Task {
             await resumeSession(session: session, dynamicStructured: dynamicStructured)
@@ -344,16 +337,16 @@ struct ConversationView: View {
             )
             try await processStream(stream, session: session)
         } catch is CancellationError {
-            sessionState.addEvent("実行がキャンセルされました")
-            await sessionState.syncMessagesFromSession()
+            chatState.addEvent("実行がキャンセルされました")
+            await chatState.syncMessagesFromSession()
         } catch {
-            sessionState.setExecutionState(.error(error.localizedDescription))
-            sessionState.addStep(ConversationStepInfo(
+            chatState.setExecutionState(.error(error.localizedDescription))
+            chatState.addStep(ConversationStepInfo(
                 type: .error,
                 content: error.localizedDescription,
                 isError: true
             ))
-            await sessionState.syncMessagesFromSession()
+            await chatState.syncMessagesFromSession()
         }
 
         executionTask = nil
@@ -369,16 +362,16 @@ struct ConversationView: View {
             )
             try await processStream(stream, session: session)
         } catch is CancellationError {
-            sessionState.addEvent("実行がキャンセルされました")
-            await sessionState.syncMessagesFromSession()
+            chatState.addEvent("実行がキャンセルされました")
+            await chatState.syncMessagesFromSession()
         } catch {
-            sessionState.setExecutionState(.error(error.localizedDescription))
-            sessionState.addStep(ConversationStepInfo(
+            chatState.setExecutionState(.error(error.localizedDescription))
+            chatState.addStep(ConversationStepInfo(
                 type: .error,
                 content: error.localizedDescription,
                 isError: true
             ))
-            await sessionState.syncMessagesFromSession()
+            await chatState.syncMessagesFromSession()
         }
 
         executionTask = nil
@@ -398,61 +391,61 @@ struct ConversationView: View {
                 break
 
             case .running(let step):
-                sessionState.addStep(step.toStepInfo())
+                chatState.addStep(step.toStepInfo())
 
             case .completed(let output):
                 finalOutput = output
-                sessionState.addStep(ConversationStepInfo(type: .finalResponse, content: "生成完了"))
+                chatState.addStep(ConversationStepInfo(type: .finalResponse, content: "生成完了"))
 
             case .failed(let error):
-                sessionState.addStep(ConversationStepInfo(type: .error, content: error, isError: true))
+                chatState.addStep(ConversationStepInfo(type: .error, content: error, isError: true))
             }
         }
 
-        await sessionState.syncMessagesFromSession()
+        await chatState.syncMessagesFromSession()
 
         if let output = finalOutput {
-            sessionState.setResult(output)
-            sessionState.setExecutionState(.completed)
+            chatState.setResult(output)
+            chatState.setExecutionState(.completed)
         }
     }
 }
 
-// MARK: - TypeInfoHeader
+// MARK: - SchemaInfoHeader
 
-private struct TypeInfoHeader: View {
-    let type: BuiltType
+private struct SchemaInfoHeader: View {
+    let schema: OutputSchema
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(type.name)
+                Text(schema.name)
                     .font(.headline)
 
                 Spacer()
 
-                Text("\(type.fields.count) fields")
+                Text("\(schema.fields.count) fields")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            if let description = type.description {
+            if let description = schema.description {
                 Text(description)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
             HStack(spacing: 8) {
-                ForEach(type.fields.prefix(5)) { field in
-                    Label(field.name, systemImage: field.fieldType.iconName)
+                ForEach(schema.fields.prefix(5)) { field in
+                    Label(field.name, systemImage: field.type.icon)
                         .font(.caption2)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(.fill.tertiary)
                         .clipShape(Capsule())
                 }
-                if type.fields.count > 5 {
-                    Text("+\(type.fields.count - 5)")
+                if schema.fields.count > 5 {
+                    Text("+\(schema.fields.count - 5)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -501,18 +494,4 @@ extension GenerationStep {
             return ConversationStepInfo(type: .textResponse, content: truncated)
         }
     }
-}
-
-#Preview {
-    ConversationView(
-        builtType: BuiltType(
-            name: "UserInfo",
-            description: "ユーザー情報",
-            fields: [
-                BuiltField(name: "name", fieldType: .string, description: "ユーザー名"),
-                BuiltField(name: "age", fieldType: .integer, description: "年齢")
-            ]
-        )
-    )
-    .environment(AppState())
 }

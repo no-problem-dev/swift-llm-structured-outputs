@@ -12,6 +12,7 @@
 		1906A0802EF63D5D00A547E3 /* LLMMCP in Frameworks */ = {isa = PBXBuildFile; productRef = 1906A07F2EF63D5D00A547E3 /* LLMMCP */; };
 		1906A0822EF63D5D00A547E3 /* LLMStructuredOutputs in Frameworks */ = {isa = PBXBuildFile; productRef = 1906A0812EF63D5D00A547E3 /* LLMStructuredOutputs */; };
 		1906A0842EF63D5D00A547E3 /* LLMToolkits in Frameworks */ = {isa = PBXBuildFile; productRef = 1906A0832EF63D5D00A547E3 /* LLMToolkits */; };
+		1906A4FB2EF683D500A547E3 /* UIRouting in Frameworks */ = {isa = PBXBuildFile; productRef = 1906A4FA2EF683D500A547E3 /* UIRouting */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +37,7 @@
 				1906A07E2EF63D5D00A547E3 /* LLMDynamicStructured in Frameworks */,
 				1906A0822EF63D5D00A547E3 /* LLMStructuredOutputs in Frameworks */,
 				1906A0802EF63D5D00A547E3 /* LLMMCP in Frameworks */,
+				1906A4FB2EF683D500A547E3 /* UIRouting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -91,6 +93,7 @@
 				1906A07F2EF63D5D00A547E3 /* LLMMCP */,
 				1906A0812EF63D5D00A547E3 /* LLMStructuredOutputs */,
 				1906A0832EF63D5D00A547E3 /* LLMToolkits */,
+				1906A4FA2EF683D500A547E3 /* UIRouting */,
 			);
 			productName = AgentBuilderExample;
 			productReference = 19069E632EF63B2D00A547E3 /* AgentBuilderExample.app */;
@@ -123,6 +126,7 @@
 			packageReferences = (
 				1906A0782EF63D4A00A547E3 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */,
 				1906A0792EF63D5400A547E3 /* XCLocalSwiftPackageReference "../ExamplesCommon" */,
+				1906A4F92EF683D500A547E3 /* XCRemoteSwiftPackageReference "swift-ui-routing" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 19069E642EF63B2D00A547E3 /* Products */;
@@ -374,6 +378,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		1906A4F92EF683D500A547E3 /* XCRemoteSwiftPackageReference "swift-ui-routing" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/no-problem-dev/swift-ui-routing.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		1906A07A2EF63D5400A547E3 /* ExamplesCommon */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -398,6 +413,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1906A0782EF63D4A00A547E3 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */;
 			productName = LLMToolkits;
+		};
+		1906A4FA2EF683D500A547E3 /* UIRouting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1906A4F92EF683D500A547E3 /* XCRemoteSwiftPackageReference "swift-ui-routing" */;
+			productName = UIRouting;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -1,26 +1,22 @@
 import SwiftUI
 import ExamplesCommon
 
-/// フィールド編集画面（プッシュナビゲーション用）
+/// フィールド編集画面
 struct FieldEditorView: View {
-    @State private var field: BuiltField
+    @State private var field: Field
     @State private var enumValuesText: String = ""
+    let onSave: (Field) -> Void
 
-    let onSave: (BuiltField) -> Void
-
-    init(field: BuiltField, onSave: @escaping (BuiltField) -> Void) {
+    init(field: Field, onSave: @escaping (Field) -> Void) {
         self._field = State(initialValue: field)
         self.onSave = onSave
-
-        // 列挙型の場合、初期値を設定
-        if case .stringEnum(let values) = field.fieldType {
+        if case .stringEnum(let values) = field.type {
             self._enumValuesText = State(initialValue: values.joined(separator: "\n"))
         }
     }
 
     var body: some View {
         Form {
-            // 基本情報
             Section("基本情報") {
                 TextField("フィールド名", text: $field.name)
                     .textInputAutocapitalization(.never)
@@ -35,22 +31,20 @@ struct FieldEditorView: View {
                 Toggle("必須フィールド", isOn: $field.isRequired)
             }
 
-            // 型選択
             Section("型") {
                 Picker("型", selection: Binding(
                     get: { fieldTypeSelection },
                     set: { updateFieldType($0) }
                 )) {
                     ForEach(FieldTypeSelection.allCases, id: \.self) { selection in
-                        Label(selection.displayName, systemImage: selection.iconName)
+                        Label(selection.displayName, systemImage: selection.icon)
                             .tag(selection)
                     }
                 }
                 .pickerStyle(.navigationLink)
             }
 
-            // 列挙型の値入力
-            if case .stringEnum = field.fieldType {
+            if case .stringEnum = field.type {
                 Section {
                     TextEditor(text: $enumValuesText)
                         .frame(minHeight: 100)
@@ -60,7 +54,7 @@ struct FieldEditorView: View {
                                 .split(separator: "\n")
                                 .map { String($0).trimmingCharacters(in: .whitespaces) }
                                 .filter { !$0.isEmpty }
-                            field.fieldType = .stringEnum(values)
+                            field.type = .stringEnum(values)
                         }
                 } header: {
                     Text("列挙値（1行に1つ）")
@@ -70,45 +64,32 @@ struct FieldEditorView: View {
                 }
             }
 
-            // 制約設定
             constraintsSection
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("フィールド編集")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("保存") {
-                    onSave(field)
-                }
-                .disabled(field.name.isEmpty)
+                Button("保存") { onSave(field) }
+                    .disabled(field.name.isEmpty)
             }
         }
     }
 
-    // MARK: - Constraints Section
-
     @ViewBuilder
     private var constraintsSection: some View {
-        switch field.fieldType {
+        switch field.type {
         case .string:
             Section("制約（オプション）") {
-                OptionalIntField(
-                    title: "最小文字数",
-                    value: $field.constraints.minLength
-                )
-
-                OptionalIntField(
-                    title: "最大文字数",
-                    value: $field.constraints.maxLength
-                )
-
+                OptionalIntField(title: "最小文字数", value: $field.constraints.minLength)
+                OptionalIntField(title: "最大文字数", value: $field.constraints.maxLength)
                 TextField("パターン（正規表現）", text: Binding(
                     get: { field.constraints.pattern ?? "" },
                     set: { field.constraints.pattern = $0.isEmpty ? nil : $0 }
                 ))
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-
                 Picker("フォーマット", selection: Binding(
                     get: { field.constraints.format ?? "" },
                     set: { field.constraints.format = $0.isEmpty ? nil : $0 }
@@ -120,117 +101,77 @@ struct FieldEditorView: View {
                     Text("date-time").tag("date-time")
                 }
             }
-
         case .integer, .number:
             Section("制約（オプション）") {
-                OptionalDoubleField(
-                    title: "最小値",
-                    value: $field.constraints.minimum
-                )
-
-                OptionalDoubleField(
-                    title: "最大値",
-                    value: $field.constraints.maximum
-                )
+                OptionalDoubleField(title: "最小値", value: $field.constraints.minimum)
+                OptionalDoubleField(title: "最大値", value: $field.constraints.maximum)
             }
-
         case .stringArray, .integerArray:
             Section("制約（オプション）") {
-                OptionalIntField(
-                    title: "最小要素数",
-                    value: $field.constraints.minItems
-                )
-
-                OptionalIntField(
-                    title: "最大要素数",
-                    value: $field.constraints.maxItems
-                )
+                OptionalIntField(title: "最小要素数", value: $field.constraints.minItems)
+                OptionalIntField(title: "最大要素数", value: $field.constraints.maxItems)
             }
-
         default:
             EmptyView()
         }
     }
-
-    // MARK: - Field Type Selection
 
     private enum FieldTypeSelection: CaseIterable {
         case string, integer, number, boolean, stringEnum, stringArray, integerArray
 
         var displayName: String {
             switch self {
-            case .string: return "文字列"
-            case .integer: return "整数"
-            case .number: return "数値"
-            case .boolean: return "真偽値"
-            case .stringEnum: return "列挙型"
-            case .stringArray: return "文字列配列"
-            case .integerArray: return "整数配列"
+            case .string: "文字列"
+            case .integer: "整数"
+            case .number: "数値"
+            case .boolean: "真偽値"
+            case .stringEnum: "列挙型"
+            case .stringArray: "文字列配列"
+            case .integerArray: "整数配列"
             }
         }
 
-        var iconName: String {
+        var icon: String {
             switch self {
-            case .string: return "textformat"
-            case .integer: return "number"
-            case .number: return "function"
-            case .boolean: return "checkmark.circle"
-            case .stringEnum: return "list.bullet"
-            case .stringArray: return "square.stack"
-            case .integerArray: return "square.stack.fill"
+            case .string: "textformat"
+            case .integer: "number"
+            case .number: "function"
+            case .boolean: "checkmark.circle"
+            case .stringEnum: "list.bullet"
+            case .stringArray: "square.stack"
+            case .integerArray: "square.stack.fill"
             }
         }
     }
 
     private var fieldTypeSelection: FieldTypeSelection {
-        switch field.fieldType {
-        case .string: return .string
-        case .integer: return .integer
-        case .number: return .number
-        case .boolean: return .boolean
-        case .stringEnum: return .stringEnum
-        case .stringArray: return .stringArray
-        case .integerArray: return .integerArray
+        switch field.type {
+        case .string: .string
+        case .integer: .integer
+        case .number: .number
+        case .boolean: .boolean
+        case .stringEnum: .stringEnum
+        case .stringArray: .stringArray
+        case .integerArray: .integerArray
         }
     }
 
     private func updateFieldType(_ selection: FieldTypeSelection) {
         switch selection {
-        case .string:
-            field.fieldType = .string
-        case .integer:
-            field.fieldType = .integer
-        case .number:
-            field.fieldType = .number
-        case .boolean:
-            field.fieldType = .boolean
+        case .string: field.type = .string
+        case .integer: field.type = .integer
+        case .number: field.type = .number
+        case .boolean: field.type = .boolean
         case .stringEnum:
-            // 既存の列挙値を保持
-            if case .stringEnum(let values) = field.fieldType {
-                field.fieldType = .stringEnum(values)
+            if case .stringEnum(let values) = field.type {
+                field.type = .stringEnum(values)
             } else {
-                field.fieldType = .stringEnum([])
+                field.type = .stringEnum([])
                 enumValuesText = ""
             }
-        case .stringArray:
-            field.fieldType = .stringArray
-        case .integerArray:
-            field.fieldType = .integerArray
+        case .stringArray: field.type = .stringArray
+        case .integerArray: field.type = .integerArray
         }
-
-        // 制約をリセット
         field.constraints = FieldConstraints()
-    }
-}
-
-#Preview {
-    NavigationStack {
-        FieldEditorView(
-            field: BuiltField(
-                name: "name",
-                fieldType: .string,
-                description: "ユーザー名"
-            )
-        ) { _ in }
     }
 }

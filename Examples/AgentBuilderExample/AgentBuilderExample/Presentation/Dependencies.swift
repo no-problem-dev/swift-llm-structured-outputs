@@ -1,35 +1,28 @@
 import SwiftUI
 import ExamplesCommon
 
-// MARK: - AppDependencies
-
-/// アプリケーションの依存性を管理
+/// アプリケーションの依存性
 struct AppDependencies: Sendable {
     let apiKey: APIKeyUseCase
-    let builtType: BuiltTypeUseCase
-    let definition: AgentDefinitionUseCase
-    let session: AgentSessionUseCase
+    let outputSchema: OutputSchemaUseCase
+    let agent: AgentUseCase
+    let session: SessionUseCase
 
     init() {
-        // Infrastructure
         let keychain = KeychainServiceImpl(serviceName: "com.example.agentbuilderexample")
         let fileStorage = FileStorageServiceImpl()
 
-        // Repository
         let apiKeyRepository = APIKeyRepositoryImpl(keychain: keychain)
-        let builtTypeRepository = BuiltTypeRepositoryImpl(storage: fileStorage)
-        let definitionRepository = AgentDefinitionRepository(storage: fileStorage)
-        let sessionRepository = AgentSessionRepository(storage: fileStorage)
+        let outputSchemaRepository = OutputSchemaRepositoryImpl(storage: fileStorage)
+        let agentRepository = AgentRepository(storage: fileStorage)
+        let sessionRepository = SessionRepository(storage: fileStorage)
 
-        // UseCase
         self.apiKey = APIKeyUseCaseImpl(repository: apiKeyRepository)
-        self.builtType = BuiltTypeUseCaseImpl(repository: builtTypeRepository)
-        self.definition = AgentDefinitionUseCase(repository: definitionRepository)
-        self.session = AgentSessionUseCase(repository: sessionRepository)
+        self.outputSchema = OutputSchemaUseCaseImpl(repository: outputSchemaRepository)
+        self.agent = AgentUseCase(repository: agentRepository)
+        self.session = SessionUseCase(repository: sessionRepository)
     }
 }
-
-// MARK: - Environment Key
 
 private struct UseCaseKey: EnvironmentKey {
     static let defaultValue: AppDependencies = AppDependencies()

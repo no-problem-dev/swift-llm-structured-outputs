@@ -127,6 +127,7 @@ struct SettingsView: View {
                     }
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("設定")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

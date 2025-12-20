@@ -4,19 +4,17 @@ import LLMDynamicStructured
 /// 結果を表示するシート
 struct ResultSheet: View {
     let result: DynamicStructuredResult
-    let builtType: BuiltType
+    let outputSchema: OutputSchema
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    // 型情報ヘッダー
                     typeInfoSection
 
                     Divider()
 
-                    // フィールド結果
                     fieldsSection
                 }
                 .padding()
@@ -40,27 +38,27 @@ struct ResultSheet: View {
             HStack {
                 Image(systemName: "cube.fill")
                     .foregroundStyle(.orange)
-                Text(builtType.name)
+                Text(outputSchema.name)
                     .font(.headline)
             }
 
-            if let description = builtType.description {
+            if let description = outputSchema.description {
                 Text(description)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
             HStack(spacing: 8) {
-                ForEach(builtType.fields.prefix(5)) { field in
-                    Label(field.name, systemImage: field.fieldType.iconName)
+                ForEach(outputSchema.fields.prefix(5)) { field in
+                    Label(field.name, systemImage: field.type.icon)
                         .font(.caption2)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(.fill.tertiary)
                         .clipShape(Capsule())
                 }
-                if builtType.fields.count > 5 {
-                    Text("+\(builtType.fields.count - 5)")
+                if outputSchema.fields.count > 5 {
+                    Text("+\(outputSchema.fields.count - 5)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -76,7 +74,7 @@ struct ResultSheet: View {
 
     private var fieldsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            ForEach(builtType.fields) { field in
+            ForEach(outputSchema.fields) { field in
                 ResultFieldRow(field: field, result: result)
             }
         }
@@ -86,13 +84,13 @@ struct ResultSheet: View {
 // MARK: - ResultFieldRow
 
 struct ResultFieldRow: View {
-    let field: BuiltField
+    let field: Field
     let result: DynamicStructuredResult
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Image(systemName: field.fieldType.iconName)
+                Image(systemName: field.type.icon)
                     .foregroundStyle(.secondary)
                     .frame(width: 20)
 
@@ -110,7 +108,7 @@ struct ResultFieldRow: View {
 
                 Spacer()
 
-                Text(field.fieldType.displayName)
+                Text(field.type.displayName)
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -126,7 +124,7 @@ struct ResultFieldRow: View {
     }
 
     private var valueString: String {
-        switch field.fieldType {
+        switch field.type {
         case .string, .stringEnum:
             return result.string(field.name) ?? "(null)"
 

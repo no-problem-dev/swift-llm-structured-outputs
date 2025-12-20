@@ -8,26 +8,23 @@ struct AgentBuilderExampleApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
                 .environment(appState)
                 .environment(\.useCase, dependencies)
                 .onAppear {
-                    // 環境変数から同期
                     dependencies.apiKey.syncFromEnvironment()
-                    // 状態を更新
                     appState.syncKeyStatuses(from: dependencies.apiKey)
-                    // 保存された型定義を読み込み
-                    loadBuiltTypes()
+                    loadOutputSchemas()
                 }
         }
     }
 
-    private func loadBuiltTypes() {
+    private func loadOutputSchemas() {
         do {
-            let types = try dependencies.builtType.loadAll()
-            appState.setBuiltTypes(types)
+            let schemas = try dependencies.outputSchema.loadAll()
+            appState.setOutputSchemas(schemas)
         } catch {
-            print("Failed to load built types: \(error)")
+            print("Failed to load output schemas: \(error)")
         }
     }
 }
