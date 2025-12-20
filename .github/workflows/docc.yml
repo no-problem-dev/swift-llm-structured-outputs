@@ -27,7 +27,7 @@ jobs:
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.0'
+          xcode-version: 'latest-stable'
 
       - name: Create docs directory
         run: mkdir -p ./docs
@@ -43,6 +43,7 @@ jobs:
             --target LLMConversation \
             --target LLMAgent \
             --target LLMConversationalAgent \
+            --target LLMDynamicStructured \
             --target LLMMCP \
             --target LLMToolkits \
             --disable-indexing \

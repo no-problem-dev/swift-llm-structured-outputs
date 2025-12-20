@@ -1,13 +1,31 @@
 import SwiftUI
 
-struct CollapsibleText: View {
-    let text: String
-    var lineThreshold: Int = 5
-    var font: Font = .subheadline
-    var foregroundStyle: Color = .primary
-    var showBackground: Bool = false
+/// 折りたたみ可能なテキスト表示コンポーネント
+///
+/// 指定した行数を超えるテキストは折りたたまれ、
+/// ユーザーが展開/折りたたみを切り替えられる。
+public struct CollapsibleText: View {
+    public let text: String
+    public var lineThreshold: Int
+    public var font: Font
+    public var foregroundStyle: Color
+    public var showBackground: Bool
 
     @State private var isExpanded = false
+
+    public init(
+        text: String,
+        lineThreshold: Int = 5,
+        font: Font = .subheadline,
+        foregroundStyle: Color = .primary,
+        showBackground: Bool = false
+    ) {
+        self.text = text
+        self.lineThreshold = lineThreshold
+        self.font = font
+        self.foregroundStyle = foregroundStyle
+        self.showBackground = showBackground
+    }
 
     private var lines: [String] {
         text.components(separatedBy: .newlines)
@@ -24,7 +42,13 @@ struct CollapsibleText: View {
         return text
     }
 
-    var body: some View {
+    #if os(iOS)
+    private var backgroundFillColor: Color { Color(.systemGray5) }
+    #else
+    private var backgroundFillColor: Color { Color(nsColor: .controlBackgroundColor) }
+    #endif
+
+    public var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(displayText)
                 .font(font)
@@ -50,7 +74,7 @@ struct CollapsibleText: View {
         .background {
             if showBackground {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color(.systemGray5))
+                    .fill(backgroundFillColor)
             }
         }
     }

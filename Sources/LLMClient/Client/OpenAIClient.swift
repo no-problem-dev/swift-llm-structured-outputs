@@ -43,7 +43,7 @@ import FoundationNetworking
 public struct OpenAIClient: StructuredLLMClient {
     public typealias Model = GPTModel
 
-    private let provider: any LLMProvider
+    package let provider: any LLMProvider
 
     // MARK: - Package Access (for extension by other modules)
 
