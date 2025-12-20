@@ -89,15 +89,110 @@ public struct LLMResponse: Sendable {
         self.stopReason = stopReason
     }
 
+    // MARK: - Convenience Accessors
+
+    /// すべてのテキストコンテンツを結合して取得
+    public var text: String {
+        content.compactMap { $0.text }.joined()
+    }
+
+    /// 生成された画像をすべて取得
+    ///
+    /// レスポンスに含まれるすべての画像を配列で返します。
+    /// 画像が含まれていない場合は空の配列を返します。
+    public var generatedImages: [GeneratedImage] {
+        content.compactMap { $0.generatedImage }
+    }
+
+    /// 最初の生成された画像を取得
+    ///
+    /// レスポンスに含まれる最初の画像を返します。
+    /// 画像が含まれていない場合は nil を返します。
+    public var firstGeneratedImage: GeneratedImage? {
+        generatedImages.first
+    }
+
+    /// 生成された音声をすべて取得
+    ///
+    /// レスポンスに含まれるすべての音声を配列で返します。
+    /// 音声が含まれていない場合は空の配列を返します。
+    public var generatedAudioFiles: [GeneratedAudio] {
+        content.compactMap { $0.generatedAudio }
+    }
+
+    /// 最初の生成された音声を取得
+    ///
+    /// レスポンスに含まれる最初の音声を返します。
+    /// 音声が含まれていない場合は nil を返します。
+    public var firstGeneratedAudio: GeneratedAudio? {
+        generatedAudioFiles.first
+    }
+
+    /// レスポンスに画像が含まれているかどうか
+    public var hasImages: Bool {
+        content.contains { $0.generatedImage != nil }
+    }
+
+    /// レスポンスに音声が含まれているかどうか
+    public var hasAudio: Bool {
+        content.contains { $0.generatedAudio != nil }
+    }
+
+    /// レスポンスにメディア（画像または音声）が含まれているかどうか
+    public var hasMedia: Bool {
+        hasImages || hasAudio
+    }
+
     /// コンテンツブロック
+    ///
+    /// LLM レスポンスに含まれるコンテンツの種類を表現します。
+    ///
+    /// ## コンテンツの種類
+    /// - `text`: テキストコンテンツ
+    /// - `toolUse`: ツール呼び出し（LLM がツールを使用したい場合）
+    /// - `image`: 生成された画像（Gemini のインライン画像生成など）
+    /// - `audio`: 生成された音声（TTS など）
     public enum ContentBlock: Sendable {
+        /// テキストコンテンツ
         case text(String)
+
+        /// ツール呼び出し
         case toolUse(id: String, name: String, input: Data)
+
+        /// 生成された画像
+        ///
+        /// Gemini のマルチモーダル出力など、レスポンス内にインラインで
+        /// 画像が含まれる場合に使用されます。
+        case image(GeneratedImage)
+
+        /// 生成された音声
+        ///
+        /// TTS（Text-to-Speech）など、レスポンス内にインラインで
+        /// 音声が含まれる場合に使用されます。
+        case audio(GeneratedAudio)
+
+        // MARK: - Convenience Accessors
 
         /// テキストコンテンツを取得（text ブロックの場合のみ）
         public var text: String? {
             if case .text(let value) = self {
                 return value
+            }
+            return nil
+        }
+
+        /// 生成された画像を取得（image ブロックの場合のみ）
+        public var generatedImage: GeneratedImage? {
+            if case .image(let image) = self {
+                return image
+            }
+            return nil
+        }
+
+        /// 生成された音声を取得（audio ブロックの場合のみ）
+        public var generatedAudio: GeneratedAudio? {
+            if case .audio(let audio) = self {
+                return audio
             }
             return nil
         }
@@ -185,6 +280,8 @@ public struct LLMMessage: Sendable, Codable {
 
     /// メッセージコンテンツの種類
     public enum MessageContent: Sendable, Equatable, Codable {
+        // MARK: - 既存（テキスト・ツール関連）
+
         /// テキストコンテンツ
         case text(String)
 
@@ -199,6 +296,32 @@ public struct LLMMessage: Sendable, Codable {
         ///   - isError: エラー結果かどうか
         case toolResult(toolCallId: String, name: String, content: String, isError: Bool)
 
+        // MARK: - 新規（メディア入力）
+
+        /// 画像コンテンツ
+        ///
+        /// サポート状況:
+        /// - Anthropic: ✓（JPEG, PNG, GIF, WebP）
+        /// - OpenAI: ✓（JPEG, PNG, GIF, WebP）
+        /// - Gemini: ✓（JPEG, PNG, GIF, WebP, HEIC, HEIF）
+        case image(ImageContent)
+
+        /// 音声コンテンツ
+        ///
+        /// サポート状況:
+        /// - Anthropic: ✗
+        /// - OpenAI: ✓（WAV, MP3）gpt-4o-audio-preview のみ
+        /// - Gemini: ✓（WAV, MP3, AAC, FLAC, OGG, AIFF）
+        case audio(AudioContent)
+
+        /// 動画コンテンツ
+        ///
+        /// サポート状況:
+        /// - Anthropic: ✗
+        /// - OpenAI: ✗（フレーム分解が必要）
+        /// - Gemini: ✓（MP4, AVI, MOV, MKV, WebM, FLV, MPEG, 3GP, WMV）
+        case video(VideoContent)
+
         // MARK: - Codable
 
         private enum CodingKeys: String, CodingKey {
@@ -210,12 +333,18 @@ public struct LLMMessage: Sendable, Codable {
             case toolCallId
             case content
             case isError
+            case imageContent
+            case audioContent
+            case videoContent
         }
 
         private enum ContentType: String, Codable {
             case text
             case toolUse
             case toolResult
+            case image
+            case audio
+            case video
         }
 
         public init(from decoder: Decoder) throws {
@@ -237,6 +366,15 @@ public struct LLMMessage: Sendable, Codable {
                 let content = try container.decode(String.self, forKey: .content)
                 let isError = try container.decode(Bool.self, forKey: .isError)
                 self = .toolResult(toolCallId: toolCallId, name: name, content: content, isError: isError)
+            case .image:
+                let imageContent = try container.decode(ImageContent.self, forKey: .imageContent)
+                self = .image(imageContent)
+            case .audio:
+                let audioContent = try container.decode(AudioContent.self, forKey: .audioContent)
+                self = .audio(audioContent)
+            case .video:
+                let videoContent = try container.decode(VideoContent.self, forKey: .videoContent)
+                self = .video(videoContent)
             }
         }
 
@@ -258,6 +396,15 @@ public struct LLMMessage: Sendable, Codable {
                 try container.encode(name, forKey: .name)
                 try container.encode(content, forKey: .content)
                 try container.encode(isError, forKey: .isError)
+            case .image(let imageContent):
+                try container.encode(ContentType.image, forKey: .type)
+                try container.encode(imageContent, forKey: .imageContent)
+            case .audio(let audioContent):
+                try container.encode(ContentType.audio, forKey: .type)
+                try container.encode(audioContent, forKey: .audioContent)
+            case .video(let videoContent):
+                try container.encode(ContentType.video, forKey: .type)
+                try container.encode(videoContent, forKey: .videoContent)
             }
         }
     }
@@ -995,6 +1142,16 @@ public enum LLMError: Error, Sendable {
     /// 構造化出力がサポートされていない
     case structuredOutputNotSupported(model: String)
 
+    /// メディアタイプがプロバイダーでサポートされていない
+    ///
+    /// 音声や動画など、特定のプロバイダーでサポートされていないメディアが
+    /// メッセージに含まれている場合に発生します。
+    ///
+    /// - Parameters:
+    ///   - mediaType: サポートされていないメディアタイプ（例: "audio", "video"）
+    ///   - provider: プロバイダー名（例: "Anthropic", "OpenAI"）
+    case mediaNotSupported(mediaType: String, provider: String)
+
     /// コンテンツがブロックされた（安全性フィルター）
     case contentBlocked(reason: String?)
 
@@ -1033,6 +1190,8 @@ extension LLMError: LocalizedError {
             return "Model \(model) is not supported by \(provider)"
         case .structuredOutputNotSupported(let model):
             return "Structured output is not supported by model: \(model)"
+        case .mediaNotSupported(let mediaType, let provider):
+            return "\(mediaType.capitalized) input is not supported by \(provider)"
         case .contentBlocked(let reason):
             return "Content blocked by safety filter\(reason.map { ": \($0)" } ?? "")"
         case .maxTokensReached:

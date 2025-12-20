@@ -139,7 +139,7 @@ internal struct OpenAIProvider: LLMProvider, RetryableProviderProtocol {
 
         // ユーザー/アシスタントメッセージ
         for message in request.messages {
-            messages.append(contentsOf: convertToOpenAIMessages(message))
+            messages.append(contentsOf: try convertToOpenAIMessages(message))
         }
 
         return OpenAIRequestBody(
@@ -180,9 +180,12 @@ internal struct OpenAIProvider: LLMProvider, RetryableProviderProtocol {
     ///
     /// OpenAI では:
     /// - テキストメッセージ: `{"role": "user"|"assistant", "content": "..."}`
+    /// - マルチモーダル: `{"role": "user", "content": [{"type": "text", ...}, {"type": "image_url", ...}]}`
     /// - ツール呼び出し: `{"role": "assistant", "tool_calls": [...]}`
     /// - ツール結果: `{"role": "tool", "tool_call_id": "...", "content": "..."}`
-    private func convertToOpenAIMessages(_ message: LLMMessage) -> [OpenAIMessage] {
+    ///
+    /// - Throws: `LLMError.mediaNotSupported` 動画が含まれている場合
+    private func convertToOpenAIMessages(_ message: LLMMessage) throws -> [OpenAIMessage] {
         var result: [OpenAIMessage] = []
 
         // ツール結果を持つ場合、各結果を個別の tool メッセージとして送信
@@ -228,15 +231,112 @@ internal struct OpenAIProvider: LLMProvider, RetryableProviderProtocol {
             return result
         }
 
-        // 通常のテキストメッセージ
+        // メディアコンテンツを含むかチェック
+        let hasMedia = message.contents.contains { content in
+            switch content {
+            case .image, .audio, .video:
+                return true
+            default:
+                return false
+            }
+        }
+
         let role = message.role == .user ? "user" : "assistant"
-        result.append(OpenAIMessage(
-            role: role,
-            content: message.content,
-            toolCallId: nil,
-            toolCalls: nil
-        ))
+
+        if hasMedia {
+            // マルチモーダルメッセージ
+            var contentParts: [OpenAIContentPart] = []
+
+            for content in message.contents {
+                switch content {
+                case .text(let text):
+                    contentParts.append(.text(text))
+
+                case .image(let imageContent):
+                    // 画像コンテンツ
+                    if let part = convertImageToOpenAIPart(imageContent) {
+                        contentParts.append(part)
+                    }
+
+                case .audio(let audioContent):
+                    // 音声コンテンツ
+                    if let part = convertAudioToOpenAIPart(audioContent) {
+                        contentParts.append(part)
+                    }
+
+                case .video:
+                    // OpenAIは動画をサポートしていない
+                    throw LLMError.mediaNotSupported(mediaType: "video", provider: "OpenAI")
+
+                case .toolUse, .toolResult:
+                    // ツール関連は別処理
+                    break
+                }
+            }
+
+            result.append(OpenAIMessage(
+                role: role,
+                contentParts: contentParts,
+                toolCallId: nil,
+                toolCalls: nil
+            ))
+        } else {
+            // 通常のテキストメッセージ
+            result.append(OpenAIMessage(
+                role: role,
+                content: message.content,
+                toolCallId: nil,
+                toolCalls: nil
+            ))
+        }
+
         return result
+    }
+
+    /// ImageContentをOpenAIコンテンツパーツに変換
+    private func convertImageToOpenAIPart(_ imageContent: ImageContent) -> OpenAIContentPart? {
+        let detail = imageContent.detail?.rawValue
+
+        switch imageContent.source {
+        case .base64(let data):
+            // Base64 Data URL形式で送信
+            let base64String = data.base64EncodedString()
+            let dataUrl = "data:\(imageContent.mimeType);base64,\(base64String)"
+            return .imageUrl(url: dataUrl, detail: detail)
+
+        case .url(let url):
+            // URL形式で送信
+            return .imageUrl(url: url.absoluteString, detail: detail)
+
+        case .fileReference(let id):
+            // OpenAIのファイルAPIのIDをURLとして使用
+            return .imageUrl(url: id, detail: detail)
+        }
+    }
+
+    /// AudioContentをOpenAIコンテンツパーツに変換
+    private func convertAudioToOpenAIPart(_ audioContent: AudioContent) -> OpenAIContentPart? {
+        // OpenAIは音声入力にはbase64のみをサポート
+        switch audioContent.source {
+        case .base64(let data):
+            let base64String = data.base64EncodedString()
+            // フォーマットを取得（OpenAIはwav, mp3のみをサポート）
+            let format: String
+            switch audioContent.mediaType {
+            case .wav:
+                format = "wav"
+            case .mp3:
+                format = "mp3"
+            case .aac, .flac, .ogg, .aiff:
+                // OpenAIがサポートしていないフォーマットの場合はスキップ
+                return nil
+            }
+            return .inputAudio(data: base64String, format: format)
+
+        case .url, .fileReference:
+            // OpenAIは音声入力にURLやファイル参照をサポートしていない
+            return nil
+        }
     }
 
     /// HTTPリクエストを実行
@@ -530,7 +630,7 @@ private enum OpenAIJSONValue: Codable {
 /// OpenAI メッセージ
 private struct OpenAIMessage: Encodable {
     let role: String
-    let content: String?
+    let content: OpenAIMessageContent?
     let toolCallId: String?
     let toolCalls: [OpenAIMessageToolCall]?
 
@@ -539,6 +639,22 @@ private struct OpenAIMessage: Encodable {
         case content
         case toolCallId = "tool_call_id"
         case toolCalls = "tool_calls"
+    }
+
+    /// テキストのみのメッセージを作成
+    init(role: String, content: String?, toolCallId: String?, toolCalls: [OpenAIMessageToolCall]?) {
+        self.role = role
+        self.content = content.map { .text($0) }
+        self.toolCallId = toolCallId
+        self.toolCalls = toolCalls
+    }
+
+    /// マルチパートコンテンツのメッセージを作成
+    init(role: String, contentParts: [OpenAIContentPart], toolCallId: String?, toolCalls: [OpenAIMessageToolCall]?) {
+        self.role = role
+        self.content = .parts(contentParts)
+        self.toolCallId = toolCallId
+        self.toolCalls = toolCalls
     }
 
     func encode(to encoder: Encoder) throws {
@@ -558,6 +674,76 @@ private struct OpenAIMessage: Encodable {
         // tool_calls は assistant の場合のみ
         if let toolCalls = toolCalls {
             try container.encode(toolCalls, forKey: .toolCalls)
+        }
+    }
+}
+
+/// OpenAI メッセージコンテンツ（テキストまたはマルチパート）
+private enum OpenAIMessageContent: Encodable {
+    case text(String)
+    case parts([OpenAIContentPart])
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .text(let text):
+            try container.encode(text)
+        case .parts(let parts):
+            try container.encode(parts)
+        }
+    }
+}
+
+/// OpenAI コンテンツパーツ（マルチモーダル用）
+private enum OpenAIContentPart: Encodable {
+    case text(String)
+    case imageUrl(url: String, detail: String?)
+    case inputAudio(data: String, format: String)
+
+    private struct TextPart: Encodable {
+        let type: String = "text"
+        let text: String
+    }
+
+    private struct ImageUrlPart: Encodable {
+        let type: String = "image_url"
+        let imageUrl: ImageUrl
+
+        struct ImageUrl: Encodable {
+            let url: String
+            let detail: String?
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case type
+            case imageUrl = "image_url"
+        }
+    }
+
+    private struct InputAudioPart: Encodable {
+        let type: String = "input_audio"
+        let inputAudio: InputAudio
+
+        struct InputAudio: Encodable {
+            let data: String
+            let format: String
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case type
+            case inputAudio = "input_audio"
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .text(let text):
+            try container.encode(TextPart(text: text))
+        case .imageUrl(let url, let detail):
+            try container.encode(ImageUrlPart(imageUrl: .init(url: url, detail: detail)))
+        case .inputAudio(let data, let format):
+            try container.encode(InputAudioPart(inputAudio: .init(data: data, format: format)))
         }
     }
 }

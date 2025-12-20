@@ -115,6 +115,44 @@ struct ContentView: View {
                     Text("会話機能")
                 }
 
+                // MARK: - マルチモーダルデモ
+                Section {
+                    NavigationLink {
+                        VisionDemo()
+                    } label: {
+                        DemoRow(
+                            icon: "eye.fill",
+                            color: .cyan,
+                            title: "画像入力",
+                            description: "画像を分析して構造化データを抽出（全プロバイダー対応）"
+                        )
+                    }
+
+                    NavigationLink {
+                        ImageGenerationDemo()
+                    } label: {
+                        DemoRow(
+                            icon: "photo.artframe",
+                            color: .purple,
+                            title: "画像生成",
+                            description: "プロンプトから画像を生成（OpenAI のみ）"
+                        )
+                    }
+
+                    NavigationLink {
+                        SpeechGenerationDemo()
+                    } label: {
+                        DemoRow(
+                            icon: "waveform.circle.fill",
+                            color: .orange,
+                            title: "音声生成",
+                            description: "テキストから音声を生成（OpenAI のみ）"
+                        )
+                    }
+                } header: {
+                    Text("マルチモーダル")
+                }
+
                 // MARK: - 高度な機能デモ
                 Section {
                     NavigationLink {

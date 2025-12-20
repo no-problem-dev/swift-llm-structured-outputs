@@ -32,7 +32,6 @@ enum Config {
             let key = String(parts[0]).trimmingCharacters(in: .whitespaces)
             var value = String(parts[1]).trimmingCharacters(in: .whitespaces)
 
-            // Remove quotes if present
             if (value.hasPrefix("\"") && value.hasSuffix("\"")) ||
                (value.hasPrefix("'") && value.hasSuffix("'")) {
                 value = String(value.dropFirst().dropLast())
@@ -41,185 +40,6 @@ enum Config {
             setenv(key, value, 1)
         }
     }
-}
-
-// MARK: - Test Models
-
-@Structured("Person information extracted from text")
-struct PersonInfo {
-    @StructuredField("Person's full name")
-    var name: String
-
-    @StructuredField("Person's age in years", .minimum(0), .maximum(150))
-    var age: Int
-
-    @StructuredField("Person's occupation or job title")
-    var occupation: String?
-}
-
-@StructuredEnum("Sentiment classification")
-enum Sentiment: String {
-    case positive
-    case negative
-    case neutral
-}
-
-@Structured("Sentiment analysis result")
-struct SentimentAnalysis {
-    @StructuredField("Overall sentiment classification")
-    var sentiment: Sentiment
-
-    @StructuredField("Confidence score", .minimum(0), .maximum(1))
-    var confidence: Double
-
-    @StructuredField("Key phrases that influenced the sentiment", .minItems(1), .maxItems(5))
-    var keyPhrases: [String]
-}
-
-@StructuredEnum("Task priority level")
-enum Priority: String {
-    case high
-    case medium
-    case low
-}
-
-@Structured("A single task item")
-struct TaskItem {
-    @StructuredField("Task title")
-    var title: String
-
-    @StructuredField("Task priority")
-    var priority: Priority
-
-    @StructuredField("Due date if mentioned")
-    var dueDate: String?
-}
-
-@Structured("Extracted tasks from text")
-struct TaskExtraction {
-    @StructuredField("List of extracted tasks", .minItems(1))
-    var tasks: [TaskItem]
-}
-
-@StructuredEnum("Issue severity level")
-enum Severity: String {
-    case critical
-    case warning
-    case info
-}
-
-@Structured("A code issue")
-struct CodeIssue {
-    @StructuredField("Issue severity")
-    var severity: Severity
-
-    @StructuredField("Issue description")
-    var description: String
-
-    @StructuredField("Line number if applicable", .minimum(1))
-    var lineNumber: Int?
-}
-
-@Structured("Code review result")
-struct CodeReview {
-    @StructuredField("Overall code quality score", .minimum(1), .maximum(10))
-    var qualityScore: Int
-
-    @StructuredField("List of issues found")
-    var issues: [CodeIssue]
-
-    @StructuredField("Suggested improvements", .maxItems(5))
-    var suggestions: [String]
-}
-
-@Structured("Conversation summary")
-struct ConversationSummary {
-    @StructuredField("Main topics discussed", .minItems(1))
-    var topics: [String]
-
-    @StructuredField("Key decisions made")
-    var decisions: [String]
-
-    @StructuredField("Action items identified")
-    var actionItems: [String]
-
-    @StructuredField("Overall tone of the conversation")
-    var tone: String
-}
-
-// MARK: - Test Tools
-
-/// 天気を取得するツール
-@Tool("Get current weather for a location")
-struct GetWeatherTool {
-    @ToolArgument("The city name to get weather for")
-    var location: String
-
-    @ToolArgument("Temperature unit (celsius or fahrenheit)")
-    var unit: String?
-
-    func call() async throws -> String {
-        // シミュレートされた天気データ
-        return "Weather in \(location): Sunny, 22°\(unit == "fahrenheit" ? "F" : "C")"
-    }
-}
-
-/// 計算を行うツール
-@Tool("Perform a mathematical calculation")
-struct CalculatorTool {
-    @ToolArgument("The mathematical expression to evaluate")
-    var expression: String
-
-    func call() async throws -> String {
-        // シンプルな計算シミュレーション
-        return "Result of '\(expression)' = 42"
-    }
-}
-
-/// 現在時刻を取得するツール
-@Tool("Get the current time in a timezone", name: "get_current_time")
-struct CurrentTimeTool {
-    @ToolArgument("The timezone (e.g., 'Asia/Tokyo', 'America/New_York')")
-    var timezone: String?
-
-    func call() async throws -> String {
-        let tz = timezone ?? "UTC"
-        return "Current time in \(tz): 2024-12-14 15:30:00"
-    }
-}
-
-// MARK: - Agent Test Models
-
-/// エージェントの最終出力用: 天気レポート
-@Structured("Weather report with location and conditions")
-struct WeatherReport {
-    @StructuredField("The location for the weather report")
-    var location: String
-
-    @StructuredField("Weather conditions (e.g., Sunny, Cloudy, Rainy)")
-    var conditions: String
-
-    @StructuredField("Temperature value")
-    var temperature: Int
-
-    @StructuredField("Temperature unit (C or F)")
-    var unit: String
-
-    @StructuredField("Brief summary of the weather")
-    var summary: String
-}
-
-/// エージェントの最終出力用: 計算結果レポート
-@Structured("Calculation result report")
-struct CalculationReport {
-    @StructuredField("The original expression")
-    var expression: String
-
-    @StructuredField("The calculated result")
-    var result: Int
-
-    @StructuredField("Explanation of the calculation")
-    var explanation: String
 }
 
 // MARK: - Test Runner
@@ -238,92 +58,133 @@ actor TestRunner {
     }
 }
 
-@MainActor
-func runTest<T: Encodable & Sendable>(
-    name: String,
-    runner: TestRunner,
-    test: @escaping @Sendable () async throws -> T
-) async {
+func printHeader(_ title: String) {
+    print("\n" + String(repeating: "=", count: 60))
+    print(title)
+    print(String(repeating: "=", count: 60))
+}
+
+func printTestStart(_ name: String) {
     print("\n🧪 Testing: \(name)")
     print("   " + String(repeating: "-", count: 50))
-
-    do {
-        let result = try await test()
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        if let data = try? encoder.encode(result),
-           let json = String(data: data, encoding: .utf8) {
-            print("   ✅ PASSED")
-            print("   Result:")
-            for line in json.components(separatedBy: .newlines) {
-                print("      \(line)")
-            }
-        }
-        await runner.recordPass()
-    } catch {
-        print("   ❌ FAILED: \(error)")
-        await runner.recordFail()
-    }
 }
 
-func skipTest(name: String, reason: String, runner: TestRunner) async {
-    print("\n⏭️  Skipping: \(name)")
-    print("   Reason: \(reason)")
-    await runner.recordSkip()
-}
+// MARK: - Image Generation Tests
 
 @MainActor
-func runToolTest(
-    name: String,
-    runner: TestRunner,
-    test: @escaping @Sendable () async throws -> ToolCallResponse
-) async {
-    print("\n🔧 Testing: \(name)")
-    print("   " + String(repeating: "-", count: 50))
+func runImageGenerationTests(runner: TestRunner) async {
+    printHeader("🖼️  IMAGE GENERATION TESTS")
 
+    guard let apiKey = Config.openAIKey, !apiKey.isEmpty else {
+        print("⚠️  OPENAI_API_KEY not set - skipping image generation tests")
+        await runner.recordSkip()
+        return
+    }
+
+    let client = OpenAIClient(apiKey: apiKey)
+
+    // Test 1: Basic Image Generation with DALL-E 3
+    printTestStart("DALL-E 3 Basic Generation")
     do {
-        let response = try await test()
+        let image = try await client.generateImage(
+            prompt: "A simple red circle on white background",
+            model: .dalle3,
+            size: .square1024,
+            quality: .standard,
+            format: .png,
+            n: 1
+        )
+
         print("   ✅ PASSED")
-        print("   Tool Calls: \(response.toolCalls.count)")
-        for (index, call) in response.toolCalls.enumerated() {
-            print("      [\(index + 1)] \(call.name)")
-            if let args = try? call.argumentsDictionary() {
-                print("          Arguments: \(args)")
-            }
+        print("   Format: \(image.format.rawValue)")
+        print("   Size: \(image.data.count) bytes")
+        print("   MIME Type: \(image.mimeType)")
+        if let revised = image.revisedPrompt {
+            print("   Revised Prompt: \(revised.prefix(80))...")
         }
-        if let text = response.text {
-            print("   Text: \(text.prefix(100))...")
-        }
-        print("   Stop Reason: \(response.stopReason?.rawValue ?? "nil")")
         await runner.recordPass()
     } catch {
         print("   ❌ FAILED: \(error)")
         await runner.recordFail()
     }
-}
 
-// MARK: - Agent Test Runner
-
-@MainActor
-func runAgentTest<Output: StructuredProtocol & Encodable & Sendable>(
-    name: String,
-    runner: TestRunner,
-    test: @escaping @Sendable () async throws -> Output
-) async {
-    print("\n🤖 Agent Test: \(name)")
-    print("   " + String(repeating: "-", count: 50))
-
+    // Test 2: HD Quality Image
+    printTestStart("DALL-E 3 HD Quality")
     do {
-        let result = try await test()
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        if let data = try? encoder.encode(result),
-           let json = String(data: data, encoding: .utf8) {
-            print("   ✅ PASSED")
-            print("   Final Result:")
-            for line in json.components(separatedBy: .newlines) {
-                print("      \(line)")
-            }
+        let image = try await client.generateImage(
+            prompt: "A minimalist blue square",
+            model: .dalle3,
+            size: .square1024,
+            quality: .hd,
+            format: .png,
+            n: 1
+        )
+
+        print("   ✅ PASSED")
+        print("   Format: \(image.format.rawValue)")
+        print("   Size: \(image.data.count) bytes")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
+
+    // Test 3: Portrait Size
+    printTestStart("DALL-E 3 Portrait Size (1024x1792)")
+    do {
+        let image = try await client.generateImage(
+            prompt: "A vertical green line",
+            model: .dalle3,
+            size: .portrait1024x1792,
+            quality: .standard,
+            format: .png,
+            n: 1
+        )
+
+        print("   ✅ PASSED")
+        print("   Size: \(image.data.count) bytes")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
+
+    // Test 4: Landscape Size
+    printTestStart("DALL-E 3 Landscape Size (1792x1024)")
+    do {
+        let image = try await client.generateImage(
+            prompt: "A horizontal purple line",
+            model: .dalle3,
+            size: .landscape1792x1024,
+            quality: .standard,
+            format: .png,
+            n: 1
+        )
+
+        print("   ✅ PASSED")
+        print("   Size: \(image.data.count) bytes")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
+
+    // Test 5: DALL-E 2 (Multiple Images)
+    printTestStart("DALL-E 2 Multiple Images (n=2)")
+    do {
+        let images = try await client.generateImages(
+            prompt: "A simple yellow triangle",
+            model: .dalle2,
+            size: .square1024,
+            quality: nil,
+            format: .png,
+            n: 2
+        )
+
+        print("   ✅ PASSED")
+        print("   Generated: \(images.count) images")
+        for (i, img) in images.enumerated() {
+            print("   Image \(i+1): \(img.data.count) bytes")
         }
         await runner.recordPass()
     } catch {
@@ -332,713 +193,710 @@ func runAgentTest<Output: StructuredProtocol & Encodable & Sendable>(
     }
 }
 
-// MARK: - Test Suites
+// MARK: - Gemini Image Generation Tests
 
 @MainActor
-func runAnthropicTests(runner: TestRunner) async {
-    print("\n" + String(repeating: "=", count: 60))
-    print("🟠 ANTHROPIC (Claude) Tests")
-    print(String(repeating: "=", count: 60))
-
-    guard let apiKey = Config.anthropicKey, !apiKey.isEmpty else {
-        print("⚠️  ANTHROPIC_API_KEY not set - skipping Anthropic tests")
-        await runner.recordSkip()
-        return
-    }
-
-    let client = AnthropicClient(apiKey: apiKey)
-
-    // Test 1: Basic structured output
-    await runTest(name: "Basic Person Extraction", runner: runner) {
-        let response: ChatResponse<PersonInfo> = try await client.chat(
-            prompt: "John Smith is a 35-year-old software engineer.",
-            model: .sonnet
-        )
-        return response.result
-    }
-
-    // Test 2: Enum support
-    await runTest(name: "Sentiment Analysis with Enum", runner: runner) {
-        let response: ChatResponse<SentimentAnalysis> = try await client.chat(
-            prompt: "I absolutely love this product! It's amazing and works perfectly.",
-            model: .sonnet
-        )
-        return response.result
-    }
-
-    // Test 3: Nested structures
-    await runTest(name: "Task Extraction (Nested)", runner: runner) {
-        let response: ChatResponse<TaskExtraction> = try await client.chat(
-            prompt: """
-            Meeting notes:
-            - Need to finish the report by Friday (high priority)
-            - Schedule team sync next week (medium priority)
-            - Update documentation when possible (low priority)
-            """,
-            model: .sonnet
-        )
-        return response.result
-    }
-
-    // Test 4: With system prompt
-    await runTest(name: "Code Review with System Prompt", runner: runner) {
-        let code = """
-        func add(a, b) {
-            return a + b
-        }
-        """
-        let response: ChatResponse<CodeReview> = try await client.chat(
-            prompt: "Review this code:\n\(code)",
-            model: .sonnet,
-            systemPrompt: "You are a senior code reviewer. Be thorough but fair."
-        )
-        return response.result
-    }
-
-    // Test 5: Prompt DSL
-    await runTest(name: "Prompt DSL Usage", runner: runner) {
-        let prompt = Prompt {
-            PromptComponent.role("You are an expert meeting summarizer")
-            PromptComponent.objective("Extract key information from meeting transcripts")
-            PromptComponent.instruction("Focus on actionable items and decisions")
-            PromptComponent.constraint("Only include information explicitly mentioned")
-        }
-
-        let response: ChatResponse<ConversationSummary> = try await client.chat(
-            prompt: """
-            Alice: Let's discuss the Q4 roadmap.
-            Bob: I think we should prioritize the mobile app.
-            Alice: Agreed. Let's set the deadline for end of November.
-            Bob: I'll create the project plan by next Monday.
-            """,
-            model: .sonnet,
-            systemPrompt: prompt.render()
-        )
-        return response.result
-    }
-
-    // Test 6: Conversation
-    await runTest(name: "Conversation with History", runner: runner) {
-        let conversation = Conversation<AnthropicClient>(
-            client: client,
-            model: .sonnet,
-            systemPrompt: "Extract person information from the conversation."
-        )
-
-        let _: PersonInfo = try await conversation.send("I met someone interesting today.")
-        let result: PersonInfo = try await conversation.send("His name is Bob and he's 42. He works as a chef.")
-        return result
-    }
-
-    // Test 7: Tool Calling - Single Tool
-    await runToolTest(name: "Tool Calling - Weather", runner: runner) {
-        let tools = ToolSet {
-            GetWeatherTool()
-        }
-
-        return try await client.planToolCalls(
-            prompt: "What's the weather like in Tokyo?",
-            model: .sonnet,
-            tools: tools,
-            toolChoice: .auto
-        )
-    }
-
-    // Test 8: Tool Calling - Multiple Tools
-    await runToolTest(name: "Tool Calling - Multiple Tools", runner: runner) {
-        let tools = ToolSet {
-            GetWeatherTool()
-            CalculatorTool()
-            CurrentTimeTool()
-        }
-
-        return try await client.planToolCalls(
-            prompt: "What time is it in Tokyo and what's the weather there?",
-            model: .sonnet,
-            tools: tools,
-            toolChoice: .auto
-        )
-    }
-
-    // Test 9: Tool Calling - Required
-    await runToolTest(name: "Tool Calling - Required", runner: runner) {
-        let tools = ToolSet {
-            CalculatorTool()
-        }
-
-        return try await client.planToolCalls(
-            prompt: "Hello, how are you?",
-            model: .sonnet,
-            tools: tools,
-            toolChoice: .required
-        )
-    }
-}
-
-@MainActor
-func runOpenAITests(runner: TestRunner) async {
-    print("\n" + String(repeating: "=", count: 60))
-    print("🟢 OPENAI (GPT) Tests")
-    print(String(repeating: "=", count: 60))
-
-    guard let apiKey = Config.openAIKey, !apiKey.isEmpty else {
-        print("⚠️  OPENAI_API_KEY not set - skipping OpenAI tests")
-        await runner.recordSkip()
-        return
-    }
-
-    let client = OpenAIClient(apiKey: apiKey)
-
-    // Test 1: Basic structured output
-    await runTest(name: "Basic Person Extraction", runner: runner) {
-        let response: ChatResponse<PersonInfo> = try await client.chat(
-            prompt: "Emily Chen is a 28-year-old data scientist.",
-            model: .gpt4oMini
-        )
-        return response.result
-    }
-
-    // Test 2: Enum support
-    await runTest(name: "Sentiment Analysis with Enum", runner: runner) {
-        let response: ChatResponse<SentimentAnalysis> = try await client.chat(
-            prompt: "This is the worst experience I've ever had. Completely disappointed.",
-            model: .gpt4oMini
-        )
-        return response.result
-    }
-
-    // Test 3: Nested structures
-    await runTest(name: "Task Extraction (Nested)", runner: runner) {
-        let response: ChatResponse<TaskExtraction> = try await client.chat(
-            prompt: """
-            TODO list:
-            - URGENT: Fix production bug
-            - Review PR #123 this week
-            - Research new frameworks sometime
-            """,
-            model: .gpt4oMini
-        )
-        return response.result
-    }
-
-    // Test 4: With system prompt
-    await runTest(name: "Code Review with System Prompt", runner: runner) {
-        let code = """
-        const data = JSON.parse(userInput);
-        eval(data.command);
-        """
-        let response: ChatResponse<CodeReview> = try await client.chat(
-            prompt: "Review this JavaScript code:\n\(code)",
-            model: .gpt4oMini,
-            systemPrompt: "You are a security-focused code reviewer."
-        )
-        return response.result
-    }
-
-    // Test 5: Prompt DSL
-    await runTest(name: "Prompt DSL Usage", runner: runner) {
-        let prompt = Prompt {
-            PromptComponent.role("Expert conversation analyst")
-            PromptComponent.objective("Summarize conversations accurately")
-            PromptComponent.thinkingStep("Identify main topics discussed")
-            PromptComponent.thinkingStep("Note any decisions or agreements")
-            PromptComponent.thinkingStep("List action items with owners if mentioned")
-        }
-
-        let response: ChatResponse<ConversationSummary> = try await client.chat(
-            prompt: """
-            Manager: How's the new feature coming along?
-            Dev: Almost done, just need to add tests.
-            Manager: Great, let's aim for release on Wednesday.
-            Dev: Sure, I'll have it ready by Tuesday for QA.
-            """,
-            model: .gpt4oMini,
-            systemPrompt: prompt.render()
-        )
-        return response.result
-    }
-
-    // Test 6: Conversation
-    await runTest(name: "Conversation with History", runner: runner) {
-        let conversation = Conversation<OpenAIClient>(
-            client: client,
-            model: .gpt4oMini,
-            systemPrompt: "Extract person information from what the user tells you."
-        )
-
-        let _: PersonInfo = try await conversation.send("Let me tell you about my friend.")
-        let result: PersonInfo = try await conversation.send("She's called Sarah, 31 years old, and she's a lawyer.")
-        return result
-    }
-
-    // Test 7: Tool Calling - Single Tool
-    await runToolTest(name: "Tool Calling - Weather", runner: runner) {
-        let tools = ToolSet {
-            GetWeatherTool()
-        }
-
-        return try await client.planToolCalls(
-            prompt: "What's the weather like in New York?",
-            model: .gpt4oMini,
-            tools: tools,
-            toolChoice: .auto
-        )
-    }
-
-    // Test 8: Tool Calling - Multiple Tools
-    await runToolTest(name: "Tool Calling - Multiple Tools", runner: runner) {
-        let tools = ToolSet {
-            GetWeatherTool()
-            CalculatorTool()
-            CurrentTimeTool()
-        }
-
-        return try await client.planToolCalls(
-            prompt: "Calculate 15 * 7 and tell me the current time in London",
-            model: .gpt4oMini,
-            tools: tools,
-            toolChoice: .auto
-        )
-    }
-
-    // Test 9: Tool Calling - Specific Tool
-    await runToolTest(name: "Tool Calling - Specific Tool", runner: runner) {
-        let tools = ToolSet {
-            GetWeatherTool()
-            CalculatorTool()
-        }
-
-        return try await client.planToolCalls(
-            prompt: "I need some help",
-            model: .gpt4oMini,
-            tools: tools,
-            toolChoice: .tool("calculator_tool")
-        )
-    }
-}
-
-@MainActor
-func runGeminiTests(runner: TestRunner) async {
-    print("\n" + String(repeating: "=", count: 60))
-    print("🔵 GEMINI Tests")
-    print(String(repeating: "=", count: 60))
+func runGeminiImageGenerationTests(runner: TestRunner) async {
+    printHeader("🖼️  GEMINI IMAGE GENERATION TESTS")
 
     guard let apiKey = Config.geminiKey, !apiKey.isEmpty else {
-        print("⚠️  GEMINI_API_KEY not set - skipping Gemini tests")
+        print("⚠️  GEMINI_API_KEY not set - skipping Gemini image generation tests")
         await runner.recordSkip()
         return
     }
 
     let client = GeminiClient(apiKey: apiKey)
 
-    // Test 1: Basic structured output
-    await runTest(name: "Basic Person Extraction", runner: runner) {
-        let response: ChatResponse<PersonInfo> = try await client.chat(
-            prompt: "Michael Johnson, age 45, is a professional architect.",
-            model: .flash25
+    // Test 1: Basic Image Generation with Imagen 3
+    printTestStart("Imagen 3 Basic Generation")
+    do {
+        let image = try await client.generateImage(
+            prompt: "A simple red circle on white background",
+            model: .imagen3,
+            size: .square1024,
+            quality: nil,
+            format: .png,
+            n: 1
         )
-        return response.result
+
+        print("   ✅ PASSED")
+        print("   Format: \(image.format.rawValue)")
+        print("   Size: \(image.data.count) bytes")
+        print("   MIME Type: \(image.mimeType)")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
     }
 
-    // Test 2: Enum support
-    await runTest(name: "Sentiment Analysis with Enum", runner: runner) {
-        let response: ChatResponse<SentimentAnalysis> = try await client.chat(
-            prompt: "The product is okay. Nothing special, but it works as expected.",
-            model: .flash25
+    // Test 2: Imagen 3 Fast
+    printTestStart("Imagen 3 Fast Generation")
+    do {
+        let image = try await client.generateImage(
+            prompt: "A simple blue square",
+            model: .imagen3Fast,
+            size: .square1024,
+            quality: nil,
+            format: .png,
+            n: 1
         )
-        return response.result
+
+        print("   ✅ PASSED")
+        print("   Format: \(image.format.rawValue)")
+        print("   Size: \(image.data.count) bytes")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
     }
 
-    // Test 3: Nested structures
-    await runTest(name: "Task Extraction (Nested)", runner: runner) {
-        let response: ChatResponse<TaskExtraction> = try await client.chat(
-            prompt: """
-            Sprint backlog:
-            - Critical: Deploy hotfix today
-            - Important: Refactor authentication module by EOW
-            - Nice to have: Add dark mode support
-            """,
-            model: .flash25
+    // Test 3: Landscape Size
+    printTestStart("Imagen 3 Landscape Size (1536x1024)")
+    do {
+        let image = try await client.generateImage(
+            prompt: "A horizontal green line",
+            model: .imagen3,
+            size: .landscape1536x1024,
+            quality: nil,
+            format: .png,
+            n: 1
         )
-        return response.result
+
+        print("   ✅ PASSED")
+        print("   Size: \(image.data.count) bytes")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
     }
 
-    // Test 4: With system prompt
-    await runTest(name: "Code Review with System Prompt", runner: runner) {
-        let code = """
-        password = "admin123"
-        db.query("SELECT * FROM users WHERE pass = '" + password + "'")
-        """
-        let response: ChatResponse<CodeReview> = try await client.chat(
-            prompt: "Review this Python code:\n\(code)",
-            model: .flash25,
-            systemPrompt: "You are a security expert reviewing code for vulnerabilities."
-        )
-        return response.result
-    }
-
-    // Test 5: Prompt DSL
-    await runTest(name: "Prompt DSL Usage", runner: runner) {
-        let prompt = Prompt {
-            PromptComponent.role("Meeting notes analyzer")
-            PromptComponent.context("You are analyzing a technical team's standup meeting")
-            PromptComponent.instruction("Extract topics, decisions, and action items")
-            PromptComponent.important("Be concise and focus on actionable information")
-        }
-
-        let response: ChatResponse<ConversationSummary> = try await client.chat(
-            prompt: """
-            Tom: Yesterday I fixed the login bug. Today I'm working on the dashboard.
-            Jane: I'm blocked on the API integration, need help from Tom.
-            Tom: I can help after lunch. Let's pair on it.
-            Jane: Perfect, thanks!
-            """,
-            model: .flash25,
-            systemPrompt: prompt.render()
-        )
-        return response.result
-    }
-
-    // Test 6: Conversation
-    await runTest(name: "Conversation with History", runner: runner) {
-        let conversation = Conversation<GeminiClient>(
-            client: client,
-            model: .flash25,
-            systemPrompt: "Extract person details from the user's messages."
+    // Test 4: Portrait Size
+    printTestStart("Imagen 3 Portrait Size (1024x1536)")
+    do {
+        let image = try await client.generateImage(
+            prompt: "A vertical purple line",
+            model: .imagen3,
+            size: .portrait1024x1536,
+            quality: nil,
+            format: .png,
+            n: 1
         )
 
-        let _: PersonInfo = try await conversation.send("I want to tell you about my colleague.")
-        let result: PersonInfo = try await conversation.send("His name is David Lee, he's 38, and he's our lead designer.")
-        return result
-    }
-
-    // Test 7: Tool Calling - Single Tool
-    await runToolTest(name: "Tool Calling - Weather", runner: runner) {
-        let tools = ToolSet {
-            GetWeatherTool()
-        }
-
-        return try await client.planToolCalls(
-            prompt: "What's the weather like in Paris?",
-            model: .flash25,
-            tools: tools,
-            toolChoice: .auto
-        )
-    }
-
-    // Test 8: Tool Calling - Multiple Tools
-    await runToolTest(name: "Tool Calling - Multiple Tools", runner: runner) {
-        let tools = ToolSet {
-            GetWeatherTool()
-            CalculatorTool()
-            CurrentTimeTool()
-        }
-
-        return try await client.planToolCalls(
-            prompt: "What's 123 + 456 and what time is it in Sydney?",
-            model: .flash25,
-            tools: tools,
-            toolChoice: .auto
-        )
-    }
-
-    // Test 9: Tool Calling - Required
-    await runToolTest(name: "Tool Calling - Required", runner: runner) {
-        let tools = ToolSet {
-            CurrentTimeTool()
-        }
-
-        return try await client.planToolCalls(
-            prompt: "Just say hello",
-            model: .flash25,
-            tools: tools,
-            toolChoice: .required
-        )
+        print("   ✅ PASSED")
+        print("   Size: \(image.data.count) bytes")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
     }
 }
 
-// MARK: - Agent Test Suites
+// MARK: - Speech Generation Tests
 
 @MainActor
-func runAnthropicAgentTests(runner: TestRunner) async {
-    print("\n" + String(repeating: "=", count: 60))
-    print("🟠 ANTHROPIC Agent Tests")
-    print(String(repeating: "=", count: 60))
-
-    guard let apiKey = Config.anthropicKey, !apiKey.isEmpty else {
-        print("⚠️  ANTHROPIC_API_KEY not set - skipping Anthropic agent tests")
-        await runner.recordSkip()
-        return
-    }
-
-    let client = AnthropicClient(apiKey: apiKey)
-
-    // Agent Test 1: 天気ツールを使ったエージェントループ
-    await runAgentTest(name: "Weather Agent Loop", runner: runner) {
-        let tools = ToolSet {
-            GetWeatherTool()
-        }
-
-        let agentSequence: AgentStepSequence<AnthropicClient, WeatherReport> = client.runAgent(
-            prompt: "東京の天気を調べて、天気レポートを作成してください",
-            model: .sonnet,
-            tools: tools,
-            systemPrompt: "You are a helpful weather assistant. Use the weather tool to get information, then create a structured report."
-        )
-
-        var stepCount = 0
-        var finalResult: WeatherReport?
-
-        for try await step in agentSequence {
-            stepCount += 1
-            switch step {
-            case .thinking(let response):
-                let text = response.content.compactMap { $0.text }.joined()
-                print("   💭 Thinking: \(text.prefix(100))...")
-            case .toolCall(let info):
-                print("   🔧 Tool Call: \(info.name)")
-            case .toolResult(let info):
-                print("   📋 Tool Result: \(info.content)")
-            case .finalResponse(let report):
-                print("   ✅ Final Response: \(report.location) - \(report.conditions)")
-                finalResult = report
-            }
-        }
-
-        print("   📊 Total steps: \(stepCount)")
-        guard let result = finalResult else {
-            throw AgentError.invalidState("No final response received")
-        }
-        return result
-    }
-
-    // Agent Test 2: 計算ツールを使ったエージェントループ
-    await runAgentTest(name: "Calculator Agent Loop", runner: runner) {
-        let tools = ToolSet {
-            CalculatorTool()
-        }
-
-        let agentSequence: AgentStepSequence<AnthropicClient, CalculationReport> = client.runAgent(
-            prompt: "25 x 4 を計算して、結果をレポートにまとめてください",
-            model: .sonnet,
-            tools: tools,
-            systemPrompt: "You are a calculator assistant. Use the calculator tool to compute, then provide a structured report."
-        )
-
-        var finalResult: CalculationReport?
-
-        for try await step in agentSequence {
-            switch step {
-            case .thinking:
-                print("   💭 Thinking...")
-            case .toolCall(let info):
-                print("   🔧 Tool Call: \(info.name)")
-            case .toolResult(let info):
-                print("   📋 Tool Result: \(info.content)")
-            case .finalResponse(let report):
-                print("   ✅ Final Response: \(report.expression) = \(report.result)")
-                finalResult = report
-            }
-        }
-
-        guard let result = finalResult else {
-            throw AgentError.invalidState("No final response received")
-        }
-        return result
-    }
-}
-
-@MainActor
-func runOpenAIAgentTests(runner: TestRunner) async {
-    print("\n" + String(repeating: "=", count: 60))
-    print("🟢 OPENAI Agent Tests")
-    print(String(repeating: "=", count: 60))
+func runSpeechGenerationTests(runner: TestRunner) async {
+    printHeader("🔊 SPEECH GENERATION (TTS) TESTS")
 
     guard let apiKey = Config.openAIKey, !apiKey.isEmpty else {
-        print("⚠️  OPENAI_API_KEY not set - skipping OpenAI agent tests")
+        print("⚠️  OPENAI_API_KEY not set - skipping speech generation tests")
         await runner.recordSkip()
         return
     }
 
     let client = OpenAIClient(apiKey: apiKey)
 
-    // Agent Test 1: 天気ツールを使ったエージェントループ
-    await runAgentTest(name: "Weather Agent Loop", runner: runner) {
-        let tools = ToolSet {
-            GetWeatherTool()
-        }
-
-        let agentSequence: AgentStepSequence<OpenAIClient, WeatherReport> = client.runAgent(
-            prompt: "Check the weather in New York and create a weather report",
-            model: .gpt4oMini,
-            tools: tools,
-            systemPrompt: "You are a helpful weather assistant. Use the weather tool to get information, then create a structured report."
+    // Test 1: Basic TTS with TTS-1
+    printTestStart("TTS-1 Basic Generation (MP3)")
+    do {
+        let audio = try await client.generateSpeech(
+            text: "Hello, this is a test.",
+            model: .tts1,
+            voice: .alloy,
+            speed: 1.0,
+            format: .mp3
         )
 
-        var finalResult: WeatherReport?
-
-        for try await step in agentSequence {
-            switch step {
-            case .thinking:
-                print("   💭 Thinking...")
-            case .toolCall(let info):
-                print("   🔧 Tool Call: \(info.name)")
-            case .toolResult(let info):
-                print("   📋 Tool Result: \(info.content)")
-            case .finalResponse(let report):
-                print("   ✅ Final Response: \(report.location) - \(report.conditions)")
-                finalResult = report
-            }
+        print("   ✅ PASSED")
+        print("   Format: \(audio.format.rawValue)")
+        print("   Size: \(audio.data.count) bytes")
+        print("   MIME Type: \(audio.mimeType)")
+        if let duration = audio.estimatedDuration {
+            print("   Estimated Duration: \(String(format: "%.1f", duration)) seconds")
         }
-
-        guard let result = finalResult else {
-            throw AgentError.invalidState("No final response received")
-        }
-        return result
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
     }
 
-    // Agent Test 2: 計算ツールを使ったエージェントループ
-    await runAgentTest(name: "Calculator Agent Loop", runner: runner) {
-        let tools = ToolSet {
-            CalculatorTool()
-        }
-
-        let agentSequence: AgentStepSequence<OpenAIClient, CalculationReport> = client.runAgent(
-            prompt: "Calculate 15 * 8 and create a calculation report",
-            model: .gpt4oMini,
-            tools: tools,
-            systemPrompt: "You are a calculator assistant. Use the calculator tool to compute, then provide a structured report."
+    // Test 2: TTS-1 HD
+    printTestStart("TTS-1 HD Generation (MP3)")
+    do {
+        let audio = try await client.generateSpeech(
+            text: "This is high quality audio.",
+            model: .tts1HD,
+            voice: .nova,
+            speed: 1.0,
+            format: .mp3
         )
 
-        var finalResult: CalculationReport?
+        print("   ✅ PASSED")
+        print("   Format: \(audio.format.rawValue)")
+        print("   Size: \(audio.data.count) bytes")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
 
-        for try await step in agentSequence {
-            switch step {
-            case .thinking:
-                print("   💭 Thinking...")
-            case .toolCall(let info):
-                print("   🔧 Tool Call: \(info.name)")
-            case .toolResult(let info):
-                print("   📋 Tool Result: \(info.content)")
-            case .finalResponse(let report):
-                print("   ✅ Final Response: \(report.expression) = \(report.result)")
-                finalResult = report
-            }
-        }
+    // Test 3: Different Voices
+    printTestStart("All Voices Test")
+    let voices: [OpenAIVoice] = [.alloy, .echo, .fable, .onyx, .nova, .shimmer]
 
-        guard let result = finalResult else {
-            throw AgentError.invalidState("No final response received")
+    for voice in voices {
+        do {
+            let audio = try await client.generateSpeech(
+                text: "Test",
+                model: .tts1,
+                voice: voice,
+                speed: 1.0,
+                format: .mp3
+            )
+            print("   ✅ \(voice.displayName): \(audio.data.count) bytes")
+        } catch {
+            print("   ❌ \(voice.displayName): \(error)")
+            await runner.recordFail()
         }
-        return result
+    }
+    await runner.recordPass()
+
+    // Test 4: Speed Variations
+    printTestStart("Speed Variations")
+    let speeds: [Double] = [0.5, 1.0, 1.5, 2.0]
+
+    for speed in speeds {
+        do {
+            let audio = try await client.generateSpeech(
+                text: "Speed test",
+                model: .tts1,
+                voice: .alloy,
+                speed: speed,
+                format: .mp3
+            )
+            print("   ✅ Speed \(speed)x: \(audio.data.count) bytes")
+        } catch {
+            print("   ❌ Speed \(speed)x: \(error)")
+            await runner.recordFail()
+        }
+    }
+    await runner.recordPass()
+
+    // Test 5: Different Formats
+    printTestStart("Output Format Test")
+    let formats: [AudioOutputFormat] = [.mp3, .wav, .opus, .aac, .flac]
+
+    for format in formats {
+        do {
+            let audio = try await client.generateSpeech(
+                text: "Format test",
+                model: .tts1,
+                voice: .alloy,
+                speed: 1.0,
+                format: format
+            )
+            print("   ✅ \(format.rawValue.uppercased()): \(audio.data.count) bytes")
+        } catch {
+            print("   ❌ \(format.rawValue.uppercased()): \(error)")
+            await runner.recordFail()
+        }
+    }
+    await runner.recordPass()
+
+    // Test 6: Japanese Text
+    printTestStart("Japanese Text TTS")
+    do {
+        let audio = try await client.generateSpeech(
+            text: "こんにちは、世界！これはテストです。",
+            model: .tts1HD,
+            voice: .nova,
+            speed: 1.0,
+            format: .mp3
+        )
+
+        print("   ✅ PASSED")
+        print("   Size: \(audio.data.count) bytes")
+        print("   Transcript: \(audio.transcript ?? "N/A")")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
+
+    // Test 7: Long Text
+    printTestStart("Long Text TTS")
+    let longText = """
+    The quick brown fox jumps over the lazy dog. This is a longer text to test the text-to-speech API. \
+    We want to verify that longer texts are processed correctly without any issues. \
+    The API should handle this text efficiently and return high-quality audio output.
+    """
+    do {
+        let audio = try await client.generateSpeech(
+            text: longText,
+            model: .tts1,
+            voice: .echo,
+            speed: 1.0,
+            format: .mp3
+        )
+
+        print("   ✅ PASSED")
+        print("   Text Length: \(longText.count) chars")
+        print("   Audio Size: \(audio.data.count) bytes")
+        if let duration = audio.estimatedDuration {
+            print("   Estimated Duration: \(String(format: "%.1f", duration)) seconds")
+        }
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
+
+    // Test 8: Edge Case - Empty Text (should fail)
+    printTestStart("Error Handling - Empty Text")
+    do {
+        _ = try await client.generateSpeech(
+            text: "",
+            model: .tts1,
+            voice: .alloy,
+            speed: 1.0,
+            format: .mp3
+        )
+        print("   ❌ FAILED: Should have thrown an error")
+        await runner.recordFail()
+    } catch let error as SpeechGenerationError {
+        print("   ✅ PASSED: Correctly threw error")
+        print("   Error: \(error.errorDescription ?? "Unknown")")
+        await runner.recordPass()
+    } catch {
+        print("   ✅ PASSED: Threw error (different type)")
+        print("   Error: \(error)")
+        await runner.recordPass()
+    }
+
+    // Test 9: Edge Case - Invalid Speed (should fail)
+    printTestStart("Error Handling - Invalid Speed")
+    do {
+        _ = try await client.generateSpeech(
+            text: "Test",
+            model: .tts1,
+            voice: .alloy,
+            speed: 10.0,  // Invalid: max is 4.0
+            format: .mp3
+        )
+        print("   ❌ FAILED: Should have thrown an error")
+        await runner.recordFail()
+    } catch let error as SpeechGenerationError {
+        print("   ✅ PASSED: Correctly threw error")
+        print("   Error: \(error.errorDescription ?? "Unknown")")
+        await runner.recordPass()
+    } catch {
+        print("   ✅ PASSED: Threw error (different type)")
+        print("   Error: \(error)")
+        await runner.recordPass()
     }
 }
 
-@MainActor
-func runGeminiAgentTests(runner: TestRunner) async {
-    print("\n" + String(repeating: "=", count: 60))
-    print("🔵 GEMINI Agent Tests")
-    print(String(repeating: "=", count: 60))
+// MARK: - Video Generation Model Tests (No API calls)
 
-    // Note: Gemini API doesn't support function calling with JSON response mime type
-    // This is an API limitation, not a library issue
-    print("⚠️  Gemini API doesn't support agent loops with structured output")
-    print("   (Function calling + JSON response mime type is unsupported)")
-    await runner.recordSkip()
-    return
+@MainActor
+func runVideoModelTests(runner: TestRunner) async {
+    printHeader("🎬 VIDEO GENERATION MODEL TESTS (Local)")
+
+    // Test OpenAI Video Models
+    printTestStart("OpenAIVideoModel Properties")
+    let soraModel = OpenAIVideoModel.sora
+    print("   Model ID: \(soraModel.id)")
+    print("   Display Name: \(soraModel.displayName)")
+    print("   Max Duration: \(soraModel.maxDuration) seconds")
+    print("   Supported Aspect Ratios: \(soraModel.supportedAspectRatios.map { $0.rawValue })")
+    print("   Supported Resolutions: \(soraModel.supportedResolutions.map { $0.rawValue })")
+    print("   ✅ PASSED")
+    await runner.recordPass()
+
+    // Test Gemini Video Models
+    printTestStart("GeminiVideoModel Properties")
+    let veoModel = GeminiVideoModel.veo2
+    print("   Model ID: \(veoModel.id)")
+    print("   Display Name: \(veoModel.displayName)")
+    print("   Max Duration: \(veoModel.maxDuration) seconds")
+    print("   Supported Aspect Ratios: \(veoModel.supportedAspectRatios.map { $0.rawValue })")
+    print("   Supported Resolutions: \(veoModel.supportedResolutions.map { $0.rawValue })")
+    print("   ✅ PASSED")
+    await runner.recordPass()
+
+    // Test Video Generation Status
+    printTestStart("VideoGenerationStatus")
+    let statuses: [VideoGenerationStatus] = [.queued, .processing, .completed, .failed, .cancelled]
+    for status in statuses {
+        let isTerminal = status.isTerminal
+        let isSuccessful = status.isSuccessful
+        print("   \(status.rawValue): isTerminal=\(isTerminal), isSuccessful=\(isSuccessful)")
+    }
+    print("   ✅ PASSED")
+    await runner.recordPass()
+
+    // Test Video Aspect Ratios
+    printTestStart("VideoAspectRatio")
+    let ratios: [VideoAspectRatio] = [.landscape16x9, .portrait9x16, .square1x1, .cinematic21x9]
+    for ratio in ratios {
+        print("   \(ratio.rawValue): widthRatio=\(ratio.widthRatio), heightRatio=\(ratio.heightRatio)")
+    }
+    print("   ✅ PASSED")
+    await runner.recordPass()
+
+    // Test Video Resolutions
+    printTestStart("VideoResolution")
+    let resolutions: [VideoResolution] = [.hd720p, .fhd1080p, .uhd4k]
+    for res in resolutions {
+        print("   \(res.rawValue): \(res.width)x\(res.height)")
+    }
+    print("   ✅ PASSED")
+    await runner.recordPass()
+}
+
+// MARK: - Output Format Tests (Local)
+
+@MainActor
+func runOutputFormatTests(runner: TestRunner) async {
+    printHeader("📁 OUTPUT FORMAT TESTS (Local)")
+
+    // Image Output Formats
+    printTestStart("ImageOutputFormat")
+    let imageFormats: [ImageOutputFormat] = [.png, .jpeg, .webp]
+    for format in imageFormats {
+        print("   \(format.rawValue): mimeType=\(format.mimeType), ext=\(format.fileExtension)")
+    }
+    print("   ✅ PASSED")
+    await runner.recordPass()
+
+    // Audio Output Formats
+    printTestStart("AudioOutputFormat")
+    let audioFormats: [AudioOutputFormat] = [.mp3, .wav, .opus, .aac, .flac, .pcm]
+    for format in audioFormats {
+        print("   \(format.rawValue): mimeType=\(format.mimeType), ext=\(format.fileExtension)")
+    }
+    print("   ✅ PASSED")
+    await runner.recordPass()
+
+    // Video Output Formats
+    printTestStart("VideoOutputFormat")
+    let videoFormats: [VideoOutputFormat] = [.mp4]
+    for format in videoFormats {
+        print("   \(format.rawValue): mimeType=\(format.mimeType), ext=\(format.fileExtension)")
+    }
+    print("   ✅ PASSED")
+    await runner.recordPass()
+
+    // OpenAI Supported Formats
+    printTestStart("OpenAI Format Compatibility")
+    print("   Image Formats: \(ImageOutputFormat.openaiFormats.map { $0.rawValue })")
+    print("   Audio Formats: \(AudioOutputFormat.openaiFormats.map { $0.rawValue })")
+    print("   ✅ PASSED")
+    await runner.recordPass()
+
+    // Gemini Supported Formats
+    printTestStart("Gemini Format Compatibility")
+    print("   Image Formats: \(ImageOutputFormat.geminiFormats.map { $0.rawValue })")
+    print("   Audio Formats: \(AudioOutputFormat.geminiFormats.map { $0.rawValue })")
+    print("   ✅ PASSED")
+    await runner.recordPass()
+}
+
+// MARK: - Vision (Image Input) Tests
+
+/// 画像分析結果
+@Structured("画像分析結果")
+struct ImageAnalysis {
+    @StructuredField("画像の主な色")
+    var dominantColor: String
+
+    @StructuredField("画像に含まれる主な形状")
+    var mainShape: String
+
+    @StructuredField("画像の簡単な説明")
+    var description: String
+}
+
+/// 色の分析結果
+@Structured("色の分析")
+struct ColorResponse {
+    @StructuredField("検出された色")
+    var color: String
+}
+
+@MainActor
+func runVisionTests(runner: TestRunner) async {
+    printHeader("👁️  VISION (IMAGE INPUT) TESTS")
+
+    guard let apiKey = Config.openAIKey, !apiKey.isEmpty else {
+        print("⚠️  OPENAI_API_KEY not set - skipping vision tests")
+        await runner.recordSkip()
+        return
+    }
+
+    let client = OpenAIClient(apiKey: apiKey)
+
+    // Test 1: 生成した画像を分析
+    printTestStart("Analyze Generated Image")
+    do {
+        // まず簡単な画像を生成
+        print("   Generating test image...")
+        let generatedImage = try await client.generateImage(
+            prompt: "A solid blue square on white background, simple geometric shape",
+            model: .dalle3,
+            size: .square1024,
+            quality: .standard,
+            format: .png,
+            n: 1
+        )
+        print("   Image generated: \(generatedImage.data.count) bytes")
+
+        // 生成した画像を分析
+        print("   Analyzing image with Vision...")
+        let imageContent = ImageContent.base64(generatedImage.data, mediaType: .png)
+        let message = LLMMessage.user("この画像を分析してください。主な色、形状、簡単な説明を教えてください。", image: imageContent)
+
+        let analysis: ImageAnalysis = try await client.generate(
+            messages: [message],
+            model: .gpt4o,
+            systemPrompt: "画像を分析し、指定されたJSON形式で回答してください。"
+        )
+
+        print("   ✅ PASSED")
+        print("   Dominant Color: \(analysis.dominantColor)")
+        print("   Main Shape: \(analysis.mainShape)")
+        print("   Description: \(analysis.description.prefix(100))...")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
+
+    // Test 2: URL画像を分析
+    printTestStart("Analyze Image from URL")
+    do {
+        // OpenAI の公開ロゴ画像を使用
+        let imageURL = URL(string: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/OpenAI_Logo.svg/200px-OpenAI_Logo.svg.png")!
+        let imageContent = ImageContent.url(imageURL, mediaType: .png)
+        let message = LLMMessage.user("この画像に何が写っていますか？会社のロゴですか？色と形を説明してください。", image: imageContent)
+
+        let analysis: ImageAnalysis = try await client.generate(
+            messages: [message],
+            model: .gpt4o,
+            systemPrompt: "画像を分析し、指定されたJSON形式で回答してください。"
+        )
+
+        print("   ✅ PASSED")
+        print("   Dominant Color: \(analysis.dominantColor)")
+        print("   Main Shape: \(analysis.mainShape)")
+        print("   Description: \(analysis.description.prefix(100))...")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
+
+    // Test 3: デバッグ - リクエスト内容を確認
+    printTestStart("Debug: Check Request Content")
+    do {
+        // 小さなテスト画像を作成（赤い1x1ピクセルのPNG）
+        // PNG header + IHDR + IDAT + IEND
+        let redPixelPNG = Data([
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,  // PNG signature
+            0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,  // IHDR chunk
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,  // 1x1 pixels
+            0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,  // 8-bit RGB
+            0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,  // IDAT chunk
+            0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,  // Red pixel data
+            0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x18, 0xDD,
+            0x8D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45,  // IEND chunk
+            0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
+        ])
+
+        let imageContent = ImageContent.base64(redPixelPNG, mediaType: .png)
+        let message = LLMMessage.user("What color is this image? Answer with just the color name.", image: imageContent)
+
+        print("   Image size: \(redPixelPNG.count) bytes")
+        print("   Base64 length: \(redPixelPNG.base64EncodedString().count) characters")
+        print("   MIME type: \(imageContent.mimeType)")
+
+        // メッセージ構造を確認
+        print("   Message has media: \(message.hasMediaContent)")
+        print("   Message has image: \(message.hasImage)")
+        print("   Number of images: \(message.images.count)")
+
+        // API呼び出し
+        let response: ColorResponse = try await client.generate(
+            messages: [message],
+            model: .gpt4o
+        )
+
+        print("   ✅ PASSED")
+        print("   Detected color: \(response.color)")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
+}
+
+// MARK: - Anthropic Vision Tests
+
+@MainActor
+func runAnthropicVisionTests(runner: TestRunner) async {
+    printHeader("👁️  ANTHROPIC VISION (IMAGE INPUT) TESTS")
+
+    guard let apiKey = Config.anthropicKey, !apiKey.isEmpty else {
+        print("⚠️  ANTHROPIC_API_KEY not set - skipping Anthropic vision tests")
+        await runner.recordSkip()
+        return
+    }
+
+    let client = AnthropicClient(apiKey: apiKey)
+
+    // Test 1: Analyze image from URL
+    printTestStart("Anthropic Vision - URL Image")
+    do {
+        let imageURL = URL(string: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/OpenAI_Logo.svg/200px-OpenAI_Logo.svg.png")!
+        let imageContent = ImageContent.url(imageURL, mediaType: .png)
+        let message = LLMMessage.user("この画像に何が写っていますか？色と形を簡潔に説明してください。", image: imageContent)
+
+        let analysis: ImageAnalysis = try await client.generate(
+            messages: [message],
+            model: .sonnet,
+            systemPrompt: "画像を分析し、指定されたJSON形式で回答してください。"
+        )
+
+        print("   ✅ PASSED")
+        print("   Dominant Color: \(analysis.dominantColor)")
+        print("   Main Shape: \(analysis.mainShape)")
+        print("   Description: \(analysis.description.prefix(100))...")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
+
+    // Test 2: Analyze base64 image
+    printTestStart("Anthropic Vision - Base64 Image")
+    do {
+        // 小さなテスト画像（赤いピクセル）
+        let redPixelPNG = Data([
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+            0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+            0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
+            0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
+            0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x18, 0xDD,
+            0x8D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45,
+            0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
+        ])
+
+        let imageContent = ImageContent.base64(redPixelPNG, mediaType: .png)
+        let message = LLMMessage.user("What color is this image? Answer with just the color name.", image: imageContent)
+
+        let response: ColorResponse = try await client.generate(
+            messages: [message],
+            model: .sonnet
+        )
+
+        print("   ✅ PASSED")
+        print("   Detected color: \(response.color)")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
+}
+
+// MARK: - Gemini Vision Tests
+
+@MainActor
+func runGeminiVisionTests(runner: TestRunner) async {
+    printHeader("👁️  GEMINI VISION (IMAGE INPUT) TESTS")
 
     guard let apiKey = Config.geminiKey, !apiKey.isEmpty else {
-        print("⚠️  GEMINI_API_KEY not set - skipping Gemini agent tests")
+        print("⚠️  GEMINI_API_KEY not set - skipping Gemini vision tests")
         await runner.recordSkip()
         return
     }
 
     let client = GeminiClient(apiKey: apiKey)
 
-    // Agent Test 1: 天気ツールを使ったエージェントループ
-    await runAgentTest(name: "Weather Agent Loop", runner: runner) {
-        let tools = ToolSet {
-            GetWeatherTool()
-        }
+    // Test 1: Analyze image from URL
+    printTestStart("Gemini Vision - URL Image")
+    do {
+        let imageURL = URL(string: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/OpenAI_Logo.svg/200px-OpenAI_Logo.svg.png")!
+        let imageContent = ImageContent.url(imageURL, mediaType: .png)
+        let message = LLMMessage.user("この画像に何が写っていますか？色と形を簡潔に説明してください。", image: imageContent)
 
-        let agentSequence: AgentStepSequence<GeminiClient, WeatherReport> = client.runAgent(
-            prompt: "パリの天気を調べて、天気レポートを作成してください",
+        let analysis: ImageAnalysis = try await client.generate(
+            messages: [message],
             model: .flash25,
-            tools: tools,
-            systemPrompt: "You are a helpful weather assistant. Use the weather tool to get information, then create a structured report."
+            systemPrompt: "画像を分析し、指定されたJSON形式で回答してください。"
         )
 
-        var finalResult: WeatherReport?
-
-        for try await step in agentSequence {
-            switch step {
-            case .thinking:
-                print("   💭 Thinking...")
-            case .toolCall(let info):
-                print("   🔧 Tool Call: \(info.name)")
-            case .toolResult(let info):
-                print("   📋 Tool Result: \(info.content)")
-            case .finalResponse(let report):
-                print("   ✅ Final Response: \(report.location) - \(report.conditions)")
-                finalResult = report
-            }
-        }
-
-        guard let result = finalResult else {
-            throw AgentError.invalidState("No final response received")
-        }
-        return result
+        print("   ✅ PASSED")
+        print("   Dominant Color: \(analysis.dominantColor)")
+        print("   Main Shape: \(analysis.mainShape)")
+        print("   Description: \(analysis.description.prefix(100))...")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
     }
 
-    // Agent Test 2: 計算ツールを使ったエージェントループ
-    await runAgentTest(name: "Calculator Agent Loop", runner: runner) {
-        let tools = ToolSet {
-            CalculatorTool()
-        }
+    // Test 2: Analyze base64 image
+    printTestStart("Gemini Vision - Base64 Image")
+    do {
+        // 小さなテスト画像（赤いピクセル）
+        let redPixelPNG = Data([
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+            0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+            0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
+            0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
+            0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x18, 0xDD,
+            0x8D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45,
+            0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
+        ])
 
-        let agentSequence: AgentStepSequence<GeminiClient, CalculationReport> = client.runAgent(
-            prompt: "100 + 200 を計算して、結果をレポートにまとめてください",
-            model: .flash25,
-            tools: tools,
-            systemPrompt: "You are a calculator assistant. Use the calculator tool to compute, then provide a structured report."
+        let imageContent = ImageContent.base64(redPixelPNG, mediaType: .png)
+        let message = LLMMessage.user("What color is this image? Answer with just the color name.", image: imageContent)
+
+        let response: ColorResponse = try await client.generate(
+            messages: [message],
+            model: .flash25
         )
 
-        var finalResult: CalculationReport?
-
-        for try await step in agentSequence {
-            switch step {
-            case .thinking:
-                print("   💭 Thinking...")
-            case .toolCall(let info):
-                print("   🔧 Tool Call: \(info.name)")
-            case .toolResult(let info):
-                print("   📋 Tool Result: \(info.content)")
-            case .finalResponse(let report):
-                print("   ✅ Final Response: \(report.expression) = \(report.result)")
-                finalResult = report
-            }
-        }
-
-        guard let result = finalResult else {
-            throw AgentError.invalidState("No final response received")
-        }
-        return result
+        print("   ✅ PASSED")
+        print("   Detected color: \(response.color)")
+        await runner.recordPass()
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
     }
 }
 
 // MARK: - Main Entry Point
 
-/// テストモード: "all" = 全テスト, "agent" = エージェントテストのみ, "basic" = 基本テストのみ
-let testMode = ProcessInfo.processInfo.environment["TEST_MODE"] ?? "all"
-let isAgentOnly = testMode == "agent"
-let isBasicOnly = testMode == "basic"
-
-let title = isAgentOnly ? "Agent Tests" : (isBasicOnly ? "Basic Tests" : "All Tests")
-
 print("""
 
 ╔══════════════════════════════════════════════════════════════╗
-║     LLMStructuredOutputs Integration Tests                   ║
-║     Mode: \(title.padding(toLength: 46, withPad: " ", startingAt: 0)) ║
+║     MULTIMODAL API INTEGRATION TESTS                         ║
+║     Image Generation, Speech Generation, Vision, Video       ║
+║     OpenAI, Anthropic, Gemini Provider Tests                 ║
 ╚══════════════════════════════════════════════════════════════╝
 """)
 
@@ -1048,25 +906,26 @@ Config.loadEnvFile()
 // Check API keys
 print("\n📋 API Key Status:")
 print("   ANTHROPIC_API_KEY: \(Config.anthropicKey != nil ? "✅ Set" : "❌ Not set")")
-print("   OPENAI_API_KEY:    \(Config.openAIKey != nil ? "✅ Set" : "❌ Not set")")
-print("   GEMINI_API_KEY:    \(Config.geminiKey != nil ? "✅ Set" : "❌ Not set")")
+print("   OPENAI_API_KEY: \(Config.openAIKey != nil ? "✅ Set" : "❌ Not set")")
+print("   GEMINI_API_KEY: \(Config.geminiKey != nil ? "✅ Set" : "❌ Not set")")
 
 let runner = TestRunner()
 
-// Run test suites based on mode
-if !isAgentOnly {
-    // Basic tests (structured output, tool calling, etc.)
-    await runAnthropicTests(runner: runner)
-    await runOpenAITests(runner: runner)
-    await runGeminiTests(runner: runner)
-}
+// Run local tests (no API calls)
+await runOutputFormatTests(runner: runner)
+await runVideoModelTests(runner: runner)
 
-if !isBasicOnly {
-    // Agent tests (runAgent loop)
-    await runAnthropicAgentTests(runner: runner)
-    await runOpenAIAgentTests(runner: runner)
-    await runGeminiAgentTests(runner: runner)
-}
+// Run OpenAI API tests
+await runImageGenerationTests(runner: runner)
+await runSpeechGenerationTests(runner: runner)
+await runVisionTests(runner: runner)
+
+// Run Gemini API tests
+await runGeminiImageGenerationTests(runner: runner)
+await runGeminiVisionTests(runner: runner)
+
+// Run Anthropic API tests
+await runAnthropicVisionTests(runner: runner)
 
 // Print summary
 let summary = await runner.summary()
@@ -1083,6 +942,6 @@ if summary.failed > 0 {
 } else if summary.passed > 0 {
     print("\n🎉 All executed tests passed!")
 } else {
-    print("\n⚠️  No tests were executed. Set API keys to run tests.")
+    print("\n⚠️  No tests were executed. Set OPENAI_API_KEY to run API tests.")
 }
 print("")

@@ -60,7 +60,7 @@ extension GeminiClient: ChatCapableClient {
         var geminiContents: [GeminiChatContent] = []
 
         for message in messages {
-            geminiContents.append(convertToGeminiContent(message))
+            geminiContents.append(try convertToGeminiContent(message))
         }
 
         // システム指示
@@ -94,7 +94,9 @@ extension GeminiClient: ChatCapableClient {
     }
 
     /// LLMMessage を Gemini コンテンツ形式に変換
-    private func convertToGeminiContent(_ message: LLMMessage) -> GeminiChatContent {
+    ///
+    /// - Throws: `LLMError.mediaNotSupported` メディアコンテンツが含まれている場合
+    private func convertToGeminiContent(_ message: LLMMessage) throws -> GeminiChatContent {
         let role = message.role == .user ? "user" : "model"
         var parts: [GeminiChatPart] = []
 
@@ -105,6 +107,13 @@ extension GeminiClient: ChatCapableClient {
             case .toolUse, .toolResult:
                 // チャットではツール関連は無視
                 break
+            case .image:
+                // Chat APIではメディアコンテンツは現在サポートされていません
+                throw LLMError.mediaNotSupported(mediaType: "image", provider: "Gemini Chat API")
+            case .audio:
+                throw LLMError.mediaNotSupported(mediaType: "audio", provider: "Gemini Chat API")
+            case .video:
+                throw LLMError.mediaNotSupported(mediaType: "video", provider: "Gemini Chat API")
             }
         }
 

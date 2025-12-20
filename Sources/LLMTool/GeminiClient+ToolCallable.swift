@@ -28,7 +28,7 @@ extension GeminiClient: ToolCallableClient {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         // リクエストボディを構築
-        let body = buildToolRequestBody(
+        let body = try buildToolRequestBody(
             model: model,
             messages: messages,
             tools: tools,
@@ -58,6 +58,8 @@ extension GeminiClient: ToolCallableClient {
     // MARK: - Private Helpers
 
     /// ツールリクエストボディを構築
+    ///
+    /// - Throws: `LLMError.mediaNotSupported` メディアコンテンツが含まれている場合
     private func buildToolRequestBody(
         model: GeminiModel,
         messages: [LLMMessage],
@@ -66,12 +68,12 @@ extension GeminiClient: ToolCallableClient {
         systemPrompt: String?,
         temperature: Double?,
         maxTokens: Int?
-    ) -> GeminiToolRequestBody {
+    ) throws -> GeminiToolRequestBody {
         // コンテンツを構築
         var contents: [GeminiToolContent] = []
 
         for message in messages {
-            contents.append(contentsOf: convertToGeminiContents(message))
+            contents.append(contentsOf: try convertToGeminiContents(message))
         }
 
         // システムインストラクション
@@ -112,7 +114,9 @@ extension GeminiClient: ToolCallableClient {
     }
 
     /// LLMMessage を Gemini コンテンツ形式に変換
-    private func convertToGeminiContents(_ message: LLMMessage) -> [GeminiToolContent] {
+    ///
+    /// - Throws: `LLMError.mediaNotSupported` メディアコンテンツが含まれている場合
+    private func convertToGeminiContents(_ message: LLMMessage) throws -> [GeminiToolContent] {
         let role = message.role == .user ? "user" : "model"
         var parts: [GeminiToolPart] = []
         var toolResultParts: [GeminiToolPart] = []
@@ -138,6 +142,14 @@ extension GeminiClient: ToolCallableClient {
                 let responseDict: [String: Any] = ["result": resultContent]
                 let functionResponse = GeminiToolFunctionResponse(name: name, response: responseDict)
                 toolResultParts.append(GeminiToolPart(functionResponse: functionResponse))
+
+            case .image:
+                // Tool APIではメディアコンテンツは現在サポートされていません
+                throw LLMError.mediaNotSupported(mediaType: "image", provider: "Gemini Tool API")
+            case .audio:
+                throw LLMError.mediaNotSupported(mediaType: "audio", provider: "Gemini Tool API")
+            case .video:
+                throw LLMError.mediaNotSupported(mediaType: "video", provider: "Gemini Tool API")
             }
         }
 
