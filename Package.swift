@@ -24,6 +24,11 @@ let package = Package(
             name: "LLMMCP",
             targets: ["LLMMCP"]
         ),
+        // オプション: 動的構造化出力（ランタイムでの型定義）
+        .library(
+            name: "LLMDynamicStructured",
+            targets: ["LLMDynamicStructured"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
@@ -59,6 +64,12 @@ let package = Package(
             dependencies: ["LLMClient"]
         ),
 
+        // MARK: - Layer 1: LLMDynamicStructured (動的構造化出力)
+        .target(
+            name: "LLMDynamicStructured",
+            dependencies: ["LLMClient"]
+        ),
+
         // MARK: - Layer 2: LLMAgent (エージェントループ)
         .target(
             name: "LLMAgent",
@@ -90,13 +101,24 @@ let package = Package(
         // MARK: - Umbrella Module (全モジュールを再エクスポート)
         .target(
             name: "LLMStructuredOutputs",
-            dependencies: ["LLMClient", "LLMTool", "LLMConversation", "LLMAgent", "LLMConversationalAgent"]
+            dependencies: [
+                "LLMClient",
+                "LLMTool",
+                "LLMConversation",
+                "LLMAgent",
+                "LLMConversationalAgent",
+                "LLMDynamicStructured"
+            ]
         ),
 
         // MARK: - Tests
         .testTarget(
             name: "LLMStructuredOutputsTests",
             dependencies: ["LLMStructuredOutputs"]
+        ),
+        .testTarget(
+            name: "LLMDynamicStructuredTests",
+            dependencies: ["LLMDynamicStructured", "LLMStructuredOutputs"]
         ),
         .testTarget(
             name: "LLMMCPTests",

@@ -1,8 +1,40 @@
 import SwiftUI
 
-struct ExecutionProgressBanner: View {
-    let currentPhase: ConversationStepInfo.StepType?
-    let startTime: Date?
+// MARK: - ExecutionPhaseProvider Protocol
+
+/// 実行フェーズの表示情報を提供するプロトコル
+///
+/// 各アプリケーション固有のフェーズ型はこのプロトコルに準拠することで、
+/// 共通の `ExecutionProgressBanner` を使用できる。
+public protocol ExecutionPhaseProvider {
+    /// 進捗表示用のアイコン名（SF Symbols）
+    var progressIcon: String { get }
+    /// 進捗表示用のラベル
+    var progressLabel: String { get }
+    /// テーマカラー
+    var tintColor: Color { get }
+}
+
+// MARK: - ExecutionProgressBanner
+
+/// 実行進捗を表示するバナー
+///
+/// TimelineViewを使用してアニメーションドットと経過時間を表示。
+/// フェーズ型はジェネリックで、`ExecutionPhaseProvider`準拠の任意の型を使用可能。
+public struct ExecutionProgressBanner<Phase: ExecutionPhaseProvider>: View {
+    public let currentPhase: Phase?
+    public let startTime: Date?
+    public var processingMessage: String
+
+    public init(
+        currentPhase: Phase?,
+        startTime: Date?,
+        processingMessage: String = "エージェントが処理を実行しています"
+    ) {
+        self.currentPhase = currentPhase
+        self.startTime = startTime
+        self.processingMessage = processingMessage
+    }
 
     private var phaseInfo: (icon: String, label: String, color: Color) {
         guard let phase = currentPhase else {
@@ -11,7 +43,13 @@ struct ExecutionProgressBanner: View {
         return (phase.progressIcon, phase.progressLabel, phase.tintColor)
     }
 
-    var body: some View {
+    #if os(iOS)
+    private var backgroundColor: Color { Color(.secondarySystemGroupedBackground) }
+    #else
+    private var backgroundColor: Color { Color(nsColor: .controlBackgroundColor) }
+    #endif
+
+    public var body: some View {
         TimelineView(.periodic(from: .now, by: 0.5)) { timeline in
             let dotCount = Int(timeline.date.timeIntervalSince1970 * 2) % 3
             let animatedDots = String(repeating: ".", count: dotCount + 1)
@@ -43,7 +81,7 @@ struct ExecutionProgressBanner: View {
                     }
 
                     HStack(spacing: 8) {
-                        Text("エージェントが処理を実行しています")
+                        Text(processingMessage)
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -66,7 +104,7 @@ struct ExecutionProgressBanner: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.secondarySystemGroupedBackground))
+                    .fill(backgroundColor)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(phaseInfo.color, lineWidth: 1)
@@ -82,6 +120,49 @@ struct ExecutionProgressBanner: View {
             return String(format: "%d:%02d", minutes, seconds)
         } else {
             return String(format: "%d秒", seconds)
+        }
+    }
+}
+
+// MARK: - Default Phase Type
+
+/// デフォルトの実行フェーズ型
+///
+/// シンプルなユースケース向けの汎用フェーズ型。
+public enum DefaultExecutionPhase: String, ExecutionPhaseProvider {
+    case preparing = "preparing"
+    case generating = "generating"
+    case processing = "processing"
+    case completed = "completed"
+    case error = "error"
+
+    public var progressIcon: String {
+        switch self {
+        case .preparing: return "brain.head.profile"
+        case .generating: return "text.bubble"
+        case .processing: return "gearshape.2"
+        case .completed: return "checkmark.circle.fill"
+        case .error: return "exclamationmark.triangle.fill"
+        }
+    }
+
+    public var progressLabel: String {
+        switch self {
+        case .preparing: return "準備中"
+        case .generating: return "生成中"
+        case .processing: return "処理中"
+        case .completed: return "完了"
+        case .error: return "エラー"
+        }
+    }
+
+    public var tintColor: Color {
+        switch self {
+        case .preparing: return .gray
+        case .generating: return .blue
+        case .processing: return .purple
+        case .completed: return .green
+        case .error: return .red
         }
     }
 }

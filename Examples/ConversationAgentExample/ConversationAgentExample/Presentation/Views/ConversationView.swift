@@ -1,6 +1,7 @@
 import SwiftUI
 import LLMStructuredOutputs
 import LLMToolkits
+import ExamplesCommon
 
 struct ConversationView: View {
     @Environment(ActiveSessionState.self) private var sessionState

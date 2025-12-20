@@ -7,59 +7,59 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		19069BEA2EF62E0700A547E3 /* LLMMCP in Frameworks */ = {isa = PBXBuildFile; productRef = 19069BE92EF62E0700A547E3 /* LLMMCP */; };
-		1906A0622EF63D2A00A547E3 /* ExamplesCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 1906A0612EF63D2A00A547E3 /* ExamplesCommon */; };
-		1941B6E32EF0D76A007AC9A1 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 1941B6E22EF0D76A007AC9A1 /* MarkdownUI */; };
-		1941B8E22EF19CEC007AC9A1 /* LLMStructuredOutputs in Frameworks */ = {isa = PBXBuildFile; productRef = 1941B8E12EF19CEC007AC9A1 /* LLMStructuredOutputs */; };
-		1941B93C2EF19EA5007AC9A1 /* LLMToolkits in Frameworks */ = {isa = PBXBuildFile; productRef = 1941B93B2EF19EA5007AC9A1 /* LLMToolkits */; };
+		1906A07B2EF63D5400A547E3 /* ExamplesCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 1906A07A2EF63D5400A547E3 /* ExamplesCommon */; };
+		1906A07E2EF63D5D00A547E3 /* LLMDynamicStructured in Frameworks */ = {isa = PBXBuildFile; productRef = 1906A07D2EF63D5D00A547E3 /* LLMDynamicStructured */; };
+		1906A0802EF63D5D00A547E3 /* LLMMCP in Frameworks */ = {isa = PBXBuildFile; productRef = 1906A07F2EF63D5D00A547E3 /* LLMMCP */; };
+		1906A0822EF63D5D00A547E3 /* LLMStructuredOutputs in Frameworks */ = {isa = PBXBuildFile; productRef = 1906A0812EF63D5D00A547E3 /* LLMStructuredOutputs */; };
+		1906A0842EF63D5D00A547E3 /* LLMToolkits in Frameworks */ = {isa = PBXBuildFile; productRef = 1906A0832EF63D5D00A547E3 /* LLMToolkits */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		1941B6602EF0CC3E007AC9A1 /* ConversationAgentExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ConversationAgentExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		19069E632EF63B2D00A547E3 /* AgentBuilderExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AgentBuilderExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1941B6622EF0CC3E007AC9A1 /* ConversationAgentExample */ = {
+		19069E652EF63B2D00A547E3 /* AgentBuilderExample */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = ConversationAgentExample;
+			path = AgentBuilderExample;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		1941B65D2EF0CC3E007AC9A1 /* Frameworks */ = {
+		19069E602EF63B2D00A547E3 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1941B8E22EF19CEC007AC9A1 /* LLMStructuredOutputs in Frameworks */,
-				1941B93C2EF19EA5007AC9A1 /* LLMToolkits in Frameworks */,
-				1941B6E32EF0D76A007AC9A1 /* MarkdownUI in Frameworks */,
-				1906A0622EF63D2A00A547E3 /* ExamplesCommon in Frameworks */,
-				19069BEA2EF62E0700A547E3 /* LLMMCP in Frameworks */,
+				1906A07B2EF63D5400A547E3 /* ExamplesCommon in Frameworks */,
+				1906A0842EF63D5D00A547E3 /* LLMToolkits in Frameworks */,
+				1906A07E2EF63D5D00A547E3 /* LLMDynamicStructured in Frameworks */,
+				1906A0822EF63D5D00A547E3 /* LLMStructuredOutputs in Frameworks */,
+				1906A0802EF63D5D00A547E3 /* LLMMCP in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		1941B6572EF0CC3E007AC9A1 = {
+		19069E5A2EF63B2D00A547E3 = {
 			isa = PBXGroup;
 			children = (
-				1941B6622EF0CC3E007AC9A1 /* ConversationAgentExample */,
-				1941B93A2EF19EA5007AC9A1 /* Frameworks */,
-				1941B6612EF0CC3E007AC9A1 /* Products */,
+				19069E652EF63B2D00A547E3 /* AgentBuilderExample */,
+				1906A07C2EF63D5D00A547E3 /* Frameworks */,
+				19069E642EF63B2D00A547E3 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		1941B6612EF0CC3E007AC9A1 /* Products */ = {
+		19069E642EF63B2D00A547E3 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				1941B6602EF0CC3E007AC9A1 /* ConversationAgentExample.app */,
+				19069E632EF63B2D00A547E3 /* AgentBuilderExample.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		1941B93A2EF19EA5007AC9A1 /* Frameworks */ = {
+		1906A07C2EF63D5D00A547E3 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -69,74 +69,73 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		1941B65F2EF0CC3E007AC9A1 /* ConversationAgentExample */ = {
+		19069E622EF63B2D00A547E3 /* AgentBuilderExample */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1941B66B2EF0CC40007AC9A1 /* Build configuration list for PBXNativeTarget "ConversationAgentExample" */;
+			buildConfigurationList = 19069E6E2EF63B2F00A547E3 /* Build configuration list for PBXNativeTarget "AgentBuilderExample" */;
 			buildPhases = (
-				1941B65C2EF0CC3E007AC9A1 /* Sources */,
-				1941B65D2EF0CC3E007AC9A1 /* Frameworks */,
-				1941B65E2EF0CC3E007AC9A1 /* Resources */,
+				19069E5F2EF63B2D00A547E3 /* Sources */,
+				19069E602EF63B2D00A547E3 /* Frameworks */,
+				19069E612EF63B2D00A547E3 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				1941B6622EF0CC3E007AC9A1 /* ConversationAgentExample */,
+				19069E652EF63B2D00A547E3 /* AgentBuilderExample */,
 			);
-			name = ConversationAgentExample;
+			name = AgentBuilderExample;
 			packageProductDependencies = (
-				1941B6E22EF0D76A007AC9A1 /* MarkdownUI */,
-				1941B8E12EF19CEC007AC9A1 /* LLMStructuredOutputs */,
-				1941B93B2EF19EA5007AC9A1 /* LLMToolkits */,
-				19069BE92EF62E0700A547E3 /* LLMMCP */,
-				1906A0612EF63D2A00A547E3 /* ExamplesCommon */,
+				1906A07A2EF63D5400A547E3 /* ExamplesCommon */,
+				1906A07D2EF63D5D00A547E3 /* LLMDynamicStructured */,
+				1906A07F2EF63D5D00A547E3 /* LLMMCP */,
+				1906A0812EF63D5D00A547E3 /* LLMStructuredOutputs */,
+				1906A0832EF63D5D00A547E3 /* LLMToolkits */,
 			);
-			productName = ConversationAgentExample;
-			productReference = 1941B6602EF0CC3E007AC9A1 /* ConversationAgentExample.app */;
+			productName = AgentBuilderExample;
+			productReference = 19069E632EF63B2D00A547E3 /* AgentBuilderExample.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		1941B6582EF0CC3E007AC9A1 /* Project object */ = {
+		19069E5B2EF63B2D00A547E3 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2610;
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
-					1941B65F2EF0CC3E007AC9A1 = {
+					19069E622EF63B2D00A547E3 = {
 						CreatedOnToolsVersion = 26.1.1;
 					};
 				};
 			};
-			buildConfigurationList = 1941B65B2EF0CC3E007AC9A1 /* Build configuration list for PBXProject "ConversationAgentExample" */;
+			buildConfigurationList = 19069E5E2EF63B2D00A547E3 /* Build configuration list for PBXProject "AgentBuilderExample" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
 			);
-			mainGroup = 1941B6572EF0CC3E007AC9A1;
+			mainGroup = 19069E5A2EF63B2D00A547E3;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				1941B6E12EF0D76A007AC9A1 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
-				1941B8E02EF19CEC007AC9A1 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */,
-				1906A0602EF63D2A00A547E3 /* XCLocalSwiftPackageReference "../ExamplesCommon" */,
+				1906A0782EF63D4A00A547E3 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */,
+				1906A0792EF63D5400A547E3 /* XCLocalSwiftPackageReference "../ExamplesCommon" */,
 			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 1941B6612EF0CC3E007AC9A1 /* Products */;
+			productRefGroup = 19069E642EF63B2D00A547E3 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				1941B65F2EF0CC3E007AC9A1 /* ConversationAgentExample */,
+				19069E622EF63B2D00A547E3 /* AgentBuilderExample */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		1941B65E2EF0CC3E007AC9A1 /* Resources */ = {
+		19069E612EF63B2D00A547E3 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -146,7 +145,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		1941B65C2EF0CC3E007AC9A1 /* Sources */ = {
+		19069E5F2EF63B2D00A547E3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -156,7 +155,7 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		1941B6692EF0CC40007AC9A1 /* Debug */ = {
+		19069E6C2EF63B2F00A547E3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -220,7 +219,7 @@
 			};
 			name = Debug;
 		};
-		1941B66A2EF0CC40007AC9A1 /* Release */ = {
+		19069E6D2EF63B2F00A547E3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -277,7 +276,7 @@
 			};
 			name = Release;
 		};
-		1941B66C2EF0CC40007AC9A1 /* Debug */ = {
+		19069E6F2EF63B2F00A547E3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -297,20 +296,19 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kyoichi.ConversationAgentExample;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kyoichi.AgentBuilderExample;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 6.0;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
-		1941B66D2EF0CC40007AC9A1 /* Release */ = {
+		19069E702EF63B2F00A547E3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -330,15 +328,14 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kyoichi.ConversationAgentExample;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kyoichi.AgentBuilderExample;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 6.0;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -346,20 +343,20 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		1941B65B2EF0CC3E007AC9A1 /* Build configuration list for PBXProject "ConversationAgentExample" */ = {
+		19069E5E2EF63B2D00A547E3 /* Build configuration list for PBXProject "AgentBuilderExample" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				1941B6692EF0CC40007AC9A1 /* Debug */,
-				1941B66A2EF0CC40007AC9A1 /* Release */,
+				19069E6C2EF63B2F00A547E3 /* Debug */,
+				19069E6D2EF63B2F00A547E3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1941B66B2EF0CC40007AC9A1 /* Build configuration list for PBXNativeTarget "ConversationAgentExample" */ = {
+		19069E6E2EF63B2F00A547E3 /* Build configuration list for PBXNativeTarget "AgentBuilderExample" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				1941B66C2EF0CC40007AC9A1 /* Debug */,
-				1941B66D2EF0CC40007AC9A1 /* Release */,
+				19069E6F2EF63B2F00A547E3 /* Debug */,
+				19069E702EF63B2F00A547E3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -367,52 +364,42 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		1906A0602EF63D2A00A547E3 /* XCLocalSwiftPackageReference "../ExamplesCommon" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../ExamplesCommon;
-		};
-		1941B8E02EF19CEC007AC9A1 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */ = {
+		1906A0782EF63D4A00A547E3 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../../../swift-llm-structured-outputs";
 		};
+		1906A0792EF63D5400A547E3 /* XCLocalSwiftPackageReference "../ExamplesCommon" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../ExamplesCommon;
+		};
 /* End XCLocalSwiftPackageReference section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		1941B6E12EF0D76A007AC9A1 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.4.1;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
-		19069BE92EF62E0700A547E3 /* LLMMCP */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1941B8E02EF19CEC007AC9A1 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */;
-			productName = LLMMCP;
-		};
-		1906A0612EF63D2A00A547E3 /* ExamplesCommon */ = {
+		1906A07A2EF63D5400A547E3 /* ExamplesCommon */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ExamplesCommon;
 		};
-		1941B6E22EF0D76A007AC9A1 /* MarkdownUI */ = {
+		1906A07D2EF63D5D00A547E3 /* LLMDynamicStructured */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 1941B6E12EF0D76A007AC9A1 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
-			productName = MarkdownUI;
+			package = 1906A0782EF63D4A00A547E3 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */;
+			productName = LLMDynamicStructured;
 		};
-		1941B8E12EF19CEC007AC9A1 /* LLMStructuredOutputs */ = {
+		1906A07F2EF63D5D00A547E3 /* LLMMCP */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 1906A0782EF63D4A00A547E3 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */;
+			productName = LLMMCP;
+		};
+		1906A0812EF63D5D00A547E3 /* LLMStructuredOutputs */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1906A0782EF63D4A00A547E3 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */;
 			productName = LLMStructuredOutputs;
 		};
-		1941B93B2EF19EA5007AC9A1 /* LLMToolkits */ = {
+		1906A0832EF63D5D00A547E3 /* LLMToolkits */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 1941B8E02EF19CEC007AC9A1 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */;
+			package = 1906A0782EF63D4A00A547E3 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */;
 			productName = LLMToolkits;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
-	rootObject = 1941B6582EF0CC3E007AC9A1 /* Project object */;
+	rootObject = 19069E5B2EF63B2D00A547E3 /* Project object */;
 }
