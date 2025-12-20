@@ -7,6 +7,23 @@
 
 ## [未リリース]
 
+## [1.0.20] - 2025-12-20
+
+### 追加
+
+- **AgentBuilderExample**: 新しいサンプルアプリを追加
+  - LLMDynamicStructured を使用した動的構造化出力のデモ
+  - ExamplesCommon との共有モジュール
+  - セッション管理機能とナビゲーション対応
+
+### 変更
+
+- **AgentBuilder のリファクタリング**: SwiftUIRouting 統合とドメインモデルのリネーム
+
+### ドキュメント
+
+- **LLMDynamicStructured ドキュメント**: WWDC2023 の機能を含むドキュメントカタログを追加
+
 ## [1.0.19] - 2025-12-20
 
 ### 変更
@@ -466,7 +483,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.19...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.20...HEAD
+[1.0.20]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.19...v1.0.20
 [1.0.19]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.18...v1.0.19
 [1.0.18]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.17...v1.0.18
 [1.0.17]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.16...v1.0.17
