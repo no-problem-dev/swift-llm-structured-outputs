@@ -1,8 +1,8 @@
 import SwiftUI
 import ExamplesCommon
 
+/// フィールド編集画面（プッシュナビゲーション用）
 struct FieldEditorView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var field: BuiltField
     @State private var enumValuesText: String = ""
 
@@ -19,76 +19,68 @@ struct FieldEditorView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                // 基本情報
-                Section("基本情報") {
-                    TextField("フィールド名", text: $field.name)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+        Form {
+            // 基本情報
+            Section("基本情報") {
+                TextField("フィールド名", text: $field.name)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
 
-                    TextField("説明（オプション）", text: Binding(
-                        get: { field.description ?? "" },
-                        set: { field.description = $0.isEmpty ? nil : $0 }
-                    ), axis: .vertical)
-                    .lineLimit(2...4)
+                TextField("説明（オプション）", text: Binding(
+                    get: { field.description ?? "" },
+                    set: { field.description = $0.isEmpty ? nil : $0 }
+                ), axis: .vertical)
+                .lineLimit(2...4)
 
-                    Toggle("必須フィールド", isOn: $field.isRequired)
-                }
-
-                // 型選択
-                Section("型") {
-                    Picker("型", selection: Binding(
-                        get: { fieldTypeSelection },
-                        set: { updateFieldType($0) }
-                    )) {
-                        ForEach(FieldTypeSelection.allCases, id: \.self) { selection in
-                            Label(selection.displayName, systemImage: selection.iconName)
-                                .tag(selection)
-                        }
-                    }
-                    .pickerStyle(.navigationLink)
-                }
-
-                // 列挙型の値入力
-                if case .stringEnum = field.fieldType {
-                    Section {
-                        TextEditor(text: $enumValuesText)
-                            .frame(minHeight: 100)
-                            .font(.system(.body, design: .monospaced))
-                            .onChange(of: enumValuesText) { _, newValue in
-                                let values = newValue
-                                    .split(separator: "\n")
-                                    .map { String($0).trimmingCharacters(in: .whitespaces) }
-                                    .filter { !$0.isEmpty }
-                                field.fieldType = .stringEnum(values)
-                            }
-                    } header: {
-                        Text("列挙値（1行に1つ）")
-                    } footer: {
-                        Text("例:\nactive\ninactive\npending")
-                            .font(.caption)
-                    }
-                }
-
-                // 制約設定
-                constraintsSection
+                Toggle("必須フィールド", isOn: $field.isRequired)
             }
-            .navigationTitle("フィールド編集")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") {
-                        dismiss()
-                    }
-                }
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") {
-                        saveAndDismiss()
+            // 型選択
+            Section("型") {
+                Picker("型", selection: Binding(
+                    get: { fieldTypeSelection },
+                    set: { updateFieldType($0) }
+                )) {
+                    ForEach(FieldTypeSelection.allCases, id: \.self) { selection in
+                        Label(selection.displayName, systemImage: selection.iconName)
+                            .tag(selection)
                     }
-                    .disabled(field.name.isEmpty)
                 }
+                .pickerStyle(.navigationLink)
+            }
+
+            // 列挙型の値入力
+            if case .stringEnum = field.fieldType {
+                Section {
+                    TextEditor(text: $enumValuesText)
+                        .frame(minHeight: 100)
+                        .font(.system(.body, design: .monospaced))
+                        .onChange(of: enumValuesText) { _, newValue in
+                            let values = newValue
+                                .split(separator: "\n")
+                                .map { String($0).trimmingCharacters(in: .whitespaces) }
+                                .filter { !$0.isEmpty }
+                            field.fieldType = .stringEnum(values)
+                        }
+                } header: {
+                    Text("列挙値（1行に1つ）")
+                } footer: {
+                    Text("例:\nactive\ninactive\npending")
+                        .font(.caption)
+                }
+            }
+
+            // 制約設定
+            constraintsSection
+        }
+        .navigationTitle("フィールド編集")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("保存") {
+                    onSave(field)
+                }
+                .disabled(field.name.isEmpty)
             }
         }
     }
@@ -229,19 +221,16 @@ struct FieldEditorView: View {
         // 制約をリセット
         field.constraints = FieldConstraints()
     }
-
-    private func saveAndDismiss() {
-        onSave(field)
-        dismiss()
-    }
 }
 
 #Preview {
-    FieldEditorView(
-        field: BuiltField(
-            name: "name",
-            fieldType: .string,
-            description: "ユーザー名"
-        )
-    ) { _ in }
+    NavigationStack {
+        FieldEditorView(
+            field: BuiltField(
+                name: "name",
+                fieldType: .string,
+                description: "ユーザー名"
+            )
+        ) { _ in }
+    }
 }

@@ -37,6 +37,11 @@ public final class AppState {
     private(set) var builtTypes: [BuiltType] = []
     private(set) var selectedBuiltType: BuiltType?
 
+    // MARK: - Agent Definitions & Sessions
+
+    private(set) var definitions: [AgentDefinition] = []
+    private(set) var sessions: [AgentSession] = []
+
     // MARK: - Computed Properties
 
     var hasAnyLLMKey: Bool {
@@ -127,6 +132,55 @@ public final class AppState {
 
     func setSelectedBuiltType(_ type: BuiltType?) {
         selectedBuiltType = type
+    }
+
+    // MARK: - Agent Definitions
+
+    func setDefinitions(_ defs: [AgentDefinition]) {
+        definitions = defs
+    }
+
+    func addDefinition(_ definition: AgentDefinition) {
+        definitions.insert(definition, at: 0)
+    }
+
+    func updateDefinition(_ definition: AgentDefinition) {
+        guard let index = definitions.firstIndex(where: { $0.id == definition.id }) else {
+            return
+        }
+        definitions[index] = definition
+    }
+
+    func deleteDefinition(id: UUID) {
+        definitions.removeAll { $0.id == id }
+        // Also remove associated sessions
+        sessions.removeAll { $0.definitionId == id }
+    }
+
+    // MARK: - Agent Sessions
+
+    func setSessions(_ sess: [AgentSession]) {
+        sessions = sess
+    }
+
+    func addSession(_ session: AgentSession) {
+        sessions.insert(session, at: 0)
+    }
+
+    func updateSession(_ session: AgentSession) {
+        guard let index = sessions.firstIndex(where: { $0.id == session.id }) else {
+            return
+        }
+        sessions[index] = session
+    }
+
+    func deleteSession(id: UUID) {
+        sessions.removeAll { $0.id == id }
+    }
+
+    /// 最近更新されたセッション（最大5件）
+    var recentSessions: [AgentSession] {
+        Array(sessions.sorted { $0.updatedAt > $1.updatedAt }.prefix(5))
     }
 
     // MARK: - Sync

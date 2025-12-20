@@ -7,6 +7,8 @@ import ExamplesCommon
 struct AppDependencies: Sendable {
     let apiKey: APIKeyUseCase
     let builtType: BuiltTypeUseCase
+    let definition: AgentDefinitionUseCase
+    let session: AgentSessionUseCase
 
     init() {
         // Infrastructure
@@ -16,10 +18,14 @@ struct AppDependencies: Sendable {
         // Repository
         let apiKeyRepository = APIKeyRepositoryImpl(keychain: keychain)
         let builtTypeRepository = BuiltTypeRepositoryImpl(storage: fileStorage)
+        let definitionRepository = AgentDefinitionRepository(storage: fileStorage)
+        let sessionRepository = AgentSessionRepository(storage: fileStorage)
 
         // UseCase
         self.apiKey = APIKeyUseCaseImpl(repository: apiKeyRepository)
         self.builtType = BuiltTypeUseCaseImpl(repository: builtTypeRepository)
+        self.definition = AgentDefinitionUseCase(repository: definitionRepository)
+        self.session = AgentSessionUseCase(repository: sessionRepository)
     }
 }
 
