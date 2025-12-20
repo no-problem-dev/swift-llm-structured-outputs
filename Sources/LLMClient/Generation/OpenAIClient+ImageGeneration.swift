@@ -79,13 +79,17 @@ extension OpenAIClient: ImageGenerationCapable {
         }
 
         // リクエスト作成
+        // GPT-Image モデルは response_format をサポートしない（常に base64 を返す）
+        // DALL-E モデルのみ response_format を使用
+        let useResponseFormat = model == .dalle2 || model == .dalle3
+
         let request = OpenAIImageRequest(
             model: model.id,
             prompt: prompt,
             n: n,
             size: actualSize.rawValue,
             quality: quality?.rawValue,
-            responseFormat: "b64_json",
+            responseFormat: useResponseFormat ? "b64_json" : nil,
             outputFormat: actualFormat == .png ? nil : actualFormat.fileExtension
         )
 
@@ -217,7 +221,9 @@ private struct OpenAIImageRequest: Encodable {
     let n: Int
     let size: String
     let quality: String?
-    let responseFormat: String
+    /// DALL-E モデル用（GPT-Image は常に base64 を返すため不要）
+    let responseFormat: String?
+    /// GPT-Image モデル用（png, jpeg, webp）
     let outputFormat: String?
 
     enum CodingKeys: String, CodingKey {
@@ -228,6 +234,17 @@ private struct OpenAIImageRequest: Encodable {
         case quality
         case responseFormat = "response_format"
         case outputFormat = "output_format"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(model, forKey: .model)
+        try container.encode(prompt, forKey: .prompt)
+        try container.encode(n, forKey: .n)
+        try container.encode(size, forKey: .size)
+        try container.encodeIfPresent(quality, forKey: .quality)
+        try container.encodeIfPresent(responseFormat, forKey: .responseFormat)
+        try container.encodeIfPresent(outputFormat, forKey: .outputFormat)
     }
 }
 

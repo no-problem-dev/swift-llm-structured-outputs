@@ -135,7 +135,7 @@ struct ContentView: View {
                             icon: "photo.artframe",
                             color: .purple,
                             title: "画像生成",
-                            description: "プロンプトから画像を生成（OpenAI のみ）"
+                            description: "プロンプトから画像を生成（OpenAI / Gemini）"
                         )
                     }
 

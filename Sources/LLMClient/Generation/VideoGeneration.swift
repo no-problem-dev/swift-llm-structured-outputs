@@ -174,32 +174,54 @@ public enum OpenAIVideoModel: String, Sendable, Codable, CaseIterable, Equatable
 
 // MARK: - Gemini Video Models
 
-/// Gemini 動画生成モデル
+/// Gemini 動画生成モデル（Veo）
 public enum GeminiVideoModel: String, Sendable, Codable, CaseIterable, Equatable {
-    /// Veo 2（高品質動画生成）
-    case veo2 = "veo-002"
+    /// Veo 3.1（最新・高品質）
+    case veo31 = "veo-3.1-generate-preview"
+    /// Veo 3.1 Fast（高速版）
+    case veo31Fast = "veo-3.1-fast-generate-preview"
+    /// Veo 3.0（安定版）
+    case veo30 = "veo-3.0-generate-001"
+    /// Veo 3.0 Fast（高速版）
+    case veo30Fast = "veo-3.0-fast-generate-001"
+    /// Veo 2.0
+    case veo20 = "veo-2.0-generate-001"
 
     /// モデル ID
     public var id: String { rawValue }
 
     /// 表示名
     public var displayName: String {
-        "Veo 2"
+        switch self {
+        case .veo31: return "Veo 3.1"
+        case .veo31Fast: return "Veo 3.1 Fast"
+        case .veo30: return "Veo 3.0"
+        case .veo30Fast: return "Veo 3.0 Fast"
+        case .veo20: return "Veo 2.0"
+        }
     }
 
     /// サポートされる最大動画長（秒）
-    public var maxDuration: Int {
-        60
+    public var maxDuration: Int { 8 }
+
+    /// サポートされる動画長オプション
+    public var supportedDurations: [Int] {
+        [4, 6, 8]
     }
 
     /// サポートされるアスペクト比
     public var supportedAspectRatios: [VideoAspectRatio] {
-        [.landscape16x9, .portrait9x16, .square1x1]
+        [.landscape16x9, .portrait9x16]
     }
 
     /// サポートされる解像度
     public var supportedResolutions: [VideoResolution] {
-        [.fhd1080p, .uhd4k]
+        switch self {
+        case .veo31, .veo31Fast, .veo30, .veo30Fast:
+            return [.hd720p, .fhd1080p]  // 1080pは8秒のみ
+        case .veo20:
+            return [.hd720p]
+        }
     }
 }
 

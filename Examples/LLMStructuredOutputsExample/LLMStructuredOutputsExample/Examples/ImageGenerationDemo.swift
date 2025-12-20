@@ -147,9 +147,9 @@ struct ImageGenerationDemo: View {
     private var isImageGenerationSupported: Bool {
         switch settings.selectedProvider {
         case .openai:
-            return true  // DALL-E サポート
+            return true  // DALL-E / GPT-Image サポート
         case .gemini:
-            return false  // Imagen 3 は Vertex AI 経由のみ（特別なアクセス権が必要）
+            return true  // Imagen 3 サポート（generativelanguage.googleapis.com 経由）
         case .anthropic:
             return false  // Claude は画像生成非対応
         }
