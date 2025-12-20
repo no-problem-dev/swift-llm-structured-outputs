@@ -1,0 +1,49 @@
+{
+    "theme": {
+        "color": {
+            "standard-blue": "#0066CC",
+            "standard-purple": "#7B68EE",
+            "standard-green": "#28A745",
+            "fill": "#F8F9FA",
+            "documentation-intro-fill": "#E8F4FD",
+            "documentation-intro-accent": "#0066CC"
+        },
+        "typography": {
+            "html-font": "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif",
+            "html-font-mono": "'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+        },
+        "features": {
+            "docs": {
+                "quickNavigation": {
+                    "enable": true
+                },
+                "i18n": {
+                    "enable": true
+                }
+            }
+        },
+        "aside": {
+            "note": {
+                "background": "#E3F2FD",
+                "border": "#2196F3"
+            },
+            "important": {
+                "background": "#FFF3E0",
+                "border": "#FF9800"
+            },
+            "warning": {
+                "background": "#FFEBEE",
+                "border": "#F44336"
+            },
+            "tip": {
+                "background": "#E8F5E9",
+                "border": "#4CAF50"
+            }
+        }
+    },
+    "meta": {
+        "generator": "Swift-DocC",
+        "version": "1.0",
+        "schemaVersion": "0.1.0"
+    }
+}

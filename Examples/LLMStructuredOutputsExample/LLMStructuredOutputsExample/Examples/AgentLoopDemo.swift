@@ -7,6 +7,7 @@
 
 import SwiftUI
 import LLMStructuredOutputs
+import LLMAgent
 
 /// エージェントループデモ
 ///
@@ -186,7 +187,7 @@ struct AgentLoopDemo: View {
         }
     }
 
-    private func processStep(_ step: AgentStep<WeatherReport>) -> AgentStepInfo {
+    private func processStep(_ step: LLMAgent.AgentStep<WeatherReport>) -> AgentStepInfo {
         switch step {
         case .thinking(let response):
             let text = response.content.compactMap { $0.text }.joined()

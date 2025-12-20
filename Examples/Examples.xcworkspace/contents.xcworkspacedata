@@ -1,6 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Workspace
    version = "1.0">
+   <Group
+      location = "group:"
+      name = "swift-llm-structured-outputs">
+      <FileRef
+         location = "group:../Package.swift">
+      </FileRef>
+      <FileRef
+         location = "group:../Sources">
+      </FileRef>
+      <FileRef
+         location = "group:../Tests">
+      </FileRef>
+   </Group>
+   <FileRef
+      location = "group:ExamplesCommon">
+   </FileRef>
+   <FileRef
+      location = "group:LLMStructuredOutputsExample/LLMStructuredOutputsExample.xcodeproj">
+   </FileRef>
    <FileRef
       location = "group:AgentExample/AgentExample.xcodeproj">
    </FileRef>
@@ -8,6 +27,6 @@
       location = "group:ConversationAgentExample/ConversationAgentExample.xcodeproj">
    </FileRef>
    <FileRef
-      location = "group:LLMStructuredOutputsExample/LLMStructuredOutputsExample.xcodeproj">
+      location = "group:AgentBuilderExample/AgentBuilderExample.xcodeproj">
    </FileRef>
 </Workspace>

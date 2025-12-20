@@ -2,11 +2,12 @@ import Foundation
 
 // MARK: - LLMProvider Protocol
 
-/// LLM プロバイダーの共通インターフェース（内部実装）
+/// LLM プロバイダーの共通インターフェース
 ///
 /// このプロトコルは内部実装で使用されます。
 /// 外部からは `StructuredLLMClient` プロトコルを使用してください。
-internal protocol LLMProvider: Sendable {
+/// パッケージ内の他モジュールからアクセス可能です。
+package protocol LLMProvider: Sendable {
     /// リクエストを送信してレスポンスを取得
     ///
     /// - Parameter request: LLM リクエスト
@@ -17,31 +18,32 @@ internal protocol LLMProvider: Sendable {
 
 // MARK: - LLMRequest
 
-/// LLM への統一リクエスト形式（内部実装）
+/// LLM への統一リクエスト形式
 ///
 /// 基本的な LLM リクエストのみを扱います。
 /// ツールコール機能は LLMTool モジュールで拡張されます。
-internal struct LLMRequest: Sendable {
+/// パッケージ内の他モジュールからアクセス可能です。
+package struct LLMRequest: Sendable {
     /// 使用するモデル
-    public let model: LLMModel
+    package let model: LLMModel
 
     /// メッセージ履歴
-    public let messages: [LLMMessage]
+    package let messages: [LLMMessage]
 
     /// システムプロンプト（オプション）
-    public let systemPrompt: String?
+    package let systemPrompt: String?
 
     /// 構造化出力のスキーマ（nil の場合はプレーンテキスト）
-    public let responseSchema: JSONSchema?
+    package let responseSchema: JSONSchema?
 
     /// 温度パラメータ（0.0-1.0）
-    public let temperature: Double?
+    package let temperature: Double?
 
     /// 最大トークン数
-    public let maxTokens: Int?
+    package let maxTokens: Int?
 
     /// リクエストを初期化
-    public init(
+    package init(
         model: LLMModel,
         messages: [LLMMessage],
         systemPrompt: String? = nil,
@@ -389,8 +391,9 @@ public struct LLMMessage: Sendable, Codable {
 
 // MARK: - LLMModel
 
-/// LLM モデル指定（内部実装）
-internal enum LLMModel: Sendable, Equatable {
+/// LLM モデル指定
+/// パッケージ内の他モジュールからアクセス可能です。
+package enum LLMModel: Sendable, Equatable {
     /// Anthropic Claude モデル
     case claude(ClaudeModel)
 

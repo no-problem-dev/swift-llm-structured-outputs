@@ -2,6 +2,10 @@
 
 swift-llm-structured-outputs をプロジェクトに追加して、LLM から構造化出力を生成する方法を学びます。
 
+@Metadata {
+    @PageColor(blue)
+}
+
 ## 概要
 
 このガイドでは、LLMStructuredOutputs の基本的なセットアップと使い方を説明します。
@@ -34,46 +38,80 @@ dependencies: [
 
 `@Structured` マクロを使用して、構造化出力として使用できる型を定義:
 
-```swift
-import LLMStructuredOutputs
+@Row {
+    @Column(size: 2) {
+        ```swift
+        import LLMStructuredOutputs
 
-@Structured("書籍情報")
-struct BookInfo {
-    @StructuredField("書籍のタイトル")
-    var title: String
+        @Structured("書籍情報")
+        struct BookInfo {
+            @StructuredField("書籍のタイトル")
+            var title: String
 
-    @StructuredField("著者名")
-    var author: String
+            @StructuredField("著者名")
+            var author: String
 
-    @StructuredField("出版年", .minimum(1000), .maximum(2100))
-    var year: Int
+            @StructuredField("出版年", .minimum(1000), .maximum(2100))
+            var year: Int
 
-    @StructuredField("ジャンル")
-    var genres: [String]
+            @StructuredField("ジャンル")
+            var genres: [String]
+        }
+        ```
+    }
+
+    @Column {
+        ### ポイント
+
+        - `@Structured` でクラスまたは構造体をマーク
+        - `@StructuredField` で各フィールドに説明を追加
+        - 制約（`.minimum`, `.maximum` など）でバリデーション
+        - 配列型もサポート
+    }
 }
-```
 
 ## クライアントの作成
 
 使用する LLM プロバイダーに応じてクライアントを選択:
 
-```swift
-// Anthropic Claude
-let anthropic = AnthropicClient(apiKey: "sk-ant-...")
+@TabNavigator {
+    @Tab("Anthropic Claude") {
+        ```swift
+        import LLMStructuredOutputs
 
-// OpenAI GPT
-let openai = OpenAIClient(apiKey: "sk-...")
+        let client = AnthropicClient(apiKey: "sk-ant-...")
+        ```
 
-// Google Gemini
-let gemini = GeminiClient(apiKey: "...")
-```
+        **対応モデル**: Sonnet, Haiku, Opus
+    }
+
+    @Tab("OpenAI GPT") {
+        ```swift
+        import LLMStructuredOutputs
+
+        let client = OpenAIClient(apiKey: "sk-...")
+        ```
+
+        **対応モデル**: GPT-4o, GPT-4o-mini, o1, o1-mini
+    }
+
+    @Tab("Google Gemini") {
+        ```swift
+        import LLMStructuredOutputs
+
+        let client = GeminiClient(apiKey: "...")
+        ```
+
+        **対応モデル**: Flash, Pro
+    }
+}
 
 ## 出力の生成
 
 プロンプトを指定して `generate` メソッドを呼び出す:
 
 ```swift
-let book: BookInfo = try await anthropic.generate(
+let book: BookInfo = try await client.generate(
     prompt: "ジョージ・オーウェルの1984年について教えて",
     model: .sonnet
 )
@@ -81,28 +119,55 @@ let book: BookInfo = try await anthropic.generate(
 print(book.title)   // "1984年"
 print(book.author)  // "ジョージ・オーウェル"
 print(book.year)    // 1949
+print(book.genres)  // ["ディストピア", "SF", "政治小説"]
 ```
 
 ## 制約の使用
 
 LLM の出力を検証するための制約を追加:
 
-```swift
-@Structured("商品情報")
-struct Product {
-    @StructuredField("商品名", .minLength(1), .maxLength(100))
-    var name: String
+@Row {
+    @Column {
+        ### 文字列の制約
 
-    @StructuredField("価格（円）", .minimum(0))
-    var price: Int
+        ```swift
+        @StructuredField("商品名",
+            .minLength(1),
+            .maxLength(100))
+        var name: String
 
-    @StructuredField("在庫数", .minimum(0), .maximum(10000))
-    var stock: Int
+        @StructuredField("メール",
+            .pattern("^[\\w.-]+@[\\w.-]+$"))
+        var email: String
+        ```
+    }
 
-    @StructuredField("タグ", .minItems(1), .maxItems(10))
-    var tags: [String]
+    @Column {
+        ### 数値の制約
+
+        ```swift
+        @StructuredField("価格（円）",
+            .minimum(0))
+        var price: Int
+
+        @StructuredField("在庫数",
+            .minimum(0),
+            .maximum(10000))
+        var stock: Int
+        ```
+    }
+
+    @Column {
+        ### 配列の制約
+
+        ```swift
+        @StructuredField("タグ",
+            .minItems(1),
+            .maxItems(10))
+        var tags: [String]
+        ```
+    }
 }
-```
 
 ## 列挙型の使用
 
@@ -141,6 +206,7 @@ do {
         prompt: "...",
         model: .sonnet
     )
+    // 成功
 } catch let error as LLMError {
     switch error {
     case .apiError(let message):
@@ -151,11 +217,15 @@ do {
         print("無効なレスポンス")
     case .networkError(let underlying):
         print("ネットワークエラー: \(underlying)")
+    default:
+        print("その他のエラー: \(error)")
     }
 }
 ```
 
 ## 次のステップ
 
-- <doc:Providers> で各プロバイダーとモデルについて学ぶ
-- <doc:Conversations> でマルチターン会話を実装する
+@Links(visualStyle: detailedGrid) {
+    - <doc:Providers>
+    - <doc:Conversations>
+}

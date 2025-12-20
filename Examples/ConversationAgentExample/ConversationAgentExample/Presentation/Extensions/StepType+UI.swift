@@ -1,6 +1,7 @@
 import SwiftUI
+import ExamplesCommon
 
-extension ConversationStepInfo.StepType {
+extension ConversationStepInfo.StepType: ExecutionPhaseProvider {
 
     var icon: String {
         switch self {

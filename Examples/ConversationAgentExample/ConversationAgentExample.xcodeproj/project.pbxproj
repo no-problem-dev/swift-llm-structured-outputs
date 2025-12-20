@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		19069BEA2EF62E0700A547E3 /* LLMMCP in Frameworks */ = {isa = PBXBuildFile; productRef = 19069BE92EF62E0700A547E3 /* LLMMCP */; };
+		1906A0622EF63D2A00A547E3 /* ExamplesCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 1906A0612EF63D2A00A547E3 /* ExamplesCommon */; };
 		1941B6E32EF0D76A007AC9A1 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 1941B6E22EF0D76A007AC9A1 /* MarkdownUI */; };
 		1941B8E22EF19CEC007AC9A1 /* LLMStructuredOutputs in Frameworks */ = {isa = PBXBuildFile; productRef = 1941B8E12EF19CEC007AC9A1 /* LLMStructuredOutputs */; };
 		1941B93C2EF19EA5007AC9A1 /* LLMToolkits in Frameworks */ = {isa = PBXBuildFile; productRef = 1941B93B2EF19EA5007AC9A1 /* LLMToolkits */; };
@@ -33,6 +34,7 @@
 				1941B8E22EF19CEC007AC9A1 /* LLMStructuredOutputs in Frameworks */,
 				1941B93C2EF19EA5007AC9A1 /* LLMToolkits in Frameworks */,
 				1941B6E32EF0D76A007AC9A1 /* MarkdownUI in Frameworks */,
+				1906A0622EF63D2A00A547E3 /* ExamplesCommon in Frameworks */,
 				19069BEA2EF62E0700A547E3 /* LLMMCP in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -88,6 +90,7 @@
 				1941B8E12EF19CEC007AC9A1 /* LLMStructuredOutputs */,
 				1941B93B2EF19EA5007AC9A1 /* LLMToolkits */,
 				19069BE92EF62E0700A547E3 /* LLMMCP */,
+				1906A0612EF63D2A00A547E3 /* ExamplesCommon */,
 			);
 			productName = ConversationAgentExample;
 			productReference = 1941B6602EF0CC3E007AC9A1 /* ConversationAgentExample.app */;
@@ -120,6 +123,7 @@
 			packageReferences = (
 				1941B6E12EF0D76A007AC9A1 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				1941B8E02EF19CEC007AC9A1 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */,
+				1906A0602EF63D2A00A547E3 /* XCLocalSwiftPackageReference "../ExamplesCommon" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1941B6612EF0CC3E007AC9A1 /* Products */;
@@ -363,6 +367,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		1906A0602EF63D2A00A547E3 /* XCLocalSwiftPackageReference "../ExamplesCommon" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../ExamplesCommon;
+		};
 		1941B8E02EF19CEC007AC9A1 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../../../swift-llm-structured-outputs";
@@ -385,6 +393,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1941B8E02EF19CEC007AC9A1 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */;
 			productName = LLMMCP;
+		};
+		1906A0612EF63D2A00A547E3 /* ExamplesCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ExamplesCommon;
 		};
 		1941B6E22EF0D76A007AC9A1 /* MarkdownUI */ = {
 			isa = XCSwiftPackageProductDependency;

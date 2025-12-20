@@ -54,7 +54,7 @@ import Foundation
 ///
 /// ...
 /// ```
-public struct Prompt: Sendable, Equatable {
+public struct Prompt: Sendable, Equatable, Codable {
 
     // MARK: - Properties
 

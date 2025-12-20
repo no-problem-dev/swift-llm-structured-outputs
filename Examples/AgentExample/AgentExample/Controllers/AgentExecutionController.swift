@@ -8,6 +8,7 @@
 
 import Foundation
 import LLMStructuredOutputs
+import LLMAgent
 
 /// エージェント実行制御
 @Observable @MainActor
@@ -222,7 +223,7 @@ final class AgentExecutionController {
 
     // MARK: - Private Methods - Step Processing
 
-    private func processStep<Output>(_ step: AgentStep<Output>) -> AgentStepInfo {
+    private func processStep<Output>(_ step: LLMAgent.AgentStep<Output>) -> AgentStepInfo {
         switch step {
         case .thinking(let response):
             let text = response.content.compactMap { $0.text }.joined()

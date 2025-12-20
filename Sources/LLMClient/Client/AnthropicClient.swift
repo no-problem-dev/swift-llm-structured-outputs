@@ -41,7 +41,7 @@ import FoundationNetworking
 public struct AnthropicClient: StructuredLLMClient {
     public typealias Model = ClaudeModel
 
-    private let provider: any LLMProvider
+    package let provider: any LLMProvider
 
     // MARK: - Package Access (for extension by other modules)
 

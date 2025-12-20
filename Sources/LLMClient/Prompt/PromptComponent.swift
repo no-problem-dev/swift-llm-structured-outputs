@@ -25,7 +25,7 @@ import Foundation
 /// - **思考誘導系 (Chain-of-Thought)**: `thinkingStep`, `reasoning`
 /// - **例示系 (Few-shot)**: `example`
 /// - **メタ指示系**: `important`, `note`
-public enum PromptComponent: Sendable, Equatable {
+public enum PromptComponent: Sendable, Equatable, Codable {
 
     // MARK: - ペルソナ系
 
@@ -220,7 +220,7 @@ public enum PromptComponent: Sendable, Equatable {
 extension PromptComponent {
 
     /// XML タグ名を取得
-    var tagName: String {
+    public var tagName: String {
         switch self {
         case .role: return "role"
         case .expertise: return "expertise"
@@ -235,6 +235,28 @@ extension PromptComponent {
         case .important: return "important"
         case .note: return "note"
         case .outputConstraint: return "output_constraint"
+        }
+    }
+
+    /// コンテンツのプレビュー（UI表示用）
+    public var contentPreview: String {
+        switch self {
+        case .role(let value),
+             .expertise(let value),
+             .behavior(let value),
+             .objective(let value),
+             .context(let value),
+             .instruction(let value),
+             .constraint(let value),
+             .thinkingStep(let value),
+             .reasoning(let value),
+             .important(let value),
+             .note(let value),
+             .outputConstraint(let value):
+            return value
+
+        case .example(let input, let output):
+            return "Input: \(input) → Output: \(output)"
         }
     }
 

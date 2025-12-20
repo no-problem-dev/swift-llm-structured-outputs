@@ -42,7 +42,7 @@ import FoundationNetworking
 public struct GeminiClient: StructuredLLMClient {
     public typealias Model = GeminiModel
 
-    private let provider: any LLMProvider
+    package let provider: any LLMProvider
 
     // MARK: - Package Access (for extension by other modules)
 
