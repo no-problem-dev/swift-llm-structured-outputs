@@ -7,6 +7,25 @@
 
 ## [未リリース]
 
+## [1.0.19] - 2025-12-20
+
+### 変更
+
+- **LLMMCP を Umbrella モジュールから分離**: MCP SDK の推移的依存を解消
+  - LLMMCP を独立したライブラリ product として公開
+  - LLMStructuredOutputs から `@_exported import LLMMCP` を削除
+  - MCP 機能を使用する場合は明示的に `import LLMMCP` が必要に
+  - README/README_EN に LLMMCP の使用方法を追加
+
+- **ConversationAgentExample の State/UseCase/View リファクタリング**
+  - 責務分離による保守性向上
+  - Umbrella モジュールと重複する import を整理
+
+### 修正
+
+- **DocC 重複モジュール問題を修正**: snake_case モジュール名が表示される問題を解消
+  - Documentation.md を削除し @TechnologyRoot を LLMStructuredOutputs.md に移動
+
 ## [1.0.18] - 2025-12-19
 
 ### 追加
@@ -447,7 +466,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.18...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.19...HEAD
+[1.0.19]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.18...v1.0.19
 [1.0.18]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.17...v1.0.18
 [1.0.17]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.16...v1.0.17
 [1.0.16]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.15...v1.0.16
@@ -490,3 +510,5 @@
 <!-- Auto-generated on 2025-12-16T15:12:51Z by release workflow -->
 
 <!-- Auto-generated on 2025-12-18T01:03:17Z by release workflow -->
+
+<!-- Auto-generated on 2025-12-18T23:39:00Z by release workflow -->

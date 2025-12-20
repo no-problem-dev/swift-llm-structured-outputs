@@ -215,6 +215,7 @@ LLMToolkits には以下が含まれます：
 
 ```swift
 import LLMStructuredOutputs
+import LLMMCP  // MCP機能を使用する場合は追加
 
 let tools = ToolSet {
     // 組み込みToolKit（iOS/macOS両対応）
@@ -251,7 +252,9 @@ dependencies: [
     dependencies: [
         .product(name: "LLMStructuredOutputs", package: "swift-llm-structured-outputs"),
         // オプション: 高レベルツールキットを使用する場合
-        .product(name: "LLMToolkits", package: "swift-llm-structured-outputs")
+        .product(name: "LLMToolkits", package: "swift-llm-structured-outputs"),
+        // オプション: MCP統合（外部MCPサーバー接続）を使用する場合
+        .product(name: "LLMMCP", package: "swift-llm-structured-outputs")
     ]
 )
 ```
@@ -273,8 +276,9 @@ dependencies: [
 
 ### 📚 APIリファレンス（DocC）
 
-- [LLMStructuredOutputs](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) - 型安全な構造化出力 API（MCP統合含む）
+- [LLMStructuredOutputs](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) - 型安全な構造化出力 API
 - [LLMToolkits](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/) - 高レベルツールキット（プリセット、組み込みツール、共通出力）
+- [LLMMCP](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmmcp/) - MCP統合（外部MCPサーバー接続、組み込みToolKit）
 
 ## 対応プロバイダー
 

@@ -19,6 +19,11 @@ let package = Package(
             name: "LLMToolkits",
             targets: ["LLMToolkits"]
         ),
+        // オプション: MCPサーバー統合（外部MCPサーバーとの接続サポート）
+        .library(
+            name: "LLMMCP",
+            targets: ["LLMMCP"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
@@ -85,7 +90,7 @@ let package = Package(
         // MARK: - Umbrella Module (全モジュールを再エクスポート)
         .target(
             name: "LLMStructuredOutputs",
-            dependencies: ["LLMClient", "LLMTool", "LLMConversation", "LLMAgent", "LLMConversationalAgent", "LLMMCP"]
+            dependencies: ["LLMClient", "LLMTool", "LLMConversation", "LLMAgent", "LLMConversationalAgent"]
         ),
 
         // MARK: - Tests
