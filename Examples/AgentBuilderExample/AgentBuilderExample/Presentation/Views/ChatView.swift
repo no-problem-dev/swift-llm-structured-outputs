@@ -25,9 +25,9 @@ struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SchemaInfoHeader(schema: agent.outputSchema)
-
-            Divider()
+            SchemaVisualizer(schema: agent.outputSchema)
+                .padding(.horizontal)
+                .padding(.top, 8)
 
             mainContentSection
 
@@ -408,51 +408,6 @@ struct ChatView: View {
             chatState.setResult(output)
             chatState.setExecutionState(.completed)
         }
-    }
-}
-
-// MARK: - SchemaInfoHeader
-
-private struct SchemaInfoHeader: View {
-    let schema: OutputSchema
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(schema.name)
-                    .font(.headline)
-
-                Spacer()
-
-                Text("\(schema.fields.count) fields")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if let description = schema.description {
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack(spacing: 8) {
-                ForEach(schema.fields.prefix(5)) { field in
-                    Label(field.name, systemImage: field.type.icon)
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.fill.tertiary)
-                        .clipShape(Capsule())
-                }
-                if schema.fields.count > 5 {
-                    Text("+\(schema.fields.count - 5)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding()
-        .background(.fill.quaternary)
     }
 }
 
