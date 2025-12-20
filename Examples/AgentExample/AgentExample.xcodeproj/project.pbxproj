@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		19069BE82EF62DFE00A547E3 /* LLMMCP in Frameworks */ = {isa = PBXBuildFile; productRef = 19069BE72EF62DFE00A547E3 /* LLMMCP */; };
 		1941B3792EEE959A007AC9A1 /* LLMStructuredOutputs in Frameworks */ = {isa = PBXBuildFile; productRef = 1941B3782EEE959A007AC9A1 /* LLMStructuredOutputs */; };
 /* End PBXBuildFile section */
 
@@ -28,16 +29,25 @@
 			buildActionMask = 2147483647;
 			files = (
 				1941B3792EEE959A007AC9A1 /* LLMStructuredOutputs in Frameworks */,
+				19069BE82EF62DFE00A547E3 /* LLMMCP in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		19069BE62EF62DFE00A547E3 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		1941B33E2EEE9125007AC9A1 = {
 			isa = PBXGroup;
 			children = (
 				1941B3492EEE9125007AC9A1 /* AgentExample */,
+				19069BE62EF62DFE00A547E3 /* Frameworks */,
 				1941B3482EEE9125007AC9A1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -71,6 +81,7 @@
 			name = AgentExample;
 			packageProductDependencies = (
 				1941B3782EEE959A007AC9A1 /* LLMStructuredOutputs */,
+				19069BE72EF62DFE00A547E3 /* LLMMCP */,
 			);
 			productName = AgentExample;
 			productReference = 1941B3472EEE9125007AC9A1 /* AgentExample.app */;
@@ -350,6 +361,11 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		19069BE72EF62DFE00A547E3 /* LLMMCP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1941B3772EEE959A007AC9A1 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */;
+			productName = LLMMCP;
+		};
 		1941B3782EEE959A007AC9A1 /* LLMStructuredOutputs */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = LLMStructuredOutputs;

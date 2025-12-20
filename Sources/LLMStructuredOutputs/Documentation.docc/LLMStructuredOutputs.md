@@ -2,6 +2,10 @@
 
 Swift LLM クライアント向けの型安全な構造化出力生成ライブラリ。
 
+@Metadata {
+    @TechnologyRoot
+}
+
 ## 概要
 
 LLMStructuredOutputs は、大規模言語モデルから型安全な構造化出力を生成できる Swift ライブラリです。Swift マクロを使用して、完全なバリデーション制約付きの出力型を定義でき、ライブラリが自動的に JSON Schema を生成し、複数の LLM プロバイダーからのレスポンスを処理します。

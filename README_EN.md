@@ -243,7 +243,9 @@ Add to your target:
     dependencies: [
         .product(name: "LLMStructuredOutputs", package: "swift-llm-structured-outputs"),
         // Optional: Use high-level toolkit
-        .product(name: "LLMToolkits", package: "swift-llm-structured-outputs")
+        .product(name: "LLMToolkits", package: "swift-llm-structured-outputs"),
+        // Optional: Use MCP integration (external MCP server connection)
+        .product(name: "LLMMCP", package: "swift-llm-structured-outputs")
     ]
 )
 ```
@@ -409,6 +411,7 @@ For detailed documentation, see:
 ### API Reference (DocC)
 - [LLMStructuredOutputs](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) - Type-safe structured outputs API
 - [LLMToolkits](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/) - High-level toolkit (presets, built-in tools, common outputs)
+- [LLMMCP](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmmcp/) - MCP integration (external MCP server connection, built-in ToolKits)
 
 ### Guides
   - [Getting Started](documentation/getting-started.md)
