@@ -143,32 +143,63 @@ extension VideoGenerationCapable {
 
 // MARK: - OpenAI Video Models
 
-/// OpenAI 動画生成モデル
+/// OpenAI 動画生成モデル（Sora 2）
+///
+/// Sora 2 は OpenAI の第2世代動画生成モデルです。
+/// 2025年9月にリリースされ、API経由で利用可能です。
 public enum OpenAIVideoModel: String, Sendable, Codable, CaseIterable, Equatable {
-    /// Sora（高品質動画生成）
-    case sora = "sora"
+    /// Sora 2（標準版・高速）
+    ///
+    /// 高速な生成が可能で、プロトタイプやソーシャルメディア向けに最適。
+    /// 解像度: 720p (1280x720)
+    case sora2 = "sora-2"
+
+    /// Sora 2 Pro（高品質版）
+    ///
+    /// より高品質な出力を生成。本番環境やマーケティング向けに最適。
+    /// 解像度: 1080p (1792x1024)
+    case sora2Pro = "sora-2-pro"
 
     /// モデル ID
     public var id: String { rawValue }
 
     /// 表示名
     public var displayName: String {
-        "Sora"
+        switch self {
+        case .sora2: return "Sora 2"
+        case .sora2Pro: return "Sora 2 Pro"
+        }
+    }
+
+    /// サポートされる動画長オプション（秒）
+    public var supportedDurations: [Int] {
+        [4, 8, 12]
     }
 
     /// サポートされる最大動画長（秒）
-    public var maxDuration: Int {
-        60
-    }
+    public var maxDuration: Int { 12 }
 
     /// サポートされるアスペクト比
     public var supportedAspectRatios: [VideoAspectRatio] {
-        [.landscape16x9, .portrait9x16, .square1x1]
+        [.landscape16x9, .portrait9x16]
     }
 
     /// サポートされる解像度
     public var supportedResolutions: [VideoResolution] {
-        [.hd720p, .fhd1080p]
+        switch self {
+        case .sora2:
+            return [.hd720p]
+        case .sora2Pro:
+            return [.hd720p, .fhd1080p]
+        }
+    }
+
+    /// デフォルト解像度
+    public var defaultResolution: VideoResolution {
+        switch self {
+        case .sora2: return .hd720p
+        case .sora2Pro: return .fhd1080p
+        }
     }
 }
 

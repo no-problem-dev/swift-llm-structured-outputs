@@ -23,7 +23,7 @@ struct ImageGenerationDemo: View {
     @State private var selectedQuality: ImageQuality = .standard
     @State private var selectedFormat: ImageOutputFormat = .png
     @State private var selectedOpenAIModel: OpenAIImageModel = .dalle3
-    @State private var selectedGeminiModel: GeminiImageModel = .imagen3
+    @State private var selectedGeminiModel: GeminiImageModel = .gemini20FlashImage
     @State private var state: ImageGenerationState = .idle
     @State private var generatedImage: GeneratedImage?
     @State private var errorDetails: String?
@@ -149,7 +149,7 @@ struct ImageGenerationDemo: View {
         case .openai:
             return true  // DALL-E / GPT-Image サポート
         case .gemini:
-            return true  // Imagen 3 サポート（generativelanguage.googleapis.com 経由）
+            return true  // Imagen 4 / Gemini Image サポート（generativelanguage.googleapis.com 経由）
         case .anthropic:
             return false  // Claude は画像生成非対応
         }
@@ -270,7 +270,7 @@ private struct DescriptionSection: View {
 
             対応プロバイダー:
             • OpenAI: DALL-E 2/3、GPT-Image（品質・フォーマット選択可）
-            • Gemini: Imagen 3（Vertex AI 経由のみ、このデモでは非対応）
+            • Gemini: Gemini 2.0 Flash Image、Imagen 4 シリーズ（PNG固定）
             • Claude: 非対応
             """)
             .font(.caption)
@@ -322,9 +322,9 @@ private struct ProviderSupportSection: View {
                         Text("Gemini").font(.caption)
                     }
                     .frame(width: 80, alignment: .leading)
-                    Text("Vertex AI経由").font(.system(size: 8)).foregroundStyle(.secondary)
+                    Text("Imagen 4等").font(.system(size: 9))
                     Text("-").font(.system(size: 8))
-                    Text("-").font(.system(size: 8))
+                    Text("PNG").font(.system(size: 8))
                 }
 
                 GridRow {
@@ -401,10 +401,12 @@ private struct OptionsSection: View {
                     .pickerStyle(.segmented)
                 case .gemini:
                     Picker("モデル", selection: $selectedGeminiModel) {
-                        Text("Imagen 3").tag(GeminiImageModel.imagen3)
-                        Text("Imagen 3 Fast").tag(GeminiImageModel.imagen3Fast)
+                        Text("Gemini Flash").tag(GeminiImageModel.gemini20FlashImage)
+                        Text("Imagen 4").tag(GeminiImageModel.imagen4)
+                        Text("Imagen 4 Fast").tag(GeminiImageModel.imagen4Fast)
+                        Text("Imagen 4 Ultra").tag(GeminiImageModel.imagen4Ultra)
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
                 case .anthropic:
                     EmptyView()
                 }
@@ -741,10 +743,10 @@ private struct CodeExampleSection: View {
         // Gemini クライアントを作成
         let client = GeminiClient(apiKey: "AIza...")
 
-        // 画像を生成（Imagen 3）
+        // 画像を生成（Gemini 2.0 Flash Image）
         let image = try await client.generateImage(
             prompt: "A serene Japanese garden with cherry blossoms",
-            model: .imagen3,
+            model: .gemini20FlashImage,  // または .imagen4, .imagen4Fast, .imagen4Ultra
             size: .square1024
         )
 

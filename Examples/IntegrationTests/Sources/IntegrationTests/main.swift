@@ -511,25 +511,40 @@ func runSpeechGenerationTests(runner: TestRunner) async {
 func runVideoModelTests(runner: TestRunner) async {
     printHeader("🎬 VIDEO GENERATION MODEL TESTS (Local)")
 
-    // Test OpenAI Video Models
-    printTestStart("OpenAIVideoModel Properties")
-    let soraModel = OpenAIVideoModel.sora
-    print("   Model ID: \(soraModel.id)")
-    print("   Display Name: \(soraModel.displayName)")
-    print("   Max Duration: \(soraModel.maxDuration) seconds")
-    print("   Supported Aspect Ratios: \(soraModel.supportedAspectRatios.map { $0.rawValue })")
-    print("   Supported Resolutions: \(soraModel.supportedResolutions.map { $0.rawValue })")
+    // Test OpenAI Video Models (Sora 2)
+    printTestStart("OpenAIVideoModel Properties - Sora 2")
+    let sora2Model = OpenAIVideoModel.sora2
+    print("   Model ID: \(sora2Model.id)")
+    print("   Display Name: \(sora2Model.displayName)")
+    print("   Max Duration: \(sora2Model.maxDuration) seconds")
+    print("   Supported Durations: \(sora2Model.supportedDurations)")
+    print("   Supported Aspect Ratios: \(sora2Model.supportedAspectRatios.map { $0.rawValue })")
+    print("   Supported Resolutions: \(sora2Model.supportedResolutions.map { $0.rawValue })")
+    print("   Default Resolution: \(sora2Model.defaultResolution.rawValue)")
     print("   ✅ PASSED")
     await runner.recordPass()
 
-    // Test Gemini Video Models
-    printTestStart("GeminiVideoModel Properties")
-    let veoModel = GeminiVideoModel.veo20
-    print("   Model ID: \(veoModel.id)")
-    print("   Display Name: \(veoModel.displayName)")
-    print("   Max Duration: \(veoModel.maxDuration) seconds")
-    print("   Supported Aspect Ratios: \(veoModel.supportedAspectRatios.map { $0.rawValue })")
-    print("   Supported Resolutions: \(veoModel.supportedResolutions.map { $0.rawValue })")
+    // Test OpenAI Video Models (Sora 2 Pro)
+    printTestStart("OpenAIVideoModel Properties - Sora 2 Pro")
+    let sora2ProModel = OpenAIVideoModel.sora2Pro
+    print("   Model ID: \(sora2ProModel.id)")
+    print("   Display Name: \(sora2ProModel.displayName)")
+    print("   Max Duration: \(sora2ProModel.maxDuration) seconds")
+    print("   Supported Durations: \(sora2ProModel.supportedDurations)")
+    print("   Supported Aspect Ratios: \(sora2ProModel.supportedAspectRatios.map { $0.rawValue })")
+    print("   Supported Resolutions: \(sora2ProModel.supportedResolutions.map { $0.rawValue })")
+    print("   Default Resolution: \(sora2ProModel.defaultResolution.rawValue)")
+    print("   ✅ PASSED")
+    await runner.recordPass()
+
+    // Test Gemini Video Models (Veo)
+    printTestStart("GeminiVideoModel Properties - All Models")
+    for veoModel in GeminiVideoModel.allCases {
+        print("   \(veoModel.displayName):")
+        print("     ID: \(veoModel.id)")
+        print("     Max Duration: \(veoModel.maxDuration)s")
+        print("     Resolutions: \(veoModel.supportedResolutions.map { $0.rawValue })")
+    }
     print("   ✅ PASSED")
     await runner.recordPass()
 
@@ -561,6 +576,150 @@ func runVideoModelTests(runner: TestRunner) async {
     }
     print("   ✅ PASSED")
     await runner.recordPass()
+}
+
+// MARK: - Video Generation API Tests
+
+@MainActor
+func runVideoGenerationTests(runner: TestRunner) async {
+    printHeader("🎬 VIDEO GENERATION API TESTS (OpenAI Sora 2)")
+    print("⚠️  Note: Video generation is expensive and time-consuming (1-3 minutes)")
+
+    guard let apiKey = Config.openAIKey, !apiKey.isEmpty else {
+        print("⚠️  OPENAI_API_KEY not set - skipping video generation tests")
+        await runner.recordSkip()
+        return
+    }
+
+    let client = OpenAIClient(apiKey: apiKey)
+
+    // Test 1: Start Video Generation Job
+    printTestStart("Sora 2 - Start Video Generation Job")
+    do {
+        let job = try await client.startVideoGeneration(
+            prompt: "A simple animation of a red ball bouncing on a white floor",
+            model: .sora2,
+            duration: 4,
+            aspectRatio: .landscape16x9,
+            resolution: .hd720p
+        )
+
+        print("   ✅ Job Started")
+        print("   Job ID: \(job.id)")
+        print("   Status: \(job.status.rawValue)")
+        print("   Prompt: \(job.prompt.prefix(50))...")
+
+        // Poll for completion (with timeout)
+        print("   Polling for completion...")
+        var currentJob = job
+        let startTime = Date()
+        let timeout: TimeInterval = 180  // 3 minutes
+
+        while !currentJob.status.isTerminal {
+            let elapsed = Date().timeIntervalSince(startTime)
+            if elapsed > timeout {
+                print("   ⚠️ Timeout after \(Int(elapsed)) seconds")
+                break
+            }
+
+            try await Task.sleep(nanoseconds: 10_000_000_000)  // 10 seconds
+            currentJob = try await client.checkVideoStatus(currentJob)
+            print("   Status: \(currentJob.status.rawValue), Progress: \(currentJob.progress.map { String(format: "%.0f%%", $0 * 100) } ?? "N/A")")
+        }
+
+        if currentJob.status == .completed {
+            print("   ✅ Video Generation Completed")
+
+            // Download the video
+            let video = try await client.getGeneratedVideo(currentJob)
+            print("   Video Size: \(video.data.count) bytes")
+            print("   Format: \(video.format.rawValue)")
+            if let duration = video.duration {
+                print("   Duration: \(duration) seconds")
+            }
+            await runner.recordPass()
+        } else if currentJob.status == .failed {
+            print("   ❌ FAILED: \(currentJob.errorMessage ?? "Unknown error")")
+            await runner.recordFail()
+        } else {
+            print("   ⚠️ Job did not complete within timeout")
+            await runner.recordSkip()
+        }
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
+}
+
+@MainActor
+func runGeminiVideoGenerationTests(runner: TestRunner) async {
+    printHeader("🎬 GEMINI VIDEO GENERATION API TESTS (Veo)")
+    print("⚠️  Note: Video generation is expensive and time-consuming (1-3 minutes)")
+
+    guard let apiKey = Config.geminiKey, !apiKey.isEmpty else {
+        print("⚠️  GEMINI_API_KEY not set - skipping Gemini video generation tests")
+        await runner.recordSkip()
+        return
+    }
+
+    let client = GeminiClient(apiKey: apiKey)
+
+    // Test 1: Start Video Generation Job with Veo 3.1 Fast
+    printTestStart("Veo 3.1 Fast - Start Video Generation Job")
+    do {
+        let job = try await client.startVideoGeneration(
+            prompt: "A simple animation of a blue sphere floating in space",
+            model: .veo31Fast,
+            duration: 4,
+            aspectRatio: .landscape16x9,
+            resolution: .hd720p
+        )
+
+        print("   ✅ Job Started")
+        print("   Job ID: \(job.id)")
+        print("   Status: \(job.status.rawValue)")
+        print("   Prompt: \(job.prompt.prefix(50))...")
+
+        // Poll for completion (with timeout)
+        print("   Polling for completion...")
+        var currentJob = job
+        let startTime = Date()
+        let timeout: TimeInterval = 180  // 3 minutes
+
+        while !currentJob.status.isTerminal {
+            let elapsed = Date().timeIntervalSince(startTime)
+            if elapsed > timeout {
+                print("   ⚠️ Timeout after \(Int(elapsed)) seconds")
+                break
+            }
+
+            try await Task.sleep(nanoseconds: 10_000_000_000)  // 10 seconds
+            currentJob = try await client.checkVideoStatus(currentJob)
+            print("   Status: \(currentJob.status.rawValue), Progress: \(currentJob.progress.map { String(format: "%.0f%%", $0 * 100) } ?? "N/A")")
+        }
+
+        if currentJob.status == .completed {
+            print("   ✅ Video Generation Completed")
+
+            // Download the video
+            let video = try await client.getGeneratedVideo(currentJob)
+            print("   Video Size: \(video.data.count) bytes")
+            print("   Format: \(video.format.rawValue)")
+            if let duration = video.duration {
+                print("   Duration: \(duration) seconds")
+            }
+            await runner.recordPass()
+        } else if currentJob.status == .failed {
+            print("   ❌ FAILED: \(currentJob.errorMessage ?? "Unknown error")")
+            await runner.recordFail()
+        } else {
+            print("   ⚠️ Job did not complete within timeout")
+            await runner.recordSkip()
+        }
+    } catch {
+        print("   ❌ FAILED: \(error)")
+        await runner.recordFail()
+    }
 }
 
 // MARK: - Output Format Tests (Local)
@@ -926,6 +1085,11 @@ await runGeminiVisionTests(runner: runner)
 
 // Run Anthropic API tests
 await runAnthropicVisionTests(runner: runner)
+
+// Run Video Generation API tests (expensive, run last)
+// Note: These tests are time-consuming and costly, uncomment to run
+// await runVideoGenerationTests(runner: runner)
+// await runGeminiVideoGenerationTests(runner: runner)
 
 // Print summary
 let summary = await runner.summary()

@@ -140,6 +140,17 @@ struct ContentView: View {
                     }
 
                     NavigationLink {
+                        VideoGenerationDemo()
+                    } label: {
+                        DemoRow(
+                            icon: "film.stack",
+                            color: .red,
+                            title: "動画生成",
+                            description: "プロンプトから動画を生成（OpenAI Sora / Gemini Veo）"
+                        )
+                    }
+
+                    NavigationLink {
                         SpeechGenerationDemo()
                     } label: {
                         DemoRow(

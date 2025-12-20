@@ -53,7 +53,7 @@ extension GeminiClient: VideoGenerationCapable {
             prompt: prompt,
             aspectRatio: veoAspectRatioString(for: actualAspectRatio),
             resolution: veoResolutionString(for: actualResolution),
-            durationSeconds: String(actualDuration),
+            durationSeconds: actualDuration,
             negativePrompt: nil
         )
 
@@ -98,7 +98,14 @@ extension GeminiClient: VideoGenerationCapable {
         }
 
         let decoder = JSONDecoder()
-        let operationResponse = try decoder.decode(VeoOperationResponse.self, from: data)
+        let operationResponse: VeoOperationResponse
+        do {
+            operationResponse = try decoder.decode(VeoOperationResponse.self, from: data)
+        } catch {
+            // デコード失敗時は生のJSONを確認
+            let rawJSON = String(data: data, encoding: .utf8) ?? "Unable to decode"
+            throw LLMError.invalidRequest("Failed to decode response: \(error.localizedDescription). Raw: \(rawJSON.prefix(500))")
+        }
 
         let status: VideoGenerationStatus
         var videoURL: URL?
@@ -108,14 +115,18 @@ extension GeminiClient: VideoGenerationCapable {
             if let error = operationResponse.error {
                 status = .failed
                 errorMessage = error.message
-            } else if let result = operationResponse.response,
-                      let video = result.generatedVideos?.first,
-                      let uri = video.uri {
+            } else if let uri = operationResponse.getVideoURL() {
                 status = .completed
                 videoURL = URL(string: uri)
+            } else if let base64 = operationResponse.getVideoBase64() {
+                // Base64 データがある場合は data URL として扱う
+                status = .completed
+                videoURL = URL(string: "data:video/mp4;base64,\(base64)")
             } else {
                 status = .failed
-                errorMessage = "No video generated"
+                // デバッグ用にレスポンス情報を含める
+                let rawJSON = String(data: data, encoding: .utf8) ?? "Unable to decode"
+                errorMessage = "No video generated. Response: \(rawJSON.prefix(1000))"
             }
         } else {
             status = .processing
@@ -139,11 +150,41 @@ extension GeminiClient: VideoGenerationCapable {
             throw VideoGenerationError.generationFailed("No video URL available")
         }
 
-        // 動画データをダウンロード
-        let (data, _) = try await URLSession.shared.data(from: videoURL)
+        let videoData: Data
+        let urlString = videoURL.absoluteString
+
+        // URI の形式によって処理を分岐
+        if urlString.contains(":download") || urlString.contains("alt=media") {
+            // 既にダウンロード URL の場合は直接ダウンロード
+            var downloadRequest = URLRequest(url: videoURL)
+            downloadRequest.httpMethod = "GET"
+            downloadRequest.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+            let (data, response) = try await session.data(for: downloadRequest)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+                throw VideoGenerationError.generationFailed("Failed to download video (status: \(statusCode))")
+            }
+            videoData = data
+        } else if urlString.hasPrefix("gs://") || urlString.contains("files/") {
+            // Gemini Files API 経由でダウンロード（ファイル参照の場合）
+            videoData = try await downloadViaFilesAPI(uri: urlString)
+        } else if urlString.hasPrefix("data:") {
+            // Base64 data URL
+            if let base64Start = urlString.range(of: "base64,"),
+               let data = Data(base64Encoded: String(urlString[base64Start.upperBound...])) {
+                videoData = data
+            } else {
+                throw VideoGenerationError.generationFailed("Invalid base64 data URL")
+            }
+        } else {
+            // 通常の HTTP(S) URL
+            let (data, _) = try await session.data(from: videoURL)
+            videoData = data
+        }
 
         return GeneratedVideo(
-            data: data,
+            data: videoData,
             format: .mp4,
             remoteURL: videoURL,
             duration: job.configuration?.duration.map { TimeInterval($0) },
@@ -151,6 +192,96 @@ extension GeminiClient: VideoGenerationCapable {
             jobId: job.id,
             prompt: job.prompt
         )
+    }
+
+    /// Gemini Files API 経由で動画をダウンロード
+    private func downloadViaFilesAPI(uri: String) async throws -> Data {
+        // URI から file name を抽出
+        // 形式: "files/abc123" または "gs://bucket/path/file.mp4" または完全な URL
+        let fileName: String
+
+        if uri.hasPrefix("https://generativelanguage.googleapis.com/") {
+            // 完全な API URL の場合、files/ 以降を抽出
+            if let range = uri.range(of: "files/") {
+                fileName = String(uri[range.lowerBound...])
+            } else {
+                throw VideoGenerationError.generationFailed("Cannot extract file name from URL: \(uri)")
+            }
+        } else if uri.hasPrefix("gs://") {
+            // GCS URI の場合
+            throw VideoGenerationError.generationFailed("GCS URI direct download not supported: \(uri)")
+        } else if uri.hasPrefix("files/") {
+            // files/xxx 形式
+            fileName = uri
+        } else if let range = uri.range(of: "files/") {
+            // 何らかのパスに files/ が含まれている場合
+            fileName = String(uri[range.lowerBound...])
+        } else {
+            throw VideoGenerationError.generationFailed("Unknown URI format: \(uri)")
+        }
+
+        // 1. files.get でファイル情報を取得（downloadUri を含む）
+        let fileInfoURLString = "https://generativelanguage.googleapis.com/v1beta/\(fileName)"
+        guard let fileInfoURL = URL(string: fileInfoURLString) else {
+            throw VideoGenerationError.generationFailed("Invalid file info URL: \(fileInfoURLString)")
+        }
+        var fileInfoRequest = URLRequest(url: fileInfoURL)
+        fileInfoRequest.httpMethod = "GET"
+        fileInfoRequest.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+
+        let (fileInfoData, fileInfoResponse) = try await session.data(for: fileInfoRequest)
+
+        guard let httpResponse = fileInfoResponse as? HTTPURLResponse else {
+            throw VideoGenerationError.generationFailed("Invalid response from files.get")
+        }
+
+        let rawFileInfoJSON = String(data: fileInfoData, encoding: .utf8) ?? "Unable to decode (binary data)"
+
+        guard httpResponse.statusCode == 200 else {
+            throw VideoGenerationError.generationFailed("Failed to get file info (status: \(httpResponse.statusCode)). Response: \(rawFileInfoJSON.prefix(500))"
+            )
+        }
+
+        // downloadUri を抽出
+        struct FileInfo: Decodable {
+            let name: String?
+            let displayName: String?
+            let mimeType: String?
+            let sizeBytes: String?
+            let uri: String?
+            let downloadUri: String?
+        }
+
+        let fileInfo: FileInfo
+        do {
+            fileInfo = try JSONDecoder().decode(FileInfo.self, from: fileInfoData)
+        } catch {
+            throw VideoGenerationError.generationFailed("Failed to decode file info: \(error.localizedDescription). Raw JSON: \(rawFileInfoJSON.prefix(1000))")
+        }
+
+        guard let downloadUri = fileInfo.downloadUri else {
+            throw VideoGenerationError.generationFailed("No download URI in file info. Raw JSON: \(rawFileInfoJSON.prefix(1000))")
+        }
+
+        // 2. downloadUri から動画をダウンロード
+        guard let downloadURL = URL(string: downloadUri) else {
+            throw VideoGenerationError.generationFailed("Invalid download URI: \(downloadUri)")
+        }
+
+        var downloadRequest = URLRequest(url: downloadURL)
+        downloadRequest.httpMethod = "GET"
+        // downloadUri にはすでに認証情報が含まれている場合もあるが、念のためヘッダーも付ける
+        downloadRequest.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+
+        let (videoData, downloadResponse) = try await session.data(for: downloadRequest)
+
+        guard let downloadHttpResponse = downloadResponse as? HTTPURLResponse,
+              downloadHttpResponse.statusCode == 200 else {
+            let statusCode = (downloadResponse as? HTTPURLResponse)?.statusCode ?? -1
+            throw VideoGenerationError.generationFailed("Failed to download video (status: \(statusCode))")
+        }
+
+        return videoData
     }
 
     // MARK: - Private Helpers
@@ -262,7 +393,7 @@ private struct VeoVideoRequest {
     let prompt: String
     let aspectRatio: String
     let resolution: String
-    let durationSeconds: String
+    let durationSeconds: Int
     let negativePrompt: String?
 }
 
@@ -279,7 +410,7 @@ private struct VeoVideoParameters: Encodable {
     let aspectRatio: String
     let negativePrompt: String?
     let resolution: String
-    let durationSeconds: String
+    let durationSeconds: Int
 }
 
 private struct VeoOperationResponse: Decodable {
@@ -287,6 +418,45 @@ private struct VeoOperationResponse: Decodable {
     let done: Bool?
     let error: VeoError?
     let response: VeoResult?
+
+    /// 動画 URL を取得（複数のレスポンス形式に対応）
+    func getVideoURL() -> String? {
+        guard let response = response else { return nil }
+
+        // Format 1: Gemini API format - generateVideoResponse.generatedSamples[].video.uri
+        if let sample = response.generateVideoResponse?.generatedSamples?.first,
+           let uri = sample.video?.uri {
+            return uri
+        }
+
+        // Format 2: Vertex AI format - videos[].gcsUri or bytesBase64Encoded
+        if let video = response.videos?.first {
+            if let gcsUri = video.gcsUri {
+                return gcsUri
+            }
+        }
+
+        // Format 3: Legacy format - generatedVideos[].uri
+        if let video = response.generatedVideos?.first,
+           let uri = video.uri {
+            return uri
+        }
+
+        return nil
+    }
+
+    /// Base64 エンコードされた動画データを取得
+    func getVideoBase64() -> String? {
+        guard let response = response else { return nil }
+
+        // Vertex AI format - videos[].bytesBase64Encoded
+        if let video = response.videos?.first,
+           let bytes = video.bytesBase64Encoded {
+            return bytes
+        }
+
+        return nil
+    }
 }
 
 private struct VeoError: Decodable {
@@ -296,9 +466,38 @@ private struct VeoError: Decodable {
 }
 
 private struct VeoResult: Decodable {
+    // Gemini API format
+    let generateVideoResponse: VeoGenerateVideoResponse?
+
+    // Vertex AI format
+    let videos: [VeoVideo]?
+
+    // Legacy format
     let generatedVideos: [VeoGeneratedVideo]?
 }
 
+// Gemini API format structures
+private struct VeoGenerateVideoResponse: Decodable {
+    let generatedSamples: [VeoGeneratedSample]?
+}
+
+private struct VeoGeneratedSample: Decodable {
+    let video: VeoVideoInfo?
+}
+
+private struct VeoVideoInfo: Decodable {
+    let uri: String?
+    let mimeType: String?
+}
+
+// Vertex AI format structures
+private struct VeoVideo: Decodable {
+    let gcsUri: String?
+    let bytesBase64Encoded: String?
+    let mimeType: String?
+}
+
+// Legacy format structures
 private struct VeoGeneratedVideo: Decodable {
     let uri: String?
     let encoding: String?
