@@ -207,12 +207,12 @@ func runGeminiImageGenerationTests(runner: TestRunner) async {
 
     let client = GeminiClient(apiKey: apiKey)
 
-    // Test 1: Basic Image Generation with Imagen 3
-    printTestStart("Imagen 3 Basic Generation")
+    // Test 1: Gemini 2.0 Flash Image (generateContent API)
+    printTestStart("Gemini 2.0 Flash Image Generation")
     do {
         let image = try await client.generateImage(
             prompt: "A simple red circle on white background",
-            model: .imagen3,
+            model: .gemini20FlashImage,
             size: .square1024,
             quality: nil,
             format: .png,
@@ -229,12 +229,12 @@ func runGeminiImageGenerationTests(runner: TestRunner) async {
         await runner.recordFail()
     }
 
-    // Test 2: Imagen 3 Fast
-    printTestStart("Imagen 3 Fast Generation")
+    // Test 2: Imagen 4 (predict API)
+    printTestStart("Imagen 4 Basic Generation")
     do {
         let image = try await client.generateImage(
             prompt: "A simple blue square",
-            model: .imagen3Fast,
+            model: .imagen4,
             size: .square1024,
             quality: nil,
             format: .png,
@@ -250,13 +250,13 @@ func runGeminiImageGenerationTests(runner: TestRunner) async {
         await runner.recordFail()
     }
 
-    // Test 3: Landscape Size
-    printTestStart("Imagen 3 Landscape Size (1536x1024)")
+    // Test 3: Imagen 4 Fast
+    printTestStart("Imagen 4 Fast Generation")
     do {
         let image = try await client.generateImage(
             prompt: "A horizontal green line",
-            model: .imagen3,
-            size: .landscape1536x1024,
+            model: .imagen4Fast,
+            size: .square1024,
             quality: nil,
             format: .png,
             n: 1
@@ -270,13 +270,13 @@ func runGeminiImageGenerationTests(runner: TestRunner) async {
         await runner.recordFail()
     }
 
-    // Test 4: Portrait Size
-    printTestStart("Imagen 3 Portrait Size (1024x1536)")
+    // Test 4: Imagen 4 Ultra
+    printTestStart("Imagen 4 Ultra Generation")
     do {
         let image = try await client.generateImage(
             prompt: "A vertical purple line",
-            model: .imagen3,
-            size: .portrait1024x1536,
+            model: .imagen4Ultra,
+            size: .square1024,
             quality: nil,
             format: .png,
             n: 1
@@ -524,7 +524,7 @@ func runVideoModelTests(runner: TestRunner) async {
 
     // Test Gemini Video Models
     printTestStart("GeminiVideoModel Properties")
-    let veoModel = GeminiVideoModel.veo2
+    let veoModel = GeminiVideoModel.veo20
     print("   Model ID: \(veoModel.id)")
     print("   Display Name: \(veoModel.displayName)")
     print("   Max Duration: \(veoModel.maxDuration) seconds")

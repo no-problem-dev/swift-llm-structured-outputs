@@ -262,11 +262,22 @@ public enum OpenAIImageModel: String, Sendable, Codable, CaseIterable, Equatable
 // MARK: - Gemini Image Models
 
 /// Gemini 画像生成モデル
+///
+/// 注意: Imagen 3 は Gemini API (generativelanguage.googleapis.com) では
+/// まだ公開されていません（Vertex AI のみ）。
+/// 利用可能なモデルは Imagen 4 および Gemini Image モデルです。
 public enum GeminiImageModel: String, Sendable, Codable, CaseIterable, Equatable {
-    /// Imagen 3（高品質画像生成）
-    case imagen3 = "imagen-3.0-generate-002"
-    /// Imagen 3 Fast（高速画像生成）
-    case imagen3Fast = "imagen-3.0-fast-generate-001"
+    // MARK: - Imagen 4 Models
+    /// Imagen 4（最新・高品質画像生成）
+    case imagen4 = "imagen-4.0-generate-001"
+    /// Imagen 4 Ultra（最高品質）
+    case imagen4Ultra = "imagen-4.0-ultra-generate-001"
+    /// Imagen 4 Fast（高速画像生成）
+    case imagen4Fast = "imagen-4.0-fast-generate-001"
+
+    // MARK: - Gemini Image Models（マルチモーダル画像生成）
+    /// Gemini 2.0 Flash Image（高速・効率的、1024px）
+    case gemini20FlashImage = "gemini-2.0-flash-exp-image-generation"
 
     /// モデル ID
     public var id: String { rawValue }
@@ -274,18 +285,43 @@ public enum GeminiImageModel: String, Sendable, Codable, CaseIterable, Equatable
     /// 表示名
     public var displayName: String {
         switch self {
-        case .imagen3: return "Imagen 3"
-        case .imagen3Fast: return "Imagen 3 Fast"
+        case .imagen4: return "Imagen 4"
+        case .imagen4Ultra: return "Imagen 4 Ultra"
+        case .imagen4Fast: return "Imagen 4 Fast"
+        case .gemini20FlashImage: return "Gemini 2.0 Flash Image"
+        }
+    }
+
+    /// Imagen モデルかどうか
+    public var isImagenModel: Bool {
+        switch self {
+        case .imagen4, .imagen4Ultra, .imagen4Fast:
+            return true
+        case .gemini20FlashImage:
+            return false
         }
     }
 
     /// サポートされる画像サイズ
     public var supportedSizes: [ImageSize] {
-        ImageSize.imagen3Sizes
+        switch self {
+        case .imagen4, .imagen4Ultra, .imagen4Fast:
+            return ImageSize.imagen3Sizes
+        case .gemini20FlashImage:
+            // Gemini Image モデルは固定サイズ
+            return [.square1024]
+        }
     }
 
     /// 最大生成枚数
-    public var maxImages: Int { 4 }
+    public var maxImages: Int {
+        switch self {
+        case .imagen4, .imagen4Ultra, .imagen4Fast:
+            return 4
+        case .gemini20FlashImage:
+            return 1  // Gemini Image は1枚ずつ
+        }
+    }
 }
 
 // MARK: - ImageGenerationError

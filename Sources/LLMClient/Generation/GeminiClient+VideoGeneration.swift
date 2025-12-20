@@ -84,6 +84,8 @@ extension GeminiClient: VideoGenerationCapable {
 
         var urlRequest = URLRequest(url: endpoint)
         urlRequest.httpMethod = "GET"
+        // Veo API は x-goog-api-key ヘッダーで認証
+        urlRequest.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
 
         let (data, response) = try await session.data(for: urlRequest)
 
@@ -162,6 +164,8 @@ extension GeminiClient: VideoGenerationCapable {
         var urlRequest = URLRequest(url: endpoint)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Veo API は x-goog-api-key ヘッダーで認証
+        urlRequest.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
 
         let requestBody = VeoVideoRequestBody(
             instances: [VeoVideoInstance(prompt: request.prompt)],
@@ -193,17 +197,13 @@ extension GeminiClient: VideoGenerationCapable {
     private func videoGenerationEndpoint(for model: GeminiVideoModel) -> URL {
         // Veo uses predictLongRunning endpoint
         let baseURLString = "https://generativelanguage.googleapis.com/v1beta/models/\(model.id):predictLongRunning"
-        var components = URLComponents(string: baseURLString)!
-        components.queryItems = [URLQueryItem(name: "key", value: apiKey)]
-        return components.url!
+        return URL(string: baseURLString)!
     }
 
     private func operationStatusEndpoint(operationName: String) -> URL {
         // Operations endpoint to check status
         let baseURLString = "https://generativelanguage.googleapis.com/v1beta/\(operationName)"
-        var components = URLComponents(string: baseURLString)!
-        components.queryItems = [URLQueryItem(name: "key", value: apiKey)]
-        return components.url!
+        return URL(string: baseURLString)!
     }
 
     private func veoAspectRatioString(for aspectRatio: VideoAspectRatio) -> String {

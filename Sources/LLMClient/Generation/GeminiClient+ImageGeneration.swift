@@ -2,6 +2,7 @@
 // swift-llm-structured-outputs
 //
 // Gemini クライアントの画像生成機能拡張
+// Imagen モデルと Gemini Image モデルの両方をサポート
 
 import Foundation
 #if canImport(FoundationNetworking)
@@ -79,46 +80,48 @@ extension GeminiClient: ImageGenerationCapable {
             throw ImageGenerationError.unsupportedFormat(requestedFormat, model: model.displayName)
         }
 
-        // リクエスト作成
-        let request = GeminiImageRequest(
-            prompt: prompt,
-            numberOfImages: n,
-            aspectRatio: aspectRatioString(for: actualSize),
-            personGeneration: "allow_adult"
-        )
-
-        // API 呼び出し
-        let response = try await sendImageRequest(request, model: model)
-
-        // レスポンス変換
-        return try response.predictions.compactMap { prediction -> GeneratedImage? in
-            guard let base64 = prediction.bytesBase64Encoded else {
-                return nil
-            }
-            guard let data = Data(base64Encoded: base64) else {
-                throw GeneratedMediaError.invalidBase64Data
-            }
-            return GeneratedImage(
-                data: data,
-                format: actualFormat,
-                revisedPrompt: nil
+        // モデルタイプに応じて処理を分岐
+        if model.isImagenModel {
+            return try await generateWithImagen(
+                prompt: prompt,
+                model: model,
+                size: actualSize,
+                n: n,
+                format: actualFormat
+            )
+        } else {
+            return try await generateWithGeminiImage(
+                prompt: prompt,
+                model: model,
+                format: actualFormat
             )
         }
     }
 
-    // MARK: - Private Helpers
+    // MARK: - Imagen API
 
-    private func sendImageRequest(
-        _ request: GeminiImageRequest,
-        model: GeminiImageModel
-    ) async throws -> GeminiImageResponse {
-        let endpoint = imageGenerationEndpoint(for: model)
+    private func generateWithImagen(
+        prompt: String,
+        model: GeminiImageModel,
+        size: ImageSize,
+        n: Int,
+        format: ImageOutputFormat
+    ) async throws -> [GeneratedImage] {
+        let endpoint = imagenEndpoint(for: model)
 
         var urlRequest = URLRequest(url: endpoint)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
 
-        let requestBody = GeminiImageRequestBody(instances: [request], parameters: nil)
+        let requestBody = ImagenRequestBody(
+            instances: [ImagenInstance(prompt: prompt)],
+            parameters: ImagenParameters(
+                sampleCount: n,
+                aspectRatio: aspectRatioString(for: size),
+                personGeneration: "allow_adult"
+            )
+        )
 
         let encoder = JSONEncoder()
         urlRequest.httpBody = try encoder.encode(requestBody)
@@ -134,16 +137,96 @@ extension GeminiClient: ImageGenerationCapable {
         }
 
         let decoder = JSONDecoder()
-        return try decoder.decode(GeminiImageResponse.self, from: data)
+        let imagenResponse = try decoder.decode(ImagenResponse.self, from: data)
+
+        return try imagenResponse.predictions.compactMap { prediction -> GeneratedImage? in
+            guard let base64 = prediction.bytesBase64Encoded else {
+                return nil
+            }
+            guard let imageData = Data(base64Encoded: base64) else {
+                throw GeneratedMediaError.invalidBase64Data
+            }
+            return GeneratedImage(
+                data: imageData,
+                format: format,
+                revisedPrompt: nil
+            )
+        }
     }
 
-    private func imageGenerationEndpoint(for model: GeminiImageModel) -> URL {
-        // Vertex AI / Generative AI endpoint for Imagen
+    private func imagenEndpoint(for model: GeminiImageModel) -> URL {
         let baseURLString = "https://generativelanguage.googleapis.com/v1beta/models/\(model.id):predict"
-        var components = URLComponents(string: baseURLString)!
-        components.queryItems = [URLQueryItem(name: "key", value: apiKey)]
-        return components.url!
+        return URL(string: baseURLString)!
     }
+
+    // MARK: - Gemini Image API (generateContent)
+
+    private func generateWithGeminiImage(
+        prompt: String,
+        model: GeminiImageModel,
+        format: ImageOutputFormat
+    ) async throws -> [GeneratedImage] {
+        let endpoint = geminiImageEndpoint(for: model)
+
+        var urlRequest = URLRequest(url: endpoint)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+
+        let requestBody = GeminiImageRequestBody(
+            contents: [
+                GeminiImageContent(parts: [GeminiImagePart(text: prompt)])
+            ],
+            generationConfig: GeminiImageGenerationConfig(
+                responseModalities: ["TEXT", "IMAGE"]
+            )
+        )
+
+        let encoder = JSONEncoder()
+        urlRequest.httpBody = try encoder.encode(requestBody)
+
+        let (data, response) = try await session.data(for: urlRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw LLMError.networkError(URLError(.badServerResponse))
+        }
+
+        if httpResponse.statusCode != 200 {
+            throw try parseError(from: data, statusCode: httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        let geminiResponse = try decoder.decode(GeminiImageResponse.self, from: data)
+
+        var images: [GeneratedImage] = []
+
+        for candidate in geminiResponse.candidates ?? [] {
+            for part in candidate.content?.parts ?? [] {
+                if let inlineData = part.inlineData,
+                   let base64 = inlineData.data,
+                   let imageData = Data(base64Encoded: base64) {
+                    images.append(GeneratedImage(
+                        data: imageData,
+                        format: format,
+                        revisedPrompt: nil
+                    ))
+                }
+            }
+        }
+
+        if images.isEmpty {
+            throw LLMError.emptyResponse
+        }
+
+        return images
+    }
+
+    private func geminiImageEndpoint(for model: GeminiImageModel) -> URL {
+        let baseURLString = "https://generativelanguage.googleapis.com/v1beta/models/\(model.id):generateContent"
+        return URL(string: baseURLString)!
+    }
+
+    // MARK: - Private Helpers
 
     private func aspectRatioString(for size: ImageSize) -> String {
         switch size {
@@ -187,29 +270,75 @@ extension GeminiClient: ImageGenerationCapable {
     }
 }
 
-// MARK: - Request/Response Types
+// MARK: - Imagen Request/Response Types
 
-private struct GeminiImageRequestBody: Encodable {
-    let instances: [GeminiImageRequest]
-    let parameters: GeminiImageParameters?
+private struct ImagenRequestBody: Encodable {
+    let instances: [ImagenInstance]
+    let parameters: ImagenParameters
 }
 
-private struct GeminiImageRequest: Encodable {
+private struct ImagenInstance: Encodable {
     let prompt: String
-    let numberOfImages: Int
+}
+
+private struct ImagenParameters: Encodable {
+    let sampleCount: Int
     let aspectRatio: String
     let personGeneration: String
 }
 
-private struct GeminiImageParameters: Encodable {
-    let sampleCount: Int?
+private struct ImagenResponse: Decodable {
+    let predictions: [ImagenPrediction]
+
+    struct ImagenPrediction: Decodable {
+        let bytesBase64Encoded: String?
+        let mimeType: String?
+    }
+}
+
+// MARK: - Gemini Image Request/Response Types
+
+private struct GeminiImageRequestBody: Encodable {
+    let contents: [GeminiImageContent]
+    let generationConfig: GeminiImageGenerationConfig
+}
+
+private struct GeminiImageContent: Encodable {
+    let parts: [GeminiImagePart]
+}
+
+private struct GeminiImagePart: Encodable {
+    let text: String?
+    let inlineData: GeminiInlineData?
+
+    init(text: String) {
+        self.text = text
+        self.inlineData = nil
+    }
+}
+
+private struct GeminiInlineData: Codable {
+    let mimeType: String?
+    let data: String?
+}
+
+private struct GeminiImageGenerationConfig: Encodable {
+    let responseModalities: [String]
 }
 
 private struct GeminiImageResponse: Decodable {
-    let predictions: [ImagePrediction]
+    let candidates: [GeminiCandidate]?
 
-    struct ImagePrediction: Decodable {
-        let bytesBase64Encoded: String?
-        let mimeType: String?
+    struct GeminiCandidate: Decodable {
+        let content: GeminiCandidateContent?
+    }
+
+    struct GeminiCandidateContent: Decodable {
+        let parts: [GeminiResponsePart]?
+    }
+
+    struct GeminiResponsePart: Decodable {
+        let text: String?
+        let inlineData: GeminiInlineData?
     }
 }
