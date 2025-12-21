@@ -424,7 +424,7 @@ private struct VideoPreviewSection: View {
                     if let url = URL(string: urlString) {
                         VideoPlayerView(url: url)
                             .showMetadata(true)
-                            .showActions([.play])
+                            .showActions([.play, .share, .saveToPhotos])
                             .id(urlString)
                     } else {
                         ContentUnavailableView(
@@ -438,7 +438,7 @@ private struct VideoPreviewSection: View {
                     if let data = videoData {
                         VideoPlayerView(data: data)
                             .showMetadata(true)
-                            .showActions([.play])
+                            .showActions([.play, .share, .saveToPhotos])
                     } else {
                         ContentUnavailableView(
                             "動画を選択してください",
