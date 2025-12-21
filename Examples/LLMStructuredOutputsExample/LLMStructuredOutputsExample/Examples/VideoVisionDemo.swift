@@ -425,6 +425,7 @@ private struct VideoPreviewSection: View {
                         VideoPlayerView(url: url)
                             .showMetadata(true)
                             .showActions([.play])
+                            .id(urlString)
                     } else {
                         ContentUnavailableView(
                             "URLが無効です",
