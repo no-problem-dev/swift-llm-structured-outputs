@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1906AAA32EF78F3F00A547E3 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 1906AAA22EF78F3F00A547E3 /* DesignSystem */; };
 		19A2715D2EEE43DE0005EE20 /* LLMStructuredOutputs in Frameworks */ = {isa = PBXBuildFile; productRef = 19A2715C2EEE43DE0005EE20 /* LLMStructuredOutputs */; };
 /* End PBXBuildFile section */
 
@@ -28,6 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				19A2715D2EEE43DE0005EE20 /* LLMStructuredOutputs in Frameworks */,
+				1906AAA32EF78F3F00A547E3 /* DesignSystem in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +73,7 @@
 			name = LLMStructuredOutputsExample;
 			packageProductDependencies = (
 				19A2715C2EEE43DE0005EE20 /* LLMStructuredOutputs */,
+				1906AAA22EF78F3F00A547E3 /* DesignSystem */,
 			);
 			productName = LLMStructuredOutputsExample;
 			productReference = 19A2714D2EEE427B0005EE20 /* LLMStructuredOutputsExample.app */;
@@ -102,6 +105,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				19A2715B2EEE43DE0005EE20 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */,
+				1906AAA12EF78F3F00A547E3 /* XCLocalSwiftPackageReference "../../../swift-design-system" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 19A2714E2EEE427B0005EE20 /* Products */;
@@ -339,6 +343,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		1906AAA12EF78F3F00A547E3 /* XCLocalSwiftPackageReference "../../../swift-design-system" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../../swift-design-system";
+		};
 		19A2715B2EEE43DE0005EE20 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../../../swift-llm-structured-outputs";
@@ -346,6 +354,10 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		1906AAA22EF78F3F00A547E3 /* DesignSystem */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DesignSystem;
+		};
 		19A2715C2EEE43DE0005EE20 /* LLMStructuredOutputs */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = LLMStructuredOutputs;
