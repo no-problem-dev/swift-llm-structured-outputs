@@ -656,7 +656,6 @@ private struct GeneratedVideoView: View {
     let video: GeneratedVideo
     @State private var player: AVPlayer?
     @State private var showingShareSheet = false
-    @State private var showingFullScreen = false
     @State private var tempFileURL: URL?
     @State private var saveMessage: String?
     @State private var showingSaveAlert = false
@@ -668,9 +667,6 @@ private struct GeneratedVideoView: View {
                 if let player = player {
                     VideoPlayer(player: player)
                         .frame(height: 300)
-                        .onTapGesture(count: 2) {
-                            showingFullScreen = true
-                        }
                 } else {
                     ProgressView("動画を読み込み中...")
                         .frame(maxWidth: .infinity, minHeight: 200)
@@ -714,13 +710,6 @@ private struct GeneratedVideoView: View {
                     .buttonStyle(.bordered)
 
                     Button {
-                        showingFullScreen = true
-                    } label: {
-                        Label("全画面", systemImage: "arrow.up.left.and.arrow.down.right")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button {
                         showingShareSheet = true
                     } label: {
                         Label("共有", systemImage: "square.and.arrow.up")
@@ -746,11 +735,6 @@ private struct GeneratedVideoView: View {
         .sheet(isPresented: $showingShareSheet) {
             if let url = tempFileURL {
                 ShareSheet(items: [url])
-            }
-        }
-        .fullScreenCover(isPresented: $showingFullScreen) {
-            if let player = player {
-                FullScreenVideoPlayer(player: player)
             }
         }
         .alert("保存", isPresented: $showingSaveAlert) {
@@ -817,23 +801,6 @@ private struct GeneratedVideoView: View {
                 showingSaveAlert = true
             }
         }
-    }
-}
-
-// MARK: - Full Screen Video Player
-
-private struct FullScreenVideoPlayer: UIViewControllerRepresentable {
-    let player: AVPlayer
-
-    func makeUIViewController(context: Context) -> AVPlayerViewController {
-        let controller = AVPlayerViewController()
-        controller.player = player
-        controller.allowsVideoFrameAnalysis = false
-        return controller
-    }
-
-    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
-        uiViewController.player = player
     }
 }
 
