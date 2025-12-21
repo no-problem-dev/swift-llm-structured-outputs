@@ -1,6 +1,7 @@
 import Foundation
 import LLMStructuredOutputs
 import LLMToolkits
+import LLMClient
 
 /// 各プロバイダーのセッションを統一的に扱うための enum
 enum ProviderSession: Sendable {
@@ -97,33 +98,33 @@ enum ProviderSession: Sendable {
     func runResearch(_ prompt: String) -> AsyncThrowingStream<SessionPhase<AnalysisResult>, Error> {
         switch self {
         case .anthropic(let session):
-            session.run(prompt, model: .sonnet, outputType: AnalysisResult.self)
+            session.run(input: LLMInput(prompt), model: .sonnet, outputType: AnalysisResult.self)
         case .openai(let session):
-            session.run(prompt, model: .gpt4o, outputType: AnalysisResult.self)
+            session.run(input: LLMInput(prompt), model: .gpt4o, outputType: AnalysisResult.self)
         case .gemini(let session):
-            session.run(prompt, model: .flash25, outputType: AnalysisResult.self)
+            session.run(input: LLMInput(prompt), model: .flash25, outputType: AnalysisResult.self)
         }
     }
 
     func runArticleSummary(_ prompt: String) -> AsyncThrowingStream<SessionPhase<Summary>, Error> {
         switch self {
         case .anthropic(let session):
-            session.run(prompt, model: .sonnet, outputType: Summary.self)
+            session.run(input: LLMInput(prompt), model: .sonnet, outputType: Summary.self)
         case .openai(let session):
-            session.run(prompt, model: .gpt4o, outputType: Summary.self)
+            session.run(input: LLMInput(prompt), model: .gpt4o, outputType: Summary.self)
         case .gemini(let session):
-            session.run(prompt, model: .flash25, outputType: Summary.self)
+            session.run(input: LLMInput(prompt), model: .flash25, outputType: Summary.self)
         }
     }
 
     func runCodeReview(_ prompt: String) -> AsyncThrowingStream<SessionPhase<CodeReview>, Error> {
         switch self {
         case .anthropic(let session):
-            session.run(prompt, model: .sonnet, outputType: CodeReview.self)
+            session.run(input: LLMInput(prompt), model: .sonnet, outputType: CodeReview.self)
         case .openai(let session):
-            session.run(prompt, model: .gpt4o, outputType: CodeReview.self)
+            session.run(input: LLMInput(prompt), model: .gpt4o, outputType: CodeReview.self)
         case .gemini(let session):
-            session.run(prompt, model: .flash25, outputType: CodeReview.self)
+            session.run(input: LLMInput(prompt), model: .flash25, outputType: CodeReview.self)
         }
     }
 

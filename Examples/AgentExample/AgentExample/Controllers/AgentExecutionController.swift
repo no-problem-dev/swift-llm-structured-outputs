@@ -9,6 +9,7 @@
 import Foundation
 import LLMStructuredOutputs
 import LLMAgent
+import LLMClient
 
 /// エージェント実行制御
 @Observable @MainActor
@@ -194,7 +195,7 @@ final class AgentExecutionController {
         let systemPrompt = S.systemPrompt()
 
         let agentStream: some AgentStepStream<S.Output> = client.runAgent(
-            prompt: prompt,
+            input: LLMInput(prompt),
             model: model,
             tools: tools,
             systemPrompt: systemPrompt,

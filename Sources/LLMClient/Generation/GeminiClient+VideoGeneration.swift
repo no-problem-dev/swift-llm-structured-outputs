@@ -18,12 +18,14 @@ extension GeminiClient: VideoGenerationCapable {
     /// Veo API を使用して動画生成を開始します。
     /// 動画生成は非同期で処理されるため、ジョブ ID を返します。
     public func startVideoGeneration(
-        prompt: String,
+        input: LLMInput,
         model: GeminiVideoModel,
         duration: Int?,
         aspectRatio: VideoAspectRatio?,
         resolution: VideoResolution?
     ) async throws -> VideoGenerationJob {
+        // プロンプトテキストを取得
+        let prompt = input.prompt.render()
         // バリデーション
         let actualDuration = duration ?? 4
         if !model.supportedDurations.contains(actualDuration) {

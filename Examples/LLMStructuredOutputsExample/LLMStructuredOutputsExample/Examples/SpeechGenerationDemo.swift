@@ -201,7 +201,7 @@ struct SpeechGenerationDemo: View {
         guard let client = settings.createOpenAIClient() else { return }
 
         let audio = try await client.generateSpeech(
-            text: inputText,
+            input: LLMInput(inputText),
             model: selectedModel,
             voice: selectedVoice,
             speed: selectedSpeed,
@@ -733,7 +733,7 @@ private struct CodeExampleSection: View {
 
         // 音声を生成
         let audio = try await client.generateSpeech(
-            text: "こんにちは、世界！",
+            input: "こんにちは、世界！",
             model: .tts1HD,
             voice: .nova,
             speed: 1.0,

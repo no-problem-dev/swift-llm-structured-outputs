@@ -188,14 +188,14 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
     // MARK: - Protocol Conformance: Core API
 
     nonisolated public func run<Output: StructuredProtocol>(
-        _ userMessage: String,
+        input: LLMInput,
         model: Client.Model,
         outputType: Output.Type = Output.self
     ) -> AsyncThrowingStream<SessionPhase<Output>, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 await self.executeLoop(
-                    userMessage: userMessage,
+                    input: input,
                     model: model,
                     outputType: Output.self,
                     continuation: continuation
@@ -259,7 +259,7 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
     }
 
     private func executeLoop<Output: StructuredProtocol>(
-        userMessage: String,
+        input: LLMInput,
         model: Client.Model,
         outputType: Output.Type,
         continuation: AsyncThrowingStream<SessionPhase<Output>, Error>.Continuation
@@ -271,10 +271,11 @@ public actor ConversationalAgentSession<Client: AgentCapableClient>: Conversatio
         }
 
         // ユーザーメッセージを追加
-        messages.append(LLMMessage.user(userMessage))
+        messages.append(input.toLLMMessage())
 
         // userMessage ステップを発行
-        updateStatusAndYield(.running(step: .userMessage(userMessage)), continuation: continuation)
+        let userMessageText = input.prompt.render()
+        updateStatusAndYield(.running(step: .userMessage(userMessageText)), continuation: continuation)
 
         await runAgentLoop(
             model: model,

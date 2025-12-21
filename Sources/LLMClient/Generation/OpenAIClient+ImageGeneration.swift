@@ -16,7 +16,7 @@ extension OpenAIClient: ImageGenerationCapable {
     /// 画像を生成
     ///
     /// - Parameters:
-    ///   - prompt: 画像を説明するプロンプト
+    ///   - input: LLM 入力（プロンプトテキスト）
     ///   - model: 使用する画像生成モデル
     ///   - size: 出力画像のサイズ
     ///   - quality: 画像品質
@@ -24,7 +24,7 @@ extension OpenAIClient: ImageGenerationCapable {
     ///   - n: 生成する画像の数
     /// - Returns: 生成された画像
     public func generateImage(
-        prompt: String,
+        input: LLMInput,
         model: OpenAIImageModel,
         size: ImageSize?,
         quality: ImageQuality?,
@@ -32,7 +32,7 @@ extension OpenAIClient: ImageGenerationCapable {
         n: Int
     ) async throws -> GeneratedImage {
         let images = try await generateImages(
-            prompt: prompt,
+            input: input,
             model: model,
             size: size,
             quality: quality,
@@ -48,7 +48,7 @@ extension OpenAIClient: ImageGenerationCapable {
     /// 複数の画像を生成
     ///
     /// - Parameters:
-    ///   - prompt: 画像を説明するプロンプト
+    ///   - input: LLM 入力（プロンプトテキスト）
     ///   - model: 使用する画像生成モデル
     ///   - size: 出力画像のサイズ
     ///   - quality: 画像品質
@@ -56,13 +56,15 @@ extension OpenAIClient: ImageGenerationCapable {
     ///   - n: 生成する画像の数
     /// - Returns: 生成された画像の配列
     public func generateImages(
-        prompt: String,
+        input: LLMInput,
         model: OpenAIImageModel,
         size: ImageSize?,
         quality: ImageQuality?,
         format: ImageOutputFormat?,
         n: Int
     ) async throws -> [GeneratedImage] {
+        // プロンプトテキストを取得
+        let prompt = input.prompt.render()
         // バリデーション
         if n > model.maxImages {
             throw ImageGenerationError.exceedsMaxImages(requested: n, maximum: model.maxImages)

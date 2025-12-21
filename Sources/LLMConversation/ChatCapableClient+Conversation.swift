@@ -18,7 +18,7 @@ extension ChatCapableClient {
     /// // Claude で会話開始
     /// let claude = AnthropicClient(apiKey: "...")
     /// let city: CityInfo = try await claude.chat(
-    ///     "日本の首都は？",
+    ///     input: "日本の首都は？",
     ///     history: history,
     ///     model: .sonnet
     /// )
@@ -26,9 +26,16 @@ extension ChatCapableClient {
     /// // 同じ履歴で GPT に切り替え
     /// let openai = OpenAIClient(apiKey: "...")
     /// let population: PopulationInfo = try await openai.chat(
-    ///     "その都市の人口は？",
+    ///     input: "その都市の人口は？",
     ///     history: history,
     ///     model: .gpt4o
+    /// )
+    ///
+    /// // マルチモーダル入力
+    /// let analysis: ImageAnalysis = try await claude.chat(
+    ///     input: LLMInput("この画像を分析してください", images: [imageContent]),
+    ///     history: history,
+    ///     model: .sonnet
     /// )
     /// ```
     ///
@@ -46,7 +53,7 @@ extension ChatCapableClient {
     /// ```
     ///
     /// - Parameters:
-    ///   - prompt: ユーザーメッセージ
+    ///   - input: LLM 入力（テキスト、画像、音声、動画を含む）
     ///   - history: 会話履歴（Actor で保護された状態）
     ///   - model: 使用するモデル
     ///   - systemPrompt: システムプロンプト（オプション）
@@ -55,7 +62,7 @@ extension ChatCapableClient {
     /// - Returns: 指定された型にデコードされた構造化出力
     /// - Throws: `LLMError` - API エラー、デコードエラーなど
     public func chat<T: StructuredProtocol, History: ConversationHistoryProtocol>(
-        _ prompt: String,
+        input: LLMInput,
         history: History,
         model: Model,
         systemPrompt: String? = nil,
@@ -63,7 +70,7 @@ extension ChatCapableClient {
         maxTokens: Int? = nil
     ) async throws -> T {
         // 1. ユーザーメッセージを履歴に追加
-        await history.append(.user(prompt))
+        await history.append(input.toLLMMessage())
 
         do {
             // 2. 現在の履歴でAPI呼び出し
@@ -100,7 +107,7 @@ extension ChatCapableClient {
     /// 構造化出力に加えて、`ChatResponse` のメタ情報も取得したい場合に使用します。
     ///
     /// - Parameters:
-    ///   - prompt: ユーザーメッセージ
+    ///   - input: LLM 入力
     ///   - history: 会話履歴
     ///   - model: 使用するモデル
     ///   - systemPrompt: システムプロンプト（オプション）
@@ -108,7 +115,7 @@ extension ChatCapableClient {
     ///   - maxTokens: 最大トークン数（オプション）
     /// - Returns: 構造化出力と会話継続情報を含む `ChatResponse`
     public func chatWithDetails<T: StructuredProtocol, History: ConversationHistoryProtocol>(
-        _ prompt: String,
+        input: LLMInput,
         history: History,
         model: Model,
         systemPrompt: String? = nil,
@@ -116,7 +123,7 @@ extension ChatCapableClient {
         maxTokens: Int? = nil
     ) async throws -> ChatResponse<T> {
         // 1. ユーザーメッセージを履歴に追加
-        await history.append(.user(prompt))
+        await history.append(input.toLLMMessage())
 
         do {
             // 2. 現在の履歴でAPI呼び出し
@@ -164,7 +171,7 @@ extension ChatCapableClient {
     ///
     /// let history = ConversationHistory()
     /// let result: UserInfo = try await client.chat(
-    ///     "山田太郎さんは35歳です",
+    ///     input: "山田太郎さんは35歳です",
     ///     history: history,
     ///     model: .sonnet,
     ///     systemPrompt: systemPrompt
@@ -172,7 +179,7 @@ extension ChatCapableClient {
     /// ```
     ///
     /// - Parameters:
-    ///   - prompt: ユーザーメッセージ
+    ///   - input: LLM 入力
     ///   - history: 会話履歴
     ///   - model: 使用するモデル
     ///   - systemPrompt: 構造化システムプロンプト
@@ -181,7 +188,7 @@ extension ChatCapableClient {
     /// - Returns: 指定された型にデコードされた構造化出力
     /// - Throws: `LLMError` - API エラー、デコードエラーなど
     public func chat<T: StructuredProtocol, History: ConversationHistoryProtocol>(
-        _ prompt: String,
+        input: LLMInput,
         history: History,
         model: Model,
         systemPrompt: Prompt,
@@ -189,7 +196,7 @@ extension ChatCapableClient {
         maxTokens: Int? = nil
     ) async throws -> T {
         try await chat(
-            prompt,
+            input: input,
             history: history,
             model: model,
             systemPrompt: systemPrompt.render(),
@@ -201,7 +208,7 @@ extension ChatCapableClient {
     /// 会話履歴と構造化システムプロンプトを使用して詳細な応答を取得
     ///
     /// - Parameters:
-    ///   - prompt: ユーザーメッセージ
+    ///   - input: LLM 入力
     ///   - history: 会話履歴
     ///   - model: 使用するモデル
     ///   - systemPrompt: 構造化システムプロンプト
@@ -209,7 +216,7 @@ extension ChatCapableClient {
     ///   - maxTokens: 最大トークン数（オプション）
     /// - Returns: 構造化出力と会話継続情報を含む `ChatResponse`
     public func chatWithDetails<T: StructuredProtocol, History: ConversationHistoryProtocol>(
-        _ prompt: String,
+        input: LLMInput,
         history: History,
         model: Model,
         systemPrompt: Prompt,
@@ -217,7 +224,7 @@ extension ChatCapableClient {
         maxTokens: Int? = nil
     ) async throws -> ChatResponse<T> {
         try await chatWithDetails(
-            prompt,
+            input: input,
             history: history,
             model: model,
             systemPrompt: systemPrompt.render(),

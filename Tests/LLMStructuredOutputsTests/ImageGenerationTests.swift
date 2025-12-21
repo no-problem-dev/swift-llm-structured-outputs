@@ -130,27 +130,27 @@ final class ImageGenerationTests: XCTestCase {
     // MARK: - GeminiImageModel Tests
 
     func testGeminiImageModelIds() {
-        XCTAssertEqual(GeminiImageModel.imagen3.id, "imagen-3.0-generate-002")
-        XCTAssertEqual(GeminiImageModel.imagen3Fast.id, "imagen-3.0-fast-generate-001")
+        XCTAssertEqual(GeminiImageModel.imagen4.id, "imagen-4.0-generate-001")
+        XCTAssertEqual(GeminiImageModel.imagen4Fast.id, "imagen-4.0-fast-generate-001")
     }
 
     func testGeminiImageModelDisplayNames() {
-        XCTAssertEqual(GeminiImageModel.imagen3.displayName, "Imagen 3")
-        XCTAssertEqual(GeminiImageModel.imagen3Fast.displayName, "Imagen 3 Fast")
+        XCTAssertEqual(GeminiImageModel.imagen4.displayName, "Imagen 4")
+        XCTAssertEqual(GeminiImageModel.imagen4Fast.displayName, "Imagen 4 Fast")
     }
 
     func testGeminiImageModelSupportedSizes() {
-        XCTAssertEqual(GeminiImageModel.imagen3.supportedSizes.count, 3)
-        XCTAssertTrue(GeminiImageModel.imagen3.supportedSizes.contains(.square1024))
+        XCTAssertEqual(GeminiImageModel.imagen4.supportedSizes.count, 3)
+        XCTAssertTrue(GeminiImageModel.imagen4.supportedSizes.contains(.square1024))
     }
 
     func testGeminiImageModelMaxImages() {
-        XCTAssertEqual(GeminiImageModel.imagen3.maxImages, 4)
-        XCTAssertEqual(GeminiImageModel.imagen3Fast.maxImages, 4)
+        XCTAssertEqual(GeminiImageModel.imagen4.maxImages, 4)
+        XCTAssertEqual(GeminiImageModel.imagen4Fast.maxImages, 4)
     }
 
     func testGeminiImageModelCodable() throws {
-        let original = GeminiImageModel.imagen3
+        let original = GeminiImageModel.imagen4
         let encoded = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(GeminiImageModel.self, from: encoded)
         XCTAssertEqual(original, decoded)
@@ -196,7 +196,7 @@ final class ImageGenerationTests: XCTestCase {
     }
 
     func testGeminiImageModelCaseIterable() {
-        XCTAssertEqual(GeminiImageModel.allCases.count, 2)
+        XCTAssertEqual(GeminiImageModel.allCases.count, 4)
     }
 
     // MARK: - Protocol Conformance Tests

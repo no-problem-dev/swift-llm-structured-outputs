@@ -14,22 +14,25 @@ extension OpenAIClient: SpeechGenerationCapable {
     public typealias SpeechModel = OpenAITTSModel
     public typealias Voice = OpenAIVoice
 
-    /// テキストから音声を生成
+    /// 入力から音声を生成
     ///
     /// - Parameters:
-    ///   - text: 音声化するテキスト（最大 4096 文字）
+    ///   - input: LLM 入力（音声化するテキスト、最大 4096 文字）
     ///   - model: 使用する TTS モデル
     ///   - voice: 使用する声
     ///   - speed: 再生速度（0.25〜4.0、デフォルト: 1.0）
     ///   - format: 出力フォーマット（デフォルト: mp3）
     /// - Returns: 生成された音声
     public func generateSpeech(
-        text: String,
+        input: LLMInput,
         model: OpenAITTSModel,
         voice: OpenAIVoice,
         speed: Double?,
         format: AudioOutputFormat?
     ) async throws -> GeneratedAudio {
+        // テキストを取得
+        let text = input.prompt.render()
+
         // バリデーション
         if text.isEmpty {
             throw SpeechGenerationError.emptyText

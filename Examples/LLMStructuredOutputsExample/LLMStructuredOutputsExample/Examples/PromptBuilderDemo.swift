@@ -135,7 +135,7 @@ struct PromptBuilderDemo: View {
                 case .anthropic:
                     guard let client = settings.createAnthropicClient() else { return }
                     let response: ChatResponse<BusinessCardInfo> = try await client.chat(
-                        prompt: inputText,
+                        input: LLMInput(inputText),
                         model: settings.claudeModelOption.model,
                         systemPrompt: systemPrompt,
                         temperature: settings.temperature,
@@ -147,7 +147,7 @@ struct PromptBuilderDemo: View {
                 case .openai:
                     guard let client = settings.createOpenAIClient() else { return }
                     let response: ChatResponse<BusinessCardInfo> = try await client.chat(
-                        prompt: inputText,
+                        input: LLMInput(inputText),
                         model: settings.gptModelOption.model,
                         systemPrompt: systemPrompt,
                         temperature: settings.temperature,
@@ -159,7 +159,7 @@ struct PromptBuilderDemo: View {
                 case .gemini:
                     guard let client = settings.createGeminiClient() else { return }
                     let response: ChatResponse<BusinessCardInfo> = try await client.chat(
-                        prompt: inputText,
+                        input: LLMInput(inputText),
                         model: settings.geminiModelOption.model,
                         systemPrompt: systemPrompt,
                         temperature: settings.temperature,

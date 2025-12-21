@@ -211,7 +211,7 @@ struct ImageGenerationDemo: View {
         guard let client = settings.createOpenAIClient() else { return }
 
         let image = try await client.generateImage(
-            prompt: promptText,
+            input: LLMInput(promptText),
             model: selectedOpenAIModel,
             size: selectedSize,
             quality: selectedQuality,
@@ -227,7 +227,7 @@ struct ImageGenerationDemo: View {
         guard let client = settings.createGeminiClient() else { return }
 
         let image = try await client.generateImage(
-            prompt: promptText,
+            input: LLMInput(promptText),
             model: selectedGeminiModel,
             size: selectedSize,
             quality: nil,  // Gemini は品質設定なし
@@ -716,7 +716,7 @@ private struct CodeExampleSection: View {
 
         // 画像を生成（DALL-E 3）
         let image = try await client.generateImage(
-            prompt: "A serene Japanese garden with cherry blossoms",
+            input: "A serene Japanese garden with cherry blossoms",
             model: .dalle3,
             size: .square1024,
             quality: .hd,
@@ -745,7 +745,7 @@ private struct CodeExampleSection: View {
 
         // 画像を生成（Gemini 2.0 Flash Image）
         let image = try await client.generateImage(
-            prompt: "A serene Japanese garden with cherry blossoms",
+            input: "A serene Japanese garden with cherry blossoms",
             model: .gemini20FlashImage,  // または .imagen4, .imagen4Fast, .imagen4Ultra
             size: .square1024
         )

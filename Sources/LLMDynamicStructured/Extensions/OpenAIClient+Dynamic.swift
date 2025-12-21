@@ -7,9 +7,10 @@ extension OpenAIClient {
     /// DynamicStructured を使用して構造化出力を生成
     ///
     /// ランタイムで定義された構造に基づいて、LLM から構造化データを取得します。
+    /// テキストとマルチモーダルコンテンツ（画像、音声、動画）をサポートします。
     ///
     /// - Parameters:
-    ///   - prompt: ユーザープロンプト
+    ///   - input: LLM 入力（テキスト、画像、音声、動画を含む）
     ///   - model: 使用する GPT モデル
     ///   - output: 出力の構造定義
     ///   - systemPrompt: システムプロンプト（オプション）
@@ -29,8 +30,16 @@ extension OpenAIClient {
     ///         .optional()
     /// }
     ///
+    /// // テキスト入力
     /// let result = try await client.generate(
-    ///     prompt: "田中太郎さん（35歳）の情報を抽出",
+    ///     input: "田中太郎さん（35歳）の情報を抽出",
+    ///     model: .gpt4o,
+    ///     output: userInfo
+    /// )
+    ///
+    /// // マルチモーダル入力
+    /// let result = try await client.generate(
+    ///     input: LLMInput("この画像のユーザー情報を抽出", images: [imageContent]),
     ///     model: .gpt4o,
     ///     output: userInfo
     /// )
@@ -39,7 +48,7 @@ extension OpenAIClient {
     /// print(result.int("age"))      // Optional(35)
     /// ```
     public func generate(
-        prompt: String,
+        input: LLMInput,
         model: GPTModel,
         output: DynamicStructured,
         systemPrompt: String? = nil,
@@ -47,7 +56,7 @@ extension OpenAIClient {
         maxTokens: Int? = nil
     ) async throws -> DynamicStructuredResult {
         try await generate(
-            messages: [.user(prompt)],
+            messages: [input.toLLMMessage()],
             model: model,
             output: output,
             systemPrompt: systemPrompt,

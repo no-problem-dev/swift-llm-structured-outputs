@@ -107,7 +107,7 @@ let client = OpenAIClient(apiKey: "sk-...")
 
 // DALL-E 3 で画像生成
 let image = try await client.generateImage(
-    prompt: "夕焼けの海辺で遊ぶ猫",
+    input: "夕焼けの海辺で遊ぶ猫",
     model: .dalle3,
     size: .square1024,
     quality: .hd
@@ -127,7 +127,7 @@ let nsImage = image.nsImage  // macOS
 let client = GeminiClient(apiKey: "...")
 
 let image = try await client.generateImage(
-    prompt: "未来都市の風景",
+    input: "未来都市の風景",
     model: .imagen4,
     size: .landscape1536x1024
 )
@@ -154,7 +154,7 @@ let image = try await client.generateImage(
 let client = OpenAIClient(apiKey: "sk-...")
 
 let audio = try await client.generateSpeech(
-    text: "こんにちは、世界！",
+    input: "こんにちは、世界！",
     model: .tts1HD,
     voice: .nova,
     speed: 1.0,
@@ -191,7 +191,7 @@ let client = OpenAIClient(apiKey: "sk-...")
 
 // 同期的に完了まで待機
 let video = try await client.generateVideo(
-    prompt: "海辺を走る犬のスローモーション映像",
+    input: "海辺を走る犬のスローモーション映像",
     model: .sora2,
     duration: 8,
     aspectRatio: .landscape16x9
@@ -206,7 +206,7 @@ try video.save(to: URL(fileURLWithPath: "dog.mp4"))
 let client = GeminiClient(apiKey: "...")
 
 let video = try await client.generateVideo(
-    prompt: "宇宙から見た地球の夜景",
+    input: "宇宙から見た地球の夜景",
     model: .veo31,
     duration: 6
 )
@@ -225,7 +225,7 @@ if let remoteURL = video.remoteURL {
 ```swift
 // ジョブを開始
 var job = try await client.startVideoGeneration(
-    prompt: "タイムラプスの夕焼け",
+    input: "タイムラプスの夕焼け",
     model: .sora2Pro
 )
 
@@ -258,7 +258,7 @@ if job.status == .completed {
 
 ```swift
 do {
-    let image = try await client.generateImage(prompt: "...", model: .dalle3)
+    let image = try await client.generateImage(input: "...", model: .dalle3)
 } catch let error as ImageGenerationError {
     switch error {
     case .contentPolicyViolation(let reason):

@@ -385,14 +385,17 @@ public protocol ConversationalAgentSessionProtocol<Client>: Actor {
 
     // MARK: - Core API
 
-    /// ユーザーメッセージを送信してエージェントループを実行
+    /// LLM入力を送信してエージェントループを実行
     ///
     /// 会話履歴を保持しながらエージェントループを実行します。
     /// ループはツール呼び出しがなくなるか、構造化出力が得られるまで続きます。
     /// 結果は自動的に会話履歴に追加されます。
     ///
+    /// テキストとマルチモーダルコンテンツ（画像、音声、動画）を
+    /// 含む入力をサポートします。
+    ///
     /// - Parameters:
-    ///   - userMessage: ユーザーメッセージ
+    ///   - input: LLM 入力（テキスト、画像、音声、動画を含む）
     ///   - model: 使用するモデル
     ///   - outputType: 期待する出力の型
     /// - Returns: 各フェーズを返す `AsyncThrowingStream`
@@ -431,8 +434,9 @@ public protocol ConversationalAgentSessionProtocol<Client>: Actor {
     ///     var summary: String
     /// }
     ///
+    /// // テキスト入力
     /// for try await phase in session.run(
-    ///     "AIエージェントについて調査して",
+    ///     input: "AIエージェントについて調査して",
     ///     model: .sonnet,
     ///     outputType: ResearchResult.self
     /// ) {
@@ -463,9 +467,18 @@ public protocol ConversationalAgentSessionProtocol<Client>: Actor {
     ///         break
     ///     }
     /// }
+    ///
+    /// // マルチモーダル入力
+    /// for try await phase in session.run(
+    ///     input: LLMInput("この画像を分析して", images: [imageContent]),
+    ///     model: .sonnet,
+    ///     outputType: ImageAnalysis.self
+    /// ) {
+    ///     // ...
+    /// }
     /// ```
     nonisolated func run<Output: StructuredProtocol>(
-        _ userMessage: String,
+        input: LLMInput,
         model: Client.Model,
         outputType: Output.Type
     ) -> AsyncThrowingStream<SessionPhase<Output>, Error>
