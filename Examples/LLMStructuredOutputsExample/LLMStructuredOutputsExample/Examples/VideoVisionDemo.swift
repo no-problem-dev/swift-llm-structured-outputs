@@ -403,9 +403,15 @@ private struct VideoInputSection: View {
 // MARK: - Video Preview Section
 
 private struct VideoPreviewSection: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     let inputMode: VideoVisionDemo.InputMode
     let urlString: String
     let videoData: Data?
+
+    private var previewHeight: CGFloat {
+        horizontalSizeClass == .regular ? 400 : 240
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -419,7 +425,6 @@ private struct VideoPreviewSection: View {
                         VideoPlayerView(url: url)
                             .showMetadata(true)
                             .showActions([.play])
-                            .frame(height: 200)
                     } else {
                         ContentUnavailableView(
                             "URLが無効です",
@@ -430,11 +435,9 @@ private struct VideoPreviewSection: View {
 
                 case .video:
                     if let data = videoData {
-                        // 選択された動画のプレビュー
                         VideoPlayerView(data: data)
                             .showMetadata(true)
                             .showActions([.play])
-                            .frame(height: 200)
                     } else {
                         ContentUnavailableView(
                             "動画を選択してください",
@@ -444,7 +447,7 @@ private struct VideoPreviewSection: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, minHeight: previewHeight)
             .background(Color(.systemGray6))
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
