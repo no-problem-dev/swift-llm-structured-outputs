@@ -8,7 +8,7 @@ Claude、GPT、Gemini に対応したマルチプロバイダー LLM クライ�
 
 ## 概要
 
-LLMClient は、主要な LLM プロバイダーへの統一されたインターフェースを提供するコアモジュールです。構造化出力の生成、プロンプト構築、自動リトライ、スキーマ管理など、LLM アプリケーション開発に必要な基盤機能をすべて備えています。
+LLMClient は、主要な LLM プロバイダーへの統一されたインターフェースを提供するコアモジュールです。構造化出力の生成、プロンプト構築、マルチモーダル対応、自動リトライなど、LLM アプリケーション開発に必要な基盤機能をすべて備えています。
 
 @Row {
     @Column(size: 2) {
@@ -16,9 +16,9 @@ LLMClient は、主要な LLM プロバイダーへの統一されたインタ�
 
         - **マルチプロバイダー** - Claude、GPT、Gemini を同じ API で利用
         - **構造化出力** - `@Structured` マクロで型安全な出力を定義
+        - **マルチモーダル** - 画像・音声・動画の入力と生成
         - **Prompt DSL** - 宣言的にプロンプトを構築
         - **自動リトライ** - レート制限・サーバーエラーの自動リトライ
-        - **スキーマ変換** - 各プロバイダーに最適化されたスキーマ変換
     }
 
     @Column {
@@ -126,6 +126,10 @@ let client = AnthropicClient(
 
 ## Topics
 
+### ガイド
+
+- <doc:Multimodal>
+
 ### クライアント
 
 - ``AnthropicClient``
@@ -146,6 +150,45 @@ let client = AnthropicClient(
 - ``PromptComponent``
 - ``Section``
 - ``ConstraintsSection``
+
+### マルチモーダル入力
+
+- ``ImageContent``
+- ``AudioContent``
+- ``VideoContent``
+- ``MediaSource``
+- ``MediaError``
+
+### マルチモーダル生成
+
+- ``ImageGenerationCapable``
+- ``SpeechGenerationCapable``
+- ``VideoGenerationCapable``
+- ``GeneratedImage``
+- ``GeneratedAudio``
+- ``GeneratedVideo``
+- ``VideoGenerationJob``
+
+### 画像生成モデル
+
+- ``OpenAIImageModel``
+- ``GeminiImageModel``
+- ``ImageSize``
+- ``ImageQuality``
+- ``ImageOutputFormat``
+
+### 音声生成モデル
+
+- ``OpenAITTSModel``
+- ``OpenAIVoice``
+- ``AudioOutputFormat``
+
+### 動画生成モデル
+
+- ``OpenAIVideoModel``
+- ``GeminiVideoModel``
+- ``VideoAspectRatio``
+- ``VideoResolution``
 
 ### スキーマ
 
