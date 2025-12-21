@@ -16,7 +16,7 @@ import Foundation
 /// // OpenAI クライアントで画像生成
 /// let client = OpenAIClient(apiKey: "sk-...")
 /// let image = try await client.generateImage(
-///     prompt: "A cat sitting on a windowsill at sunset",
+///     input: "A cat sitting on a windowsill at sunset",
 ///     model: .gptImage,
 ///     size: .square1024
 /// )
@@ -26,10 +26,10 @@ public protocol ImageGenerationCapable<ImageModel>: Sendable {
     /// 画像生成で使用可能なモデル型
     associatedtype ImageModel: Sendable
 
-    /// テキストプロンプトから画像を生成
+    /// 入力から画像を生成
     ///
     /// - Parameters:
-    ///   - prompt: 画像を説明するプロンプト
+    ///   - input: LLM 入力（プロンプトテキスト）
     ///   - model: 使用する画像生成モデル
     ///   - size: 出力画像のサイズ
     ///   - quality: 画像品質（サポートされる場合）
@@ -38,7 +38,7 @@ public protocol ImageGenerationCapable<ImageModel>: Sendable {
     /// - Returns: 生成された画像
     /// - Throws: `LLMError` または `ImageGenerationError`
     func generateImage(
-        prompt: String,
+        input: LLMInput,
         model: ImageModel,
         size: ImageSize?,
         quality: ImageQuality?,
@@ -49,7 +49,7 @@ public protocol ImageGenerationCapable<ImageModel>: Sendable {
     /// 複数の画像を生成
     ///
     /// - Parameters:
-    ///   - prompt: 画像を説明するプロンプト
+    ///   - input: LLM 入力（プロンプトテキスト）
     ///   - model: 使用する画像生成モデル
     ///   - size: 出力画像のサイズ
     ///   - quality: 画像品質
@@ -57,7 +57,7 @@ public protocol ImageGenerationCapable<ImageModel>: Sendable {
     ///   - n: 生成する画像の数
     /// - Returns: 生成された画像の配列
     func generateImages(
-        prompt: String,
+        input: LLMInput,
         model: ImageModel,
         size: ImageSize?,
         quality: ImageQuality?,
@@ -71,7 +71,7 @@ public protocol ImageGenerationCapable<ImageModel>: Sendable {
 extension ImageGenerationCapable {
     /// 単一の画像を生成（デフォルト引数付き）
     public func generateImage(
-        prompt: String,
+        input: LLMInput,
         model: ImageModel,
         size: ImageSize? = nil,
         quality: ImageQuality? = nil,
@@ -79,7 +79,7 @@ extension ImageGenerationCapable {
         n: Int = 1
     ) async throws -> GeneratedImage {
         try await generateImage(
-            prompt: prompt,
+            input: input,
             model: model,
             size: size,
             quality: quality,
@@ -90,7 +90,7 @@ extension ImageGenerationCapable {
 
     /// 複数の画像を生成（デフォルト引数付き）
     public func generateImages(
-        prompt: String,
+        input: LLMInput,
         model: ImageModel,
         size: ImageSize? = nil,
         quality: ImageQuality? = nil,
@@ -98,7 +98,7 @@ extension ImageGenerationCapable {
         n: Int = 1
     ) async throws -> [GeneratedImage] {
         try await generateImages(
-            prompt: prompt,
+            input: input,
             model: model,
             size: size,
             quality: quality,
@@ -191,7 +191,7 @@ public enum ImageSize: String, Sendable, Codable, CaseIterable, Equatable {
         [.square1024, .landscape1536x1024, .portrait1024x1536, .square256, .square512]
     }
 
-    /// Gemini Imagen 3 でサポートされるサイズ
+    /// Gemini Imagen でサポートされるサイズ（Imagen 3/4 共通）
     public static var imagen3Sizes: [ImageSize] {
         [.square1024, .landscape1536x1024, .portrait1024x1536]
     }

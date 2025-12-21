@@ -81,28 +81,55 @@ extension ChatCapableClient {
         )
     }
 
-    /// 単一プロンプトから会話を開始
+    /// LLMInput から会話を開始
     ///
     /// 会話履歴なしで新しい会話を開始するための便利メソッド。
+    /// テキストとマルチモーダルコンテンツ（画像、音声、動画）を
+    /// 含む入力をサポートします。
     ///
     /// - Parameters:
-    ///   - prompt: ユーザープロンプト
+    ///   - input: LLM 入力
     ///   - model: 使用するモデル
     ///   - systemPrompt: システムプロンプト（オプション）
     ///   - temperature: 温度パラメータ（オプション）
     ///   - maxTokens: 最大トークン数（オプション）
     /// - Returns: 構造化出力と会話継続情報を含む `ChatResponse`
     public func chat<T: StructuredProtocol>(
-        prompt: String,
+        input: LLMInput,
         model: Model,
         systemPrompt: String? = nil,
         temperature: Double? = nil,
         maxTokens: Int? = nil
     ) async throws -> ChatResponse<T> {
         try await chat(
-            messages: [.user(prompt)],
+            messages: [input.toLLMMessage()],
             model: model,
             systemPrompt: systemPrompt,
+            temperature: temperature,
+            maxTokens: maxTokens
+        )
+    }
+
+    /// 構造化システムプロンプトを使用して会話を開始
+    ///
+    /// - Parameters:
+    ///   - input: LLM 入力
+    ///   - model: 使用するモデル
+    ///   - systemPrompt: 構造化システムプロンプト
+    ///   - temperature: 温度パラメータ（オプション）
+    ///   - maxTokens: 最大トークン数（オプション）
+    /// - Returns: 構造化出力と会話継続情報を含む `ChatResponse`
+    public func chat<T: StructuredProtocol>(
+        input: LLMInput,
+        model: Model,
+        systemPrompt: Prompt,
+        temperature: Double? = nil,
+        maxTokens: Int? = nil
+    ) async throws -> ChatResponse<T> {
+        try await chat(
+            input: input,
+            model: model,
+            systemPrompt: systemPrompt.render(),
             temperature: temperature,
             maxTokens: maxTokens
         )

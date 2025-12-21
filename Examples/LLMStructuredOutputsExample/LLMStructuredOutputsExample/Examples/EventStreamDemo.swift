@@ -154,7 +154,7 @@ struct EventStreamDemo: View {
                 throw EventDemoError.noAPIKey
             }
             let _: EventStreamOutput = try await client.chat(
-                message,
+                input: LLMInput(message),
                 history: history,
                 model: settings.claudeModelOption.model,
                 systemPrompt: systemPrompt,
@@ -167,7 +167,7 @@ struct EventStreamDemo: View {
                 throw EventDemoError.noAPIKey
             }
             let _: EventStreamOutput = try await client.chat(
-                message,
+                input: LLMInput(message),
                 history: history,
                 model: settings.gptModelOption.model,
                 systemPrompt: systemPrompt,
@@ -180,7 +180,7 @@ struct EventStreamDemo: View {
                 throw EventDemoError.noAPIKey
             }
             let _: EventStreamOutput = try await client.chat(
-                message,
+                input: LLMInput(message),
                 history: history,
                 model: settings.geminiModelOption.model,
                 systemPrompt: systemPrompt,

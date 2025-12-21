@@ -151,7 +151,7 @@ struct ConversationDemo: View {
                 throw ConversationDemoError.noAPIKey
             }
             let _: ConversationOutput = try await client.chat(
-                message,
+                input: LLMInput(message),
                 history: history,
                 model: settings.claudeModelOption.model,
                 systemPrompt: systemPrompt,
@@ -164,7 +164,7 @@ struct ConversationDemo: View {
                 throw ConversationDemoError.noAPIKey
             }
             let _: ConversationOutput = try await client.chat(
-                message,
+                input: LLMInput(message),
                 history: history,
                 model: settings.gptModelOption.model,
                 systemPrompt: systemPrompt,
@@ -177,7 +177,7 @@ struct ConversationDemo: View {
                 throw ConversationDemoError.noAPIKey
             }
             let _: ConversationOutput = try await client.chat(
-                message,
+                input: LLMInput(message),
                 history: history,
                 model: settings.geminiModelOption.model,
                 systemPrompt: systemPrompt,

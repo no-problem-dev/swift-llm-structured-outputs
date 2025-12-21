@@ -22,17 +22,19 @@ extension OpenAIClient: VideoGenerationCapable {
     /// ```swift
     /// let client = OpenAIClient(apiKey: "sk-...")
     /// let job = try await client.startVideoGeneration(
-    ///     prompt: "A cat playing piano on stage",
+    ///     input: "A cat playing piano on stage",
     ///     model: .sora2
     /// )
     /// ```
     public func startVideoGeneration(
-        prompt: String,
+        input: LLMInput,
         model: OpenAIVideoModel,
         duration: Int?,
         aspectRatio: VideoAspectRatio?,
         resolution: VideoResolution?
     ) async throws -> VideoGenerationJob {
+        // プロンプトテキストを取得
+        let prompt = input.prompt.render()
         // バリデーション
         let actualDuration = duration ?? 4
         if !model.supportedDurations.contains(actualDuration) {

@@ -270,7 +270,7 @@ struct VideoGenerationDemo: View {
 
         // ジョブを開始
         var job = try await client.startVideoGeneration(
-            prompt: promptText,
+            input: LLMInput(promptText),
             model: selectedOpenAIModel,
             duration: selectedDuration,
             aspectRatio: selectedAspectRatio,
@@ -305,7 +305,7 @@ struct VideoGenerationDemo: View {
 
         // ジョブを開始
         var job = try await client.startVideoGeneration(
-            prompt: promptText,
+            input: LLMInput(promptText),
             model: selectedGeminiModel,
             duration: selectedDuration,
             aspectRatio: selectedAspectRatio,
@@ -854,7 +854,7 @@ private struct CodeExampleSection: View {
 
         // 動画生成ジョブを開始
         var job = try await client.startVideoGeneration(
-            prompt: "A cat playing with a ball",
+            input: "A cat playing with a ball",
             model: .sora2,
             duration: 4,
             aspectRatio: .landscape16x9,
@@ -885,7 +885,7 @@ private struct CodeExampleSection: View {
 
         // 動画生成ジョブを開始（Veo）
         var job = try await client.startVideoGeneration(
-            prompt: "A serene Japanese garden",
+            input: "A serene Japanese garden",
             model: .veo30,
             duration: 4,
             aspectRatio: .landscape16x9,
