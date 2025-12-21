@@ -644,7 +644,7 @@ private struct CodeExampleSection: View {
 
         // ツールセットを作成
         let tools = ToolSet {
-            GetWeather.self
+            GetWeather()
         }
 
         // LLM にどのツールを呼ぶべきか計画させる

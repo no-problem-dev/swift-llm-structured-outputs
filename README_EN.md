@@ -33,7 +33,7 @@ struct UserInfo {
 
 let client = AnthropicClient(apiKey: "sk-ant-...")
 let user: UserInfo = try await client.generate(
-    prompt: "John Smith is 35 years old",
+    input: "John Smith is 35 years old",
     model: .sonnet
 )
 // user.name → "John Smith", user.age → 35

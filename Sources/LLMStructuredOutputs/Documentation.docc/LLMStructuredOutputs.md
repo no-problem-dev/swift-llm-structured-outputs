@@ -60,7 +60,7 @@ struct UserInfo {
         ```swift
         let client = AnthropicClient(apiKey: "sk-ant-...")
         let user: UserInfo = try await client.generate(
-            prompt: "山田太郎さんは30歳です",
+            input: "山田太郎さんは30歳です",
             model: .sonnet
         )
         ```
@@ -70,7 +70,7 @@ struct UserInfo {
         ```swift
         let client = OpenAIClient(apiKey: "sk-...")
         let user: UserInfo = try await client.generate(
-            prompt: "山田太郎さんは30歳です",
+            input: "山田太郎さんは30歳です",
             model: .gpt4o
         )
         ```
@@ -80,7 +80,7 @@ struct UserInfo {
         ```swift
         let client = GeminiClient(apiKey: "...")
         let user: UserInfo = try await client.generate(
-            prompt: "山田太郎さんは30歳です",
+            input: "山田太郎さんは30歳です",
             model: .flash
         )
         ```

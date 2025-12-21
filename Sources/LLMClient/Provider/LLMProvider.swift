@@ -578,7 +578,7 @@ package enum LLMModel: Sendable, Equatable {
 /// ```swift
 /// let client = AnthropicClient(apiKey: "...")
 /// let result: UserInfo = try await client.generate(
-///     prompt: "...",
+///     input: "...",
 ///     model: .sonnet  // 最新の Sonnet を使用
 /// )
 /// ```
@@ -586,7 +586,7 @@ package enum LLMModel: Sendable, Equatable {
 /// ## 固定バージョン
 /// ```swift
 /// let result: UserInfo = try await client.generate(
-///     prompt: "...",
+///     input: "...",
 ///     model: .sonnet4_5("20250929")  // 特定バージョンを指定
 /// )
 /// ```
@@ -594,7 +594,7 @@ package enum LLMModel: Sendable, Equatable {
 /// ## カスタムモデルID
 /// ```swift
 /// let result: UserInfo = try await client.generate(
-///     prompt: "...",
+///     input: "...",
 ///     model: .custom("claude-3-opus-20240229")  // 任意のモデルID
 /// )
 /// ```
@@ -729,7 +729,7 @@ extension ClaudeModel {
 /// ```swift
 /// let client = OpenAIClient(apiKey: "...")
 /// let result: UserInfo = try await client.generate(
-///     prompt: "...",
+///     input: "...",
 ///     model: .gpt4o  // 最新の GPT-4o を使用
 /// )
 /// ```
@@ -737,7 +737,7 @@ extension ClaudeModel {
 /// ## 固定バージョン
 /// ```swift
 /// let result: UserInfo = try await client.generate(
-///     prompt: "...",
+///     input: "...",
 ///     model: .gpt4o_version("2024-11-20")  // 特定バージョンを指定
 /// )
 /// ```
@@ -745,7 +745,7 @@ extension ClaudeModel {
 /// ## カスタムモデルID
 /// ```swift
 /// let result: UserInfo = try await client.generate(
-///     prompt: "...",
+///     input: "...",
 ///     model: .custom("gpt-4-32k")  // 任意のモデルID
 /// )
 /// ```
@@ -916,7 +916,7 @@ extension GPTModel {
 /// ```swift
 /// let client = GeminiClient(apiKey: "...")
 /// let result: UserInfo = try await client.generate(
-///     prompt: "...",
+///     input: "...",
 ///     model: .flash25  // 最新の Gemini 2.5 Flash を使用
 /// )
 /// ```
@@ -924,7 +924,7 @@ extension GPTModel {
 /// ## プレビューバージョン
 /// ```swift
 /// let result: UserInfo = try await client.generate(
-///     prompt: "...",
+///     input: "...",
 ///     model: .flash25_preview("05-20")  // 特定プレビューを指定
 /// )
 /// ```
@@ -932,7 +932,7 @@ extension GPTModel {
 /// ## カスタムモデルID
 /// ```swift
 /// let result: UserInfo = try await client.generate(
-///     prompt: "...",
+///     input: "...",
 ///     model: .custom("gemini-2.5-pro-exp-03-25")  // 任意のモデルID
 /// )
 /// ```

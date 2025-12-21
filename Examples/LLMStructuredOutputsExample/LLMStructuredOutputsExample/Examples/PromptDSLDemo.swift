@@ -354,7 +354,7 @@ private struct CodeExampleSection: View {
 
         // プロンプトをシステムプロンプトとして使用
         let result: ChatResponse<JobSkills> = try await client.chat(
-            prompt: jobDescription,
+            input: jobDescription,
             model: .sonnet,
             systemPrompt: prompt.render()
         )

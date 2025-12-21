@@ -11,7 +11,7 @@ import LLMTool
 /// ## 使用例
 ///
 /// ```swift
-/// for try await step in client.runAgent(prompt: "天気を調べて", tools: tools) {
+/// for try await step in client.runAgent(input: "天気を調べて", tools: tools) {
 ///     switch step {
 ///     case .thinking(let response):
 ///         print("思考中: \(response.textContent ?? "")")

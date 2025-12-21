@@ -26,7 +26,7 @@ let client = AnthropicClient(apiKey: "sk-ant-...")
 
 ```swift
 let result: MyType = try await client.generate(
-    prompt: "...",
+    input: "...",
     model: .sonnet
 )
 ```
@@ -63,7 +63,7 @@ let client = OpenAIClient(apiKey: "sk-...")
 
 ```swift
 let result: MyType = try await client.generate(
-    prompt: "...",
+    input: "...",
     model: .gpt4o
 )
 ```
@@ -92,7 +92,7 @@ let client = GeminiClient(apiKey: "...")
 
 ```swift
 let result: MyType = try await client.generate(
-    prompt: "...",
+    input: "...",
     model: .flash3
 )
 ```
@@ -103,7 +103,7 @@ let result: MyType = try await client.generate(
 
 ```swift
 let result: MyType = try await client.generate(
-    prompt: "プロンプト",
+    input: "プロンプト",
     model: .sonnet,
     systemPrompt: "あなたは親切なアシスタントです",
     temperature: 0.7,
@@ -113,7 +113,7 @@ let result: MyType = try await client.generate(
 
 | パラメーター | 型 | 説明 |
 |------------|-----|------|
-| `prompt` | `String` | ユーザー入力 |
+| `input` | `LLMInput` | LLM 入力（テキスト、画像、音声、動画を含む） |
 | `model` | プロバイダー固有 | モデル選択 |
 | `systemPrompt` | `String?` | システム指示 |
 | `temperature` | `Double?` | ランダム性 (0.0-1.0) |
@@ -126,10 +126,10 @@ let result: MyType = try await client.generate(
 ```swift
 // ✅ 正しい - ClaudeModel と AnthropicClient
 let anthropic = AnthropicClient(apiKey: "...")
-try await anthropic.generate(prompt: "...", model: .sonnet)
+try await anthropic.generate(input: "...", model: .sonnet)
 
 // ❌ コンパイルエラー - GPTModel と AnthropicClient
-try await anthropic.generate(prompt: "...", model: .gpt4o)
+try await anthropic.generate(input: "...", model: .gpt4o)
 ```
 
 ## カスタムモデル

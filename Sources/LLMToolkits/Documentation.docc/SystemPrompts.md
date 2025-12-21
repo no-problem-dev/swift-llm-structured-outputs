@@ -27,7 +27,7 @@ let systemPrompt = SystemPrompts.researcher
 
 // 使用例
 let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
-    prompt: "AI市場のトレンドを調査してください",
+    input: "AI市場のトレンドを調査してください",
     model: .sonnet,
     tools: tools,
     systemPrompt: systemPrompt
@@ -43,7 +43,7 @@ let systemPrompt = SystemPrompts.dataAnalyst
 
 // 使用例
 let analysis: AnalysisResult = try await client.generate(
-    prompt: "売上データを分析してください",
+    input: "売上データを分析してください",
     model: .sonnet,
     systemPrompt: systemPrompt
 )
@@ -58,7 +58,7 @@ let systemPrompt = SystemPrompts.codingAssistant
 
 // 使用例
 let review: CodeReview = try await client.generate(
-    prompt: "このコードをレビューしてください: \(code)",
+    input: "このコードをレビューしてください: \(code)",
     model: .sonnet,
     systemPrompt: systemPrompt
 )
@@ -73,7 +73,7 @@ let systemPrompt = SystemPrompts.writer
 
 // 使用例
 let summary: Summary = try await client.generate(
-    prompt: "この記事を要約してください: \(article)",
+    input: "この記事を要約してください: \(article)",
     model: .sonnet,
     systemPrompt: systemPrompt
 )
@@ -88,7 +88,7 @@ let systemPrompt = SystemPrompts.planner
 
 // 使用例
 let plan: TaskPlan = try await client.generate(
-    prompt: "アプリ開発プロジェクトの計画を立ててください",
+    input: "アプリ開発プロジェクトの計画を立ててください",
     model: .sonnet,
     systemPrompt: systemPrompt
 )

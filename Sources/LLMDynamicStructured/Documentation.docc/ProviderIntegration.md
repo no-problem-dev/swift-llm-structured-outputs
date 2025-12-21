@@ -26,7 +26,7 @@ LLMDynamicStructured は、Claude (Anthropic)、GPT (OpenAI)、Gemini (Google) �
 
         ```swift
         let result = try await client.generate(
-            prompt: "田中太郎さん（35歳）の情報を抽出",
+            input: "田中太郎さん（35歳）の情報を抽出",
             model: .sonnet,
             output: userInfo
         )
@@ -36,7 +36,7 @@ LLMDynamicStructured は、Claude (Anthropic)、GPT (OpenAI)、Gemini (Google) �
 
         ```swift
         let result = try await client.generate(
-            prompt: "...",
+            input: "...",
             model: .sonnet,
             output: userInfo,
             systemPrompt: "あなたは情報抽出の専門家です。",
@@ -73,7 +73,7 @@ LLMDynamicStructured は、Claude (Anthropic)、GPT (OpenAI)、Gemini (Google) �
 
         ```swift
         let result = try await client.generate(
-            prompt: "田中太郎さん（35歳）の情報を抽出",
+            input: "田中太郎さん（35歳）の情報を抽出",
             model: .gpt4o,
             output: userInfo
         )
@@ -83,7 +83,7 @@ LLMDynamicStructured は、Claude (Anthropic)、GPT (OpenAI)、Gemini (Google) �
 
         ```swift
         let result = try await client.generate(
-            prompt: "...",
+            input: "...",
             model: .gpt4oMini,
             output: userInfo,
             systemPrompt: "あなたは情報抽出の専門家です。",
@@ -120,7 +120,7 @@ LLMDynamicStructured は、Claude (Anthropic)、GPT (OpenAI)、Gemini (Google) �
 
         ```swift
         let result = try await client.generate(
-            prompt: "田中太郎さん（35歳）の情報を抽出",
+            input: "田中太郎さん（35歳）の情報を抽出",
             model: .flash,
             output: userInfo
         )
@@ -130,7 +130,7 @@ LLMDynamicStructured は、Claude (Anthropic)、GPT (OpenAI)、Gemini (Google) �
 
         ```swift
         let result = try await client.generate(
-            prompt: "...",
+            input: "...",
             model: .pro,
             output: userInfo,
             systemPrompt: "あなたは情報抽出の専門家です。",
@@ -223,7 +223,7 @@ let rawDict = result.rawValues
 ```swift
 do {
     let result = try await client.generate(
-        prompt: "...",
+        input: "...",
         model: .sonnet,
         output: userInfo
     )
@@ -258,7 +258,7 @@ do {
 ```swift
 protocol DynamicStructuredProvider {
     func generate(
-        prompt: String,
+        input: LLMInput,
         output: DynamicStructured
     ) async throws -> DynamicStructuredResult
 }
@@ -275,26 +275,26 @@ struct MultiProviderClient {
     }
 
     func generate(
-        prompt: String,
+        input: LLMInput,
         provider: Provider,
         output: DynamicStructured
     ) async throws -> DynamicStructuredResult {
         switch provider {
         case .claude(let model):
             return try await anthropic.generate(
-                prompt: prompt,
+                input: input,
                 model: model,
                 output: output
             )
         case .gpt(let model):
             return try await openai.generate(
-                prompt: prompt,
+                input: input,
                 model: model,
                 output: output
             )
         case .gemini(let model):
             return try await gemini.generate(
-                prompt: prompt,
+                input: input,
                 model: model,
                 output: output
             )
@@ -315,8 +315,8 @@ let userSchema = DynamicStructured("User") {
 }
 
 // 複数のリクエストで再利用
-let result1 = try await client.generate(prompt: "...", model: .sonnet, output: userSchema)
-let result2 = try await client.generate(prompt: "...", model: .sonnet, output: userSchema)
+let result1 = try await client.generate(input: "...", model: .sonnet, output: userSchema)
+let result2 = try await client.generate(input: "...", model: .sonnet, output: userSchema)
 ```
 
 ### 2. 適切なモデル選択
@@ -336,7 +336,7 @@ let result2 = try await client.generate(prompt: "...", model: .sonnet, output: u
 ```swift
 // データ抽出には低温度を推奨
 let result = try await client.generate(
-    prompt: "...",
+    input: "...",
     model: .sonnet,
     output: schema,
     temperature: 0.1

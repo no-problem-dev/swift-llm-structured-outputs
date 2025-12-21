@@ -14,7 +14,7 @@ LLMToolkits は、一般的な LLM タスク向けの構造化出力型を提供
 
 ```swift
 let analysis: AnalysisResult = try await client.generate(
-    prompt: "この市場レポートを分析してください: \(report)",
+    input: "この市場レポートを分析してください: \(report)",
     model: .sonnet
 )
 
@@ -31,7 +31,7 @@ print(analysis.confidence)        // 信頼度スコア（0.0-1.0）
 
 ```swift
 let sentiment: SentimentAnalysis = try await client.generate(
-    prompt: "このレビューの感情を分析してください: \(review)",
+    input: "このレビューの感情を分析してください: \(review)",
     model: .sonnet
 )
 
@@ -48,7 +48,7 @@ print(sentiment.explanation)  // 分析の説明
 
 ```swift
 let classification: Classification = try await client.generate(
-    prompt: "この問い合わせを分類してください: \(inquiry)",
+    input: "この問い合わせを分類してください: \(inquiry)",
     model: .sonnet
 )
 
@@ -66,7 +66,7 @@ print(classification.reasoning)            // 分類理由
 
 ```swift
 let summary: Summary = try await client.generate(
-    prompt: "この記事を要約してください: \(article)",
+    input: "この記事を要約してください: \(article)",
     model: .sonnet
 )
 
@@ -82,7 +82,7 @@ print(summary.targetAudience)  // 対象読者（オプション）
 
 ```swift
 let extraction: KeyPointExtraction = try await client.generate(
-    prompt: "この議事録から重要ポイントを抽出してください: \(minutes)",
+    input: "この議事録から重要ポイントを抽出してください: \(minutes)",
     model: .sonnet
 )
 
@@ -100,7 +100,7 @@ print(extraction.gaps)  // 情報が不足している領域
 
 ```swift
 let entities: EntityExtraction = try await client.generate(
-    prompt: "このテキストからエンティティを抽出してください: \(text)",
+    input: "このテキストからエンティティを抽出してください: \(text)",
     model: .sonnet
 )
 
@@ -119,7 +119,7 @@ for entity in entities.entities {
 
 ```swift
 let qa: QuestionAnswer = try await client.generate(
-    prompt: "Q: SwiftのActorとは何ですか？",
+    input: "Q: SwiftのActorとは何ですか？",
     model: .sonnet
 )
 
@@ -136,7 +136,7 @@ print(qa.followUpQuestions)   // フォローアップ質問（最大3項目）
 
 ```swift
 let plan: TaskPlan = try await client.generate(
-    prompt: "モバイルアプリ開発プロジェクトの計画を立ててください",
+    input: "モバイルアプリ開発プロジェクトの計画を立ててください",
     model: .sonnet
 )
 
@@ -161,7 +161,7 @@ print("リスク: \(plan.risks ?? [])")
 
 ```swift
 let comparison: ComparisonResult = try await client.generate(
-    prompt: "SwiftUI と UIKit を比較してください",
+    input: "SwiftUI と UIKit を比較してください",
     model: .sonnet
 )
 
@@ -183,7 +183,7 @@ print("注意点: \(comparison.caveats ?? [])")
 
 ```swift
 let review: CodeReview = try await client.generate(
-    prompt: "このSwiftコードをレビューしてください: \(code)",
+    input: "このSwiftコードをレビューしてください: \(code)",
     model: .sonnet
 )
 
@@ -212,7 +212,7 @@ let tools = ToolSet {
 
 // ツールを使用して情報を収集し、構造化された分析結果を生成
 let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
-    prompt: "この財務データを分析してレポートを作成してください: \(data)",
+    input: "この財務データを分析してレポートを作成してください: \(data)",
     model: .sonnet,
     tools: tools,
     systemPrompt: DataAnalystPreset.systemPrompt

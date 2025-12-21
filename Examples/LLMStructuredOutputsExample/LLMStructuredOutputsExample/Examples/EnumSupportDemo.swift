@@ -316,7 +316,7 @@ private struct CodeExampleSection: View {
 
         // 使用例
         let task: TaskInfo = try await client.generate(
-            prompt: "バグ修正タスクの説明...",
+            input: "バグ修正タスクの説明...",
             model: .sonnet
         )
         print(task.priority)  // .high

@@ -13,7 +13,7 @@ import LLMClient
 ///
 /// ```swift
 /// let result: AnalysisResult = try await client.generate(
-///     prompt: "Analyze the market trends in this report: \(reportText)",
+///     input: "Analyze the market trends in this report: \(reportText)",
 ///     model: .sonnet
 /// )
 /// print(result.summary)

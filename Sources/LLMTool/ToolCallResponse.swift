@@ -26,7 +26,7 @@ import LLMClient
 /// }
 ///
 /// let tools = ToolSet {
-///     GetWeather.self
+///     GetWeather()
 /// }
 ///
 /// // LLM にどのツールを呼ぶべきか計画させる

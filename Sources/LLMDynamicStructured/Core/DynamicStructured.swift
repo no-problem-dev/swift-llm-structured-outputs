@@ -24,7 +24,7 @@ import LLMClient
 /// }
 ///
 /// let result = try await client.generate(
-///     prompt: "田中太郎さん（35歳、管理者）の情報を抽出",
+///     input: "田中太郎さん（35歳、管理者）の情報を抽出",
 ///     model: .sonnet,
 ///     output: userInfo
 /// )

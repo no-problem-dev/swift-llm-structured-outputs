@@ -54,7 +54,7 @@ private enum FinalOutputConstants {
 ///     client: AnthropicClient(apiKey: "..."),
 ///     systemPrompt: Prompt { "あなたはリサーチアシスタントです。" },
 ///     tools: ToolSet {
-///         WebSearchTool.self
+///         WebSearchTool()
 ///     }
 /// )
 ///

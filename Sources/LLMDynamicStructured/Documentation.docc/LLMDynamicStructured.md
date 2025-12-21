@@ -62,7 +62,7 @@ let userInfo = DynamicStructured("UserInfo", description: "ユーザー情報") 
         let client = AnthropicClient(apiKey: "sk-ant-...")
 
         let result = try await client.generate(
-            prompt: "田中太郎さん（35歳、管理者）の情報を抽出",
+            input: "田中太郎さん（35歳、管理者）の情報を抽出",
             model: .sonnet,
             output: userInfo
         )
@@ -74,7 +74,7 @@ let userInfo = DynamicStructured("UserInfo", description: "ユーザー情報") 
         let client = OpenAIClient(apiKey: "sk-...")
 
         let result = try await client.generate(
-            prompt: "田中太郎さん（35歳、管理者）の情報を抽出",
+            input: "田中太郎さん（35歳、管理者）の情報を抽出",
             model: .gpt4o,
             output: userInfo
         )
@@ -86,7 +86,7 @@ let userInfo = DynamicStructured("UserInfo", description: "ユーザー情報") 
         let client = GeminiClient(apiKey: "...")
 
         let result = try await client.generate(
-            prompt: "田中太郎さん（35歳、管理者）の情報を抽出",
+            input: "田中太郎さん（35歳、管理者）の情報を抽出",
             model: .flash,
             output: userInfo
         )

@@ -14,7 +14,7 @@
 
 ```swift
 let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
-    prompt: "AIエージェントの最新トレンドを調査してください",
+    input: "AIエージェントの最新トレンドを調査してください",
     model: .sonnet,
     tools: ResearcherPreset.defaultTools,
     systemPrompt: ResearcherPreset.systemPrompt,
@@ -32,7 +32,7 @@ let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
 
 ```swift
 let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
-    prompt: "Q1: 100万, Q2: 120万, Q3: 150万 の成長率を計算して分析してください",
+    input: "Q1: 100万, Q2: 120万, Q3: 150万 の成長率を計算して分析してください",
     model: .sonnet,
     tools: DataAnalystPreset.defaultTools,
     systemPrompt: DataAnalystPreset.systemPrompt,
@@ -50,7 +50,7 @@ let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
 
 ```swift
 let stream: some AgentStepStream<CodeReview> = client.runAgent(
-    prompt: "このSwiftコードをレビューして改善点を提案してください",
+    input: "このSwiftコードをレビューして改善点を提案してください",
     model: .sonnet,
     tools: CodingAssistantPreset.defaultTools,
     systemPrompt: CodingAssistantPreset.systemPrompt,
@@ -68,7 +68,7 @@ let stream: some AgentStepStream<CodeReview> = client.runAgent(
 
 ```swift
 let stream: some AgentStepStream<Summary> = client.runAgent(
-    prompt: "この記事を要約して重要ポイントをハイライトしてください",
+    input: "この記事を要約して重要ポイントをハイライトしてください",
     model: .sonnet,
     tools: WriterPreset.defaultTools,
     systemPrompt: WriterPreset.systemPrompt,
@@ -86,7 +86,7 @@ let stream: some AgentStepStream<Summary> = client.runAgent(
 
 ```swift
 let stream: some AgentStepStream<TaskPlan> = client.runAgent(
-    prompt: "新しいモバイルアプリのローンチ計画を作成してください",
+    input: "新しいモバイルアプリのローンチ計画を作成してください",
     model: .sonnet,
     tools: PlannerPreset.defaultTools,
     systemPrompt: PlannerPreset.systemPrompt,
@@ -104,7 +104,7 @@ let stream: some AgentStepStream<TaskPlan> = client.runAgent(
 
 ```swift
 let stream: some AgentStepStream<Summary> = client.runAgent(
-    prompt: "機械学習の概念を説明してください",
+    input: "機械学習の概念を説明してください",
     model: .sonnet,
     tools: MinimalPreset.defaultTools,
     systemPrompt: MinimalPreset.systemPrompt,
@@ -153,7 +153,7 @@ let customPreset = CustomPresetBuilder()
 
 // 使用
 let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
-    prompt: "...",
+    input: "...",
     model: .sonnet,
     tools: customPreset.tools,
     systemPrompt: customPreset.systemPrompt,
@@ -199,7 +199,7 @@ let additionalTools = ToolSet {
 let expandedTools = ResearcherPreset.toolsWithAdditions(additionalTools)
 
 let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
-    prompt: "ウェブから情報を収集して分析してください",
+    input: "ウェブから情報を収集して分析してください",
     model: .sonnet,
     tools: expandedTools,
     systemPrompt: ResearcherPreset.systemPrompt,

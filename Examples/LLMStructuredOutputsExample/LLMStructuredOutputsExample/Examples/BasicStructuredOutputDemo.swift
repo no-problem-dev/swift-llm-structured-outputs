@@ -188,7 +188,7 @@ private struct CodeExampleSection: View {
         // クライアントを作成して実行
         let client = AnthropicClient(apiKey: "sk-ant-...")
         let result: BusinessCardInfo = try await client.generate(
-            prompt: "名刺のテキスト...",
+            input: "名刺のテキスト...",
             model: .sonnet
         )
 
