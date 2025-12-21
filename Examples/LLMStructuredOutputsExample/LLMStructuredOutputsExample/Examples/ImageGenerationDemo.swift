@@ -6,7 +6,9 @@
 //
 
 import SwiftUI
+import Photos
 import LLMStructuredOutputs
+import DesignSystem
 
 /// 画像生成デモ
 ///
@@ -590,6 +592,8 @@ private struct GeneratedImageView: View {
     let image: GeneratedImage
     @State private var uiImage: UIImage?
     @State private var showingShareSheet = false
+    @State private var snackbarState = SnackbarState()
+    @State private var isSaving = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -635,12 +639,23 @@ private struct GeneratedImageView: View {
                     }
                     .buttonStyle(.bordered)
 
-                    Button {
-                        saveToPhotos()
-                    } label: {
-                        Label("保存", systemImage: "square.and.arrow.down")
+                    if isSaving {
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("保存中...")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                    } else {
+                        Button {
+                            saveToPhotos()
+                        } label: {
+                            Label("保存", systemImage: "square.and.arrow.down")
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.bordered)
                 }
             }
         }
@@ -652,6 +667,9 @@ private struct GeneratedImageView: View {
                 ShareSheet(items: [uiImage])
             }
         }
+        .overlay(alignment: .bottom) {
+            Snackbar(state: snackbarState)
+        }
     }
 
     private func loadImage() {
@@ -661,8 +679,44 @@ private struct GeneratedImageView: View {
     }
 
     private func saveToPhotos() {
-        guard let uiImage = uiImage else { return }
-        UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
+        guard let uiImage = uiImage else {
+            snackbarState.show(message: "保存する画像がありません")
+            return
+        }
+
+        isSaving = true
+
+        Task { @MainActor in
+            defer { isSaving = false }
+
+            do {
+                let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+
+                guard status == .authorized || status == .limited else {
+                    snackbarState.show(
+                        message: "写真ライブラリへのアクセスが許可されていません",
+                        primaryAction: SnackbarAction(title: "設定を開く") {
+                            if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                                await UIApplication.shared.open(settingsURL)
+                            }
+                        },
+                        duration: 5.0
+                    )
+                    return
+                }
+
+                try await PHPhotoLibrary.shared().performChanges {
+                    PHAssetChangeRequest.creationRequestForAsset(from: uiImage)
+                }
+
+                snackbarState.show(message: "カメラロールに保存しました ✓", duration: 3.0)
+            } catch {
+                snackbarState.show(
+                    message: "保存に失敗しました: \(error.localizedDescription)",
+                    duration: 5.0
+                )
+            }
+        }
     }
 }
 
