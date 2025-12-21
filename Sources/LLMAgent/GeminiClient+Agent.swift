@@ -30,7 +30,7 @@ extension GeminiClient: AgentCapableClient {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         // リクエストボディを構築
-        let body = buildAgentRequestBody(
+        let body = try buildAgentRequestBody(
             model: model,
             messages: messages,
             systemPrompt: systemPrompt,
@@ -66,6 +66,8 @@ extension GeminiClient: AgentCapableClient {
     // MARK: - Private Helpers
 
     /// エージェントリクエストボディを構築
+    ///
+    /// - Throws: `LLMError.mediaNotSupported` メディアコンテンツが含まれている場合
     private func buildAgentRequestBody(
         model: GeminiModel,
         messages: [LLMMessage],
@@ -73,12 +75,12 @@ extension GeminiClient: AgentCapableClient {
         tools: ToolSet,
         toolChoice: ToolChoice?,
         responseSchema: JSONSchema?
-    ) -> GeminiAgentRequestBody {
+    ) throws -> GeminiAgentRequestBody {
         // コンテンツを構築
         var contents: [GeminiAgentContent] = []
 
         for message in messages {
-            contents.append(contentsOf: convertToGeminiContent(message))
+            contents.append(contentsOf: try convertToGeminiContent(message))
         }
 
         // システムインストラクション
@@ -126,7 +128,9 @@ extension GeminiClient: AgentCapableClient {
     }
 
     /// LLMMessage を Gemini コンテンツ形式に変換
-    private func convertToGeminiContent(_ message: LLMMessage) -> [GeminiAgentContent] {
+    ///
+    /// - Throws: `LLMError.mediaNotSupported` メディアコンテンツが含まれている場合
+    private func convertToGeminiContent(_ message: LLMMessage) throws -> [GeminiAgentContent] {
         let role = message.role == .user ? "user" : "model"
         var parts: [GeminiAgentPart] = []
         var toolResultParts: [GeminiAgentPart] = []
@@ -152,6 +156,14 @@ extension GeminiClient: AgentCapableClient {
                 let responseDict: [String: Any] = ["result": resultContent]
                 let functionResponse = GeminiAgentFunctionResponse(name: name, response: responseDict)
                 toolResultParts.append(GeminiAgentPart(functionResponse: functionResponse))
+
+            case .image:
+                // Agent APIではメディアコンテンツは現在サポートされていません
+                throw LLMError.mediaNotSupported(mediaType: "image", provider: "Gemini Agent API")
+            case .audio:
+                throw LLMError.mediaNotSupported(mediaType: "audio", provider: "Gemini Agent API")
+            case .video:
+                throw LLMError.mediaNotSupported(mediaType: "video", provider: "Gemini Agent API")
             }
         }
 

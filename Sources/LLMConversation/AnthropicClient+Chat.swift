@@ -32,7 +32,7 @@ extension AnthropicClient: ChatCapableClient {
         )
 
         // リクエストボディを構築
-        let body = buildChatRequestBody(
+        let body = try buildChatRequestBody(
             model: model,
             messages: messages,
             systemPrompt: enhancedSystemPrompt,
@@ -83,6 +83,8 @@ extension AnthropicClient: ChatCapableClient {
     }
 
     /// チャットリクエストボディを構築
+    ///
+    /// - Throws: `LLMError.mediaNotSupported` メディアコンテンツが含まれている場合
     private func buildChatRequestBody(
         model: ClaudeModel,
         messages: [LLMMessage],
@@ -90,8 +92,8 @@ extension AnthropicClient: ChatCapableClient {
         responseSchema: JSONSchema,
         temperature: Double?,
         maxTokens: Int?
-    ) -> AnthropicChatRequestBody {
-        let anthropicMessages = messages.map { convertToAnthropicMessage($0) }
+    ) throws -> AnthropicChatRequestBody {
+        let anthropicMessages = try messages.map { try convertToAnthropicMessage($0) }
 
         let adapter = AnthropicSchemaAdapter()
         let outputFormat = AnthropicChatOutputFormat(
@@ -110,7 +112,9 @@ extension AnthropicClient: ChatCapableClient {
     }
 
     /// LLMMessage を Anthropic メッセージ形式に変換
-    private func convertToAnthropicMessage(_ message: LLMMessage) -> AnthropicChatMessage {
+    ///
+    /// - Throws: `LLMError.mediaNotSupported` メディアコンテンツが含まれている場合
+    private func convertToAnthropicMessage(_ message: LLMMessage) throws -> AnthropicChatMessage {
         let role = message.role == .user ? "user" : "assistant"
         var contentBlocks: [AnthropicChatMessageContent] = []
 
@@ -122,6 +126,13 @@ extension AnthropicClient: ChatCapableClient {
                 contentBlocks.append(.toolUse(id: id, name: name, input: input))
             case .toolResult(let toolCallId, _, let resultContent, let isError):
                 contentBlocks.append(.toolResult(toolUseId: toolCallId, content: resultContent, isError: isError))
+            case .image:
+                // Chat APIではメディアコンテンツは現在サポートされていません
+                throw LLMError.mediaNotSupported(mediaType: "image", provider: "Anthropic Chat API")
+            case .audio:
+                throw LLMError.mediaNotSupported(mediaType: "audio", provider: "Anthropic Chat API")
+            case .video:
+                throw LLMError.mediaNotSupported(mediaType: "video", provider: "Anthropic Chat API")
             }
         }
 

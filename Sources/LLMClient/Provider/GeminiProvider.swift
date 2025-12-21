@@ -297,6 +297,7 @@ internal struct GeminiProvider: LLMProvider, RetryableProviderProtocol {
     /// - テキストメッセージ: role="user"|"model", parts=[{text: "..."}]
     /// - ツール呼び出し: role="model", parts=[{functionCall: {name, args}}]
     /// - ツール結果: role="user", parts=[{functionResponse: {name, response}}]
+    /// - メディア: role="user", parts=[{inlineData: {mimeType, data}}] または parts=[{fileData: {mimeType, fileUri}}]
     private func convertToGeminiContents(_ message: LLMMessage) -> [GeminiContent] {
         let role = message.role == .user ? "user" : "model"
         var parts: [GeminiPart] = []
@@ -325,6 +326,24 @@ internal struct GeminiProvider: LLMProvider, RetryableProviderProtocol {
                 let responseDict: [String: Any] = ["result": resultContent]
                 let functionResponse = GeminiFunctionResponse(name: name, response: responseDict)
                 toolResultParts.append(GeminiPart(functionResponse: functionResponse))
+
+            case .image(let imageContent):
+                // 画像コンテンツ
+                if let geminiPart = convertMediaToGeminiPart(source: imageContent.source, mimeType: imageContent.mediaType) {
+                    parts.append(geminiPart)
+                }
+
+            case .audio(let audioContent):
+                // 音声コンテンツ
+                if let geminiPart = convertMediaToGeminiPart(source: audioContent.source, mimeType: audioContent.mediaType) {
+                    parts.append(geminiPart)
+                }
+
+            case .video(let videoContent):
+                // 動画コンテンツ
+                if let geminiPart = convertMediaToGeminiPart(source: videoContent.source, mimeType: videoContent.mediaType) {
+                    parts.append(geminiPart)
+                }
             }
         }
 
@@ -341,6 +360,34 @@ internal struct GeminiProvider: LLMProvider, RetryableProviderProtocol {
         }
 
         return contents
+    }
+
+    /// メディアソースをGeminiパーツに変換
+    ///
+    /// - Parameters:
+    ///   - source: メディアソース（base64, URL, またはファイル参照）
+    ///   - mimeType: MIMEタイプを持つメディアタイプ
+    /// - Returns: GeminiPart、変換できない場合はnil
+    private func convertMediaToGeminiPart<T: MediaType>(source: MediaSource, mimeType: T) -> GeminiPart? {
+        switch source {
+        case .base64(let data):
+            // Base64エンコードされたデータ
+            let base64String = data.base64EncodedString()
+            let inlineData = GeminiInlineData(mimeType: mimeType.mimeType, data: base64String)
+            return GeminiPart(inlineData: inlineData)
+
+        case .url(let url):
+            // URLの場合もGeminiではinlineDataとして送信
+            // 注: 実際の実装では、URLからデータを取得してbase64エンコードする必要がある場合がある
+            // ここではfileDataとして扱う
+            let fileData = GeminiFileData(mimeType: mimeType.mimeType, fileUri: url.absoluteString)
+            return GeminiPart(fileData: fileData)
+
+        case .fileReference(let id):
+            // File API経由でアップロードされたファイル
+            let fileData = GeminiFileData(mimeType: mimeType.mimeType, fileUri: id)
+            return GeminiPart(fileData: fileData)
+        }
     }
 }
 
@@ -461,23 +508,69 @@ private struct GeminiPart: Codable {
     let text: String?
     let functionCall: GeminiFunctionCall?
     let functionResponse: GeminiFunctionResponse?
+    let inlineData: GeminiInlineData?
+    let fileData: GeminiFileData?
 
     init(text: String) {
         self.text = text
         self.functionCall = nil
         self.functionResponse = nil
+        self.inlineData = nil
+        self.fileData = nil
     }
 
     init(functionCall: GeminiFunctionCall) {
         self.text = nil
         self.functionCall = functionCall
         self.functionResponse = nil
+        self.inlineData = nil
+        self.fileData = nil
     }
 
     init(functionResponse: GeminiFunctionResponse) {
         self.text = nil
         self.functionCall = nil
         self.functionResponse = functionResponse
+        self.inlineData = nil
+        self.fileData = nil
+    }
+
+    init(inlineData: GeminiInlineData) {
+        self.text = nil
+        self.functionCall = nil
+        self.functionResponse = nil
+        self.inlineData = inlineData
+        self.fileData = nil
+    }
+
+    init(fileData: GeminiFileData) {
+        self.text = nil
+        self.functionCall = nil
+        self.functionResponse = nil
+        self.inlineData = nil
+        self.fileData = fileData
+    }
+}
+
+/// Gemini インラインデータ（Base64エンコードされたメディア）
+private struct GeminiInlineData: Codable {
+    let mimeType: String
+    let data: String  // Base64エンコードされたデータ
+
+    enum CodingKeys: String, CodingKey {
+        case mimeType = "mime_type"
+        case data
+    }
+}
+
+/// Gemini ファイルデータ（File API経由でアップロードされたファイル）
+private struct GeminiFileData: Codable {
+    let mimeType: String
+    let fileUri: String
+
+    enum CodingKeys: String, CodingKey {
+        case mimeType = "mime_type"
+        case fileUri = "file_uri"
     }
 }
 

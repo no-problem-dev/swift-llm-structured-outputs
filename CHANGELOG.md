@@ -7,6 +7,62 @@
 
 ## [未リリース]
 
+## [1.0.21] - 2025-12-21
+
+### 追加
+
+- **マルチモーダル出力サポート**: 画像・音声・動画の生成機能を追加
+  - `ImageGenerationCapable`: 画像生成プロトコル
+  - `SpeechGenerationCapable`: 音声生成（TTS）プロトコル
+  - `VideoGenerationCapable`: 動画生成プロトコル
+  - `GeneratedImage`, `GeneratedAudio`, `GeneratedVideo`: 生成結果の型
+  - `VideoGenerationJob`: 動画生成ジョブの非同期管理
+
+- **OpenAI 画像生成**: DALL-E 2/3、GPT-Image モデルをサポート
+  - `generateImage(prompt:model:size:quality:format:)` API
+  - サイズ・品質・フォーマットのカスタマイズ
+
+- **OpenAI 音声生成**: TTS-1、TTS-1-HD モデルをサポート
+  - `generateSpeech(text:model:voice:speed:format:)` API
+  - 6種類の声（alloy, echo, fable, onyx, nova, shimmer）
+
+- **OpenAI 動画生成**: Sora 2、Sora 2 Pro モデルをサポート
+  - `startVideoGeneration()`, `checkVideoStatus()`, `getGeneratedVideo()` API
+  - `generateVideo()` による完了まで待機
+
+- **Gemini 画像生成**: Imagen 4、Gemini 2.0 Flash Image モデルをサポート
+
+- **Gemini 動画生成**: Veo 2.0、3.0、3.1 モデルをサポート
+  - リモートURLからのダウンロード機能
+
+- **マルチモーダル入力（Vision）の改善**
+  - `LLMMessage.user(_:image:)`, `user(_:audio:)`, `user(_:video:)` ヘルパー
+  - `ImageContent`, `AudioContent`, `VideoContent` 型
+  - Base64、URL、ファイル参照の3種類のメディアソース
+
+### 変更
+
+- **README の簡素化**: ドキュメントへのリンクハブとして再構成
+  - README.md: 318行 → 136行（57%削減）
+  - README_EN.md: 432行 → 136行（68%削減）
+  - 機能マトリックス（テキスト + マルチモーダル）を追加
+
+- **DocC ドキュメントの改善**
+  - `Multimodal.md`: マルチモーダル機能の包括的ガイドを追加
+  - `LLMClient.md`: マルチモーダル Topics セクションを追加
+  - コアモジュール用 DocC カタログを追加
+
+### 修正
+
+- **GPT-Image response_format エラー**: レスポンス形式の処理を修正
+- **Gemini 画像モデル**: 利用可能な API（Imagen 4）に更新
+- **Veo 2.0 duration range**: 5-8秒の正しい範囲に修正
+- **動画プレイヤー**: フルスクリーン実装の冗長なコードを削除
+
+### 削除
+
+- **documentation/ フォルダ**: DocC と重複する12ファイルを削除
+
 ## [1.0.20] - 2025-12-20
 
 ### 追加
@@ -483,7 +539,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.20...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.21...HEAD
+[1.0.21]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.20...v1.0.21
 [1.0.20]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.19...v1.0.20
 [1.0.19]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.18...v1.0.19
 [1.0.18]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.17...v1.0.18
@@ -532,3 +589,5 @@
 <!-- Auto-generated on 2025-12-18T23:39:00Z by release workflow -->
 
 <!-- Auto-generated on 2025-12-20T01:24:37Z by release workflow -->
+
+<!-- Auto-generated on 2025-12-20T08:39:56Z by release workflow -->

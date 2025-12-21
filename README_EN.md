@@ -4,251 +4,109 @@ Type-safe structured output generation for Swift LLM clients
 
 🌐 English | **[日本語](README.md)**
 
-[![Swift](https://img.shields.io/badge/Swift-6.0+-orange.svg)](https://swift.org)
-[![Platforms](https://img.shields.io/badge/Platforms-iOS%2017%2B%20%7C%20macOS%2014%2B-blue.svg)](https://developer.apple.com)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Documentation](https://img.shields.io/badge/Documentation-DocC-blue.svg)](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/)
+![Swift](https://img.shields.io/badge/Swift-6.0+-orange.svg)
+![Platforms](https://img.shields.io/badge/Platforms-iOS%2017%2B%20%7C%20macOS%2014%2B%20%7C%20Linux-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-📖 **[API Reference](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/)** | 📚 **[LLMToolkits](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/)**
+## Overview
 
-## Features
+A Swift library for getting type-safe structured outputs from Claude, GPT, and Gemini. Map LLM responses directly to Swift structs defined with Swift Macros.
 
-- **Type-safe Structured Outputs** - Automatic JSON Schema generation via Swift macros
-- **Multi-provider Support** - Claude (Anthropic), GPT (OpenAI), and Gemini (Google)
-- **Conversation Continuation** - State management and multi-turn conversations with `ConversationHistory`
-- **Swift Concurrency** - Full async/await and Sendable support
-- **Zero Dependencies** - Only swift-syntax required (for macro implementation)
-- **High-Level Toolkit** - Presets, built-in tools, and common output structures (LLMToolkits)
+## Key Features
+
+- **Structured Outputs** - Define type-safe outputs with `@Structured` macro, auto-generate schemas
+- **Agents** - Auto-execute tools and generate structured outputs (`runAgent`)
+- **Conversations** - Maintain multi-turn context with `ConversationHistory`
+- **Multimodal** - Image, audio, video input (Vision) and generation
+- **3 Providers** - Claude, GPT, Gemini via unified API
 
 ## Quick Start
-
-### 1. Define Your Structured Output Type
 
 ```swift
 import LLMStructuredOutputs
 
 @Structured("User information")
 struct UserInfo {
-    @StructuredField("Name")
-    var name: String
-
-    @StructuredField("Age", .minimum(0), .maximum(150))
-    var age: Int
-
-    @StructuredField("Email address", .format(.email))
-    var email: String?
+    @StructuredField("Name") var name: String
+    @StructuredField("Age", .minimum(0)) var age: Int
 }
-```
 
-### 2. Get Structured Data from LLM
-
-```swift
-// Using Claude
 let client = AnthropicClient(apiKey: "sk-ant-...")
 let user: UserInfo = try await client.generate(
-    prompt: "John Smith is 35 years old, email is john@example.com",
+    prompt: "John Smith is 35 years old",
     model: .sonnet
 )
-print(user.name)  // "John Smith"
-print(user.age)   // 35
+// user.name → "John Smith", user.age → 35
 ```
-
-### 3. Continue Conversations
-
-```swift
-let history = ConversationHistory()
-
-// First question
-let cityInfo: CityInfo = try await client.chat(
-    "What is the capital of Japan?",
-    history: history,
-    model: .sonnet,
-    systemPrompt: "You are a helpful assistant"
-)
-print(cityInfo.name)  // "Tokyo"
-
-// Continue conversation (context is maintained)
-let population: PopulationInfo = try await client.chat(
-    "What is its population?",
-    history: history,
-    model: .sonnet
-)
-print(population.count)  // 13960000
-```
-
-### 4. Prompt DSL
-
-Build structured prompts with the DSL:
-
-```swift
-let prompt = Prompt {
-    PromptComponent.role("Data analysis expert")
-    PromptComponent.objective("Extract user information")
-    PromptComponent.instruction("Extract names without honorifics")
-    PromptComponent.constraint("Do not guess")
-    PromptComponent.example(
-        input: "Jane Doe (28) lives in New York",
-        output: #"{"name": "Jane Doe", "age": 28}"#
-    )
-}
-
-let user: UserInfo = try await client.generate(
-    prompt: prompt,
-    model: .sonnet
-)
-```
-
-### 5. Tool Calling
-
-Let the LLM decide which tools (functions) to call. For details, see the [Tool Calling Guide](documentation/tool-calling.md).
-
-```swift
-@Tool("Get weather for a specified city")
-struct GetWeather {
-    @ToolArgument("City name")
-    var location: String
-
-    func call() async throws -> String {
-        return "Tokyo: Sunny, 22°C"
-    }
-}
-
-let tools = ToolSet { GetWeather() }
-
-let plan = try await client.planToolCalls(
-    prompt: "What's the weather in Tokyo?",
-    model: .sonnet,
-    tools: tools
-)
-
-for call in plan.toolCalls {
-    let result = try await tools.execute(toolNamed: call.name, with: call.arguments)
-    print(result.stringValue)
-}
-```
-
-### 6. Agent Loop
-
-Use `runAgent` to automatically execute tools and generate structured output:
-
-```swift
-@Structured("Weather report")
-struct WeatherReport {
-    @StructuredField("Location") var location: String
-    @StructuredField("Conditions") var conditions: String
-    @StructuredField("Temperature") var temperature: Int
-}
-
-let tools = ToolSet { GetWeather() }
-
-let stream: some AgentStepStream<WeatherReport> = client.runAgent(
-    prompt: "Check the weather in Tokyo and create a report",
-    model: .sonnet,
-    tools: tools
-)
-
-for try await step in stream {
-    switch step {
-    case .toolCall(let call): print("🔧 \(call.name)")
-    case .toolResult(let result): print("📤 \(result.output)")
-    case .finalResponse(let report): print("✅ \(report.location): \(report.conditions)")
-    default: break
-    }
-}
-```
-
-### 7. Conversational Agent
-
-Use `ConversationalAgentSession` to run agent loops while maintaining multi-turn conversations:
-
-```swift
-let session = ConversationalAgentSession(
-    client: AnthropicClient(apiKey: "..."),
-    systemPrompt: Prompt { PromptComponent.role("Research assistant") },
-    tools: ToolSet { WebSearchTool() }
-)
-
-let stream: some ConversationalAgentStepStream<ResearchResult> = session.run(
-    "Research AI agents",
-    model: .sonnet
-)
-
-for try await step in stream {
-    switch step {
-    case .toolCall(let call): print("🔧 \(call.name)")
-    case .finalResponse(let output): print("✅ \(output.summary)")
-    default: break
-    }
-}
-
-let followUp: some ConversationalAgentStepStream<ResearchResult> = session.run(
-    "Tell me more about security aspects",
-    model: .sonnet
-)
-```
-
-For details, see [Agent Loop Guide](documentation/agent-loop.md) and [Conversational Agent Guide](documentation/conversational-agent.md).
-
-### 8. LLMToolkits (High-Level Toolkit)
-
-Use the `LLMToolkits` module to accelerate agent development with pre-configured presets and built-in tools:
-
-```swift
-import LLMToolkits
-import LLMStructuredOutputs
-
-// Run agent with preset
-let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
-    prompt: "Analyze the market trends",
-    model: .sonnet,
-    tools: ResearcherPreset.defaultTools,
-    systemPrompt: ResearcherPreset.systemPrompt,
-    configuration: ResearcherPreset.configuration
-)
-
-for try await step in stream {
-    switch step {
-    case .toolCall(let call): print("🔧 \(call.name)")
-    case .finalResponse(let result): print("✅ \(result.summary)")
-    default: break
-    }
-}
-```
-
-LLMToolkits includes:
-- **System Prompts** - Purpose-optimized prompts (Researcher, DataAnalyst, CodingAssistant, etc.)
-- **Built-in Tools** - Calculator, DateTime, TextAnalysis
-- **Common Output Structures** - AnalysisResult, Summary, TaskPlan, etc.
-- **Agent Presets** - Ready-to-use configurations combining prompts + tools + settings
-
-See [LLMToolkits API Reference](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/) for details.
 
 ## Installation
 
-### Swift Package Manager
-
-Add the dependency to your `Package.swift`:
-
 ```swift
+// Package.swift
 dependencies: [
     .package(url: "https://github.com/no-problem-dev/swift-llm-structured-outputs.git", from: "1.0.0")
 ]
-```
 
-Add to your target:
-
-```swift
 .target(
-    name: "YourTarget",
+    name: "YourApp",
     dependencies: [
         .product(name: "LLMStructuredOutputs", package: "swift-llm-structured-outputs"),
-        // Optional: Use high-level toolkit
+        // Optional
         .product(name: "LLMToolkits", package: "swift-llm-structured-outputs"),
-        // Optional: Use MCP integration (external MCP server connection)
         .product(name: "LLMMCP", package: "swift-llm-structured-outputs")
     ]
 )
 ```
+
+## Documentation
+
+### API Reference (DocC)
+
+| Module | Description |
+|--------|-------------|
+| [LLMStructuredOutputs](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) | Main module (structured outputs, agents, conversations) |
+| [LLMClient](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmclient/) | LLM clients, prompts, multimodal |
+| [LLMToolkits](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/) | Presets, built-in tools, common output structures |
+| [LLMMCP](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmmcp/) | MCP integration, built-in ToolKits |
+
+### Guides
+
+| Topic | Description |
+|-------|-------------|
+| [Getting Started](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/gettingstarted) | Installation and basic usage |
+| [Prompt Building](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/promptbuilding) | Building prompts with Prompt DSL |
+| [Conversations](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/conversations) | Implementing multi-turn conversations |
+| [Agent Loop](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/agentloop) | Auto tool execution and structured output |
+| [Conversational Agent](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/conversationalagent) | Agents with multi-turn conversation |
+| [Multimodal](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmclient/multimodal) | Image, audio, video input and generation |
+| [Providers](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/providers) | Provider and model details |
+
+## Feature Matrix
+
+### Text Features
+
+| Feature | Anthropic | OpenAI | Gemini |
+|---------|:---------:|:------:|:------:|
+| Structured Output | ✓ | ✓ | ✓ |
+| Streaming | ✓ | ✓ | ✓ |
+| Tool Calling | ✓ | ✓ | ✓ |
+| Agent Loop | ✓ | ✓ | ✓ |
+
+### Multimodal Input (Vision)
+
+| Feature | Anthropic | OpenAI | Gemini |
+|---------|:---------:|:------:|:------:|
+| Image Analysis | ✓ | ✓ | ✓ |
+| Audio Analysis | - | ✓ | ✓ |
+| Video Analysis | - | - | ✓ |
+
+### Multimodal Generation
+
+| Feature | Anthropic | OpenAI | Gemini |
+|---------|:---------:|:------:|:------:|
+| Image Generation | - | ✓ DALL-E, GPT-Image | ✓ Imagen 4 |
+| Speech Generation | - | ✓ TTS-1, TTS-1-HD | - |
+| Video Generation | - | ✓ Sora 2 | ✓ Veo 2.0-3.1 |
 
 ## Supported Providers
 
@@ -256,176 +114,22 @@ Add to your target:
 |----------|--------|----------------|
 | Anthropic | `AnthropicClient` | `.sonnet`, `.opus`, `.haiku` |
 | OpenAI | `OpenAIClient` | `.gpt4o`, `.gpt4oMini`, `.o1`, `.o3Mini` |
-| Google | `GeminiClient` | `.flash3`, `.pro25`, `.flash25`, `.flash25Lite` |
-
-### Usage Examples
-
-```swift
-// Anthropic Claude
-let anthropic = AnthropicClient(apiKey: "sk-ant-...")
-let result: MyType = try await anthropic.generate(
-    prompt: "...",
-    model: .sonnet
-)
-
-// OpenAI GPT
-let openai = OpenAIClient(apiKey: "sk-...")
-let result: MyType = try await openai.generate(
-    prompt: "...",
-    model: .gpt4o
-)
-
-// Google Gemini
-let gemini = GeminiClient(apiKey: "...")
-let result: MyType = try await gemini.generate(
-    prompt: "...",
-    model: .flash25
-)
-```
-
-## Macros
-
-### @Structured
-
-Makes a struct compatible with structured outputs.
-
-```swift
-@Structured("Product information")
-struct Product {
-    @StructuredField("Product name")
-    var name: String
-
-    @StructuredField("Price", .minimum(0))
-    var price: Int
-}
-```
-
-### @StructuredField
-
-Adds description and constraints to fields.
-
-**Available Constraints:**
-
-| Constraint | Description | Example |
-|------------|-------------|---------|
-| `.minimum(n)` | Minimum value | `.minimum(0)` |
-| `.maximum(n)` | Maximum value | `.maximum(100)` |
-| `.minLength(n)` | Minimum string length | `.minLength(1)` |
-| `.maxLength(n)` | Maximum string length | `.maxLength(100)` |
-| `.minItems(n)` | Minimum array items | `.minItems(1)` |
-| `.maxItems(n)` | Maximum array items | `.maxItems(10)` |
-| `.pattern(regex)` | Regex pattern | `.pattern("^[A-Z]+$")` |
-| `.format(type)` | Format type | `.format(.email)` |
-| `.enum([...])` | Enumerated values | `.enum(["a", "b"])` |
-
-### @StructuredEnum
-
-Makes a String-based enum compatible with structured outputs.
-
-```swift
-@StructuredEnum("Priority level")
-enum Priority: String {
-    @StructuredCase("Urgent task")
-    case high
-
-    @StructuredCase("Normal task")
-    case medium
-
-    @StructuredCase("Can be postponed")
-    case low
-}
-```
-
-## Conversation Continuation
-
-Use `ConversationHistory` to manage multi-turn conversations.
-
-```swift
-let history = ConversationHistory()
-let client = AnthropicClient(apiKey: "...")
-
-// Sequential questions (context is maintained)
-let recipe: Recipe = try await client.chat(
-    "How do I make pasta?",
-    history: history,
-    model: .sonnet,
-    systemPrompt: "You are a cooking expert"
-)
-
-let tips: CookingTips = try await client.chat(
-    "Any tips for beginners?",
-    history: history,
-    model: .sonnet
-)
-
-// Check usage
-print("Turns: \(await history.turnCount)")
-print("Total tokens: \(await history.getTotalUsage().totalTokens)")
-
-// Reset conversation
-await history.clear()
-```
+| Google | `GeminiClient` | `.flash3`, `.pro25`, `.flash25` |
 
 ## Requirements
 
+- iOS 17.0+ / macOS 14.0+ / Linux
 - Swift 6.0+
-- iOS 17.0+ / macOS 14.0+
+- Xcode 16+
 
 ## Example App
 
-An iOS example app is included in `Examples/LLMStructuredOutputsExample`. Try all features interactively.
-
-### Demo List
-
-| Demo | Features to Verify |
-|------|-------------------|
-| Basic Structured Output | `@Structured` type definition, `generate()` output |
-| Field Constraints | `.minimum()`, `.maximum()`, `.pattern()` constraints |
-| Enum Support | `@StructuredEnum` enum output |
-| Conversation | `ConversationHistory` multi-turn conversations |
-| Event Stream | `chatStream()` streaming responses |
-| Prompt DSL | `Prompt { }` builder for prompt construction |
-| Tool Calling | `@Tool` definition, `planToolCalls()` planning |
-| Agent Loop | `runAgent()` auto tool execution and structured output |
-| Conversational Agent | `ConversationalAgentSession` multi-turn agent |
-| **Provider Comparison** | Claude/GPT/Gemini parallel comparison, response time & token measurement |
-
-### Provider Comparison Demo
-
-Compare structured output quality across 3 major providers:
-
-- **Model Selection**: Select models individually for each provider
-- **Test Cases**: 5 categories, 14 types (extraction, reasoning, structure, quality, language)
-- **Custom Input**: Run comparison tests with any prompt
-- **Metrics**: Response time, token usage, output JSON
-
-```bash
-# Open the example app
-open Examples/LLMStructuredOutputsExample/LLMStructuredOutputsExample.xcodeproj
-```
-
-## Documentation
-
-For detailed documentation, see:
-
-### API Reference (DocC)
-- [LLMStructuredOutputs](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmstructuredoutputs/) - Type-safe structured outputs API
-- [LLMToolkits](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmtoolkits/) - High-level toolkit (presets, built-in tools, common outputs)
-- [LLMMCP](https://no-problem-dev.github.io/swift-llm-structured-outputs/documentation/llmmcp/) - MCP integration (external MCP server connection, built-in ToolKits)
-
-### Guides
-  - [Getting Started](documentation/getting-started.md)
-  - [Prompt Building](documentation/prompt-building.md)
-  - [Conversation](documentation/conversation.md)
-  - [Tool Calling](documentation/tool-calling.md)
-  - [Agent Loop](documentation/agent-loop.md)
-  - [Conversational Agent](documentation/conversational-agent.md)
-  - [Providers](documentation/providers.md)
+An iOS example app is available at `Examples/LLMStructuredOutputsExample`.
 
 ## License
 
 MIT License - See [LICENSE](LICENSE) for details.
 
-## Author
+---
 
-NOPROBLEM
+Made with ❤️ by [NOPROBLEM](https://github.com/no-problem-dev)
