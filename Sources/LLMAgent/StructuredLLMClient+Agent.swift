@@ -66,7 +66,7 @@ extension AgentCapableClient {
     /// }
     ///
     /// let stream: some AgentStepStream<WeatherReport> = client.runAgent(
-    ///     prompt: "東京の天気を教えて",
+    ///     input: "東京の天気を教えて",
     ///     model: .sonnet,
     ///     tools: tools
     /// )
@@ -83,24 +83,31 @@ extension AgentCapableClient {
     ///         print("最終出力: \(report.location) - \(report.weather)")
     ///     }
     /// }
+    ///
+    /// // マルチモーダル入力
+    /// let stream = client.runAgent(
+    ///     input: LLMInput("この画像を分析してください", images: [imageContent]),
+    ///     model: .sonnet,
+    ///     tools: imageAnalysisTools
+    /// )
     /// ```
     ///
     /// - Parameters:
-    ///   - prompt: ユーザープロンプト
+    ///   - input: LLM 入力（テキスト、画像、音声、動画を含む）
     ///   - model: 使用するモデル
     ///   - tools: 使用可能なツールセット
     ///   - systemPrompt: システムプロンプト（オプション）
     ///   - configuration: エージェント設定（オプション、デフォルト: 最大10ステップ）
     /// - Returns: 各ステップを返す AsyncSequence
     public func runAgent<Output: StructuredProtocol>(
-        prompt: String,
+        input: LLMInput,
         model: Model,
         tools: ToolSet,
         systemPrompt: Prompt? = nil,
         configuration: AgentConfiguration = .default
     ) -> some AgentStepStream<Output> {
         runAgent(
-            messages: [.user(prompt)],
+            messages: [input.toLLMMessage()],
             model: model,
             tools: tools,
             systemPrompt: systemPrompt,

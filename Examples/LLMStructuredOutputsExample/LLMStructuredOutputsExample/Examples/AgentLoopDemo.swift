@@ -105,7 +105,7 @@ struct AgentLoopDemo: View {
 
     private func runAnthropicAgent(client: AnthropicClient, tools: ToolSet) async throws {
         let agentStream: some AgentStepStream<WeatherReport> = client.runAgent(
-            prompt: inputText,
+            input: LLMInput(inputText),
             model: settings.claudeModelOption.model,
             tools: tools,
             systemPrompt: "ユーザーの要求に応じてツールを使用し、構造化されたレポートを生成してください。"
@@ -133,7 +133,7 @@ struct AgentLoopDemo: View {
 
     private func runOpenAIAgent(client: OpenAIClient, tools: ToolSet) async throws {
         let agentStream: some AgentStepStream<WeatherReport> = client.runAgent(
-            prompt: inputText,
+            input: LLMInput(inputText),
             model: settings.gptModelOption.model,
             tools: tools,
             systemPrompt: "ユーザーの要求に応じてツールを使用し、構造化されたレポートを生成してください。"
@@ -161,7 +161,7 @@ struct AgentLoopDemo: View {
 
     private func runGeminiAgent(client: GeminiClient, tools: ToolSet) async throws {
         let agentStream: some AgentStepStream<WeatherReport> = client.runAgent(
-            prompt: inputText,
+            input: LLMInput(inputText),
             model: settings.geminiModelOption.model,
             tools: tools,
             systemPrompt: "ユーザーの要求に応じてツールを使用し、構造化されたレポートを生成してください。"

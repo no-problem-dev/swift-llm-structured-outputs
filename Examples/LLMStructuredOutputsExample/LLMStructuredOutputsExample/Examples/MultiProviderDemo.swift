@@ -213,7 +213,7 @@ struct MultiProviderDemo: View {
             let model = selectedClaudeModel.model
             do {
                 let response: ChatResponse<LandmarkOutput> = try await client.chat(
-                    prompt: inputText,
+                    input: LLMInput(inputText),
                     model: model,
                     systemPrompt: systemPrompt,
                     temperature: settings.temperature,
@@ -243,7 +243,7 @@ struct MultiProviderDemo: View {
             let model = selectedGPTModel.model
             do {
                 let response: ChatResponse<LandmarkOutput> = try await client.chat(
-                    prompt: inputText,
+                    input: LLMInput(inputText),
                     model: model,
                     systemPrompt: systemPrompt,
                     temperature: settings.temperature,
@@ -273,7 +273,7 @@ struct MultiProviderDemo: View {
             let model = selectedGeminiModel.model
             do {
                 let response: ChatResponse<LandmarkOutput> = try await client.chat(
-                    prompt: inputText,
+                    input: LLMInput(inputText),
                     model: model,
                     systemPrompt: systemPrompt,
                     temperature: settings.temperature,
@@ -310,7 +310,7 @@ struct MultiProviderDemo: View {
             switch testCase.outputType {
             case .landmark:
                 let response: ChatResponse<LandmarkOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -328,7 +328,7 @@ struct MultiProviderDemo: View {
 
             case .person:
                 let response: ChatResponse<PersonOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -346,7 +346,7 @@ struct MultiProviderDemo: View {
 
             case .product:
                 let response: ChatResponse<ProductOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -364,7 +364,7 @@ struct MultiProviderDemo: View {
 
             case .meeting:
                 let response: ChatResponse<MeetingOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -382,7 +382,7 @@ struct MultiProviderDemo: View {
 
             case .organization:
                 let response: ChatResponse<OrganizationOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -400,7 +400,7 @@ struct MultiProviderDemo: View {
 
             case .recipe:
                 let response: ChatResponse<RecipeOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -418,7 +418,7 @@ struct MultiProviderDemo: View {
 
             case .event:
                 let response: ChatResponse<EventOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -436,7 +436,7 @@ struct MultiProviderDemo: View {
 
             case .calculation:
                 let response: ChatResponse<ProductOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -471,7 +471,7 @@ struct MultiProviderDemo: View {
             switch testCase.outputType {
             case .landmark:
                 let response: ChatResponse<LandmarkOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -489,7 +489,7 @@ struct MultiProviderDemo: View {
 
             case .person:
                 let response: ChatResponse<PersonOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -507,7 +507,7 @@ struct MultiProviderDemo: View {
 
             case .product:
                 let response: ChatResponse<ProductOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -525,7 +525,7 @@ struct MultiProviderDemo: View {
 
             case .meeting:
                 let response: ChatResponse<MeetingOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -543,7 +543,7 @@ struct MultiProviderDemo: View {
 
             case .organization:
                 let response: ChatResponse<OrganizationOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -561,7 +561,7 @@ struct MultiProviderDemo: View {
 
             case .recipe:
                 let response: ChatResponse<RecipeOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -579,7 +579,7 @@ struct MultiProviderDemo: View {
 
             case .event:
                 let response: ChatResponse<EventOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -597,7 +597,7 @@ struct MultiProviderDemo: View {
 
             case .calculation:
                 let response: ChatResponse<ProductOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -632,7 +632,7 @@ struct MultiProviderDemo: View {
             switch testCase.outputType {
             case .landmark:
                 let response: ChatResponse<LandmarkOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -650,7 +650,7 @@ struct MultiProviderDemo: View {
 
             case .person:
                 let response: ChatResponse<PersonOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -668,7 +668,7 @@ struct MultiProviderDemo: View {
 
             case .product:
                 let response: ChatResponse<ProductOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -686,7 +686,7 @@ struct MultiProviderDemo: View {
 
             case .meeting:
                 let response: ChatResponse<MeetingOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -704,7 +704,7 @@ struct MultiProviderDemo: View {
 
             case .organization:
                 let response: ChatResponse<OrganizationOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -722,7 +722,7 @@ struct MultiProviderDemo: View {
 
             case .recipe:
                 let response: ChatResponse<RecipeOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -740,7 +740,7 @@ struct MultiProviderDemo: View {
 
             case .event:
                 let response: ChatResponse<EventOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,
@@ -758,7 +758,7 @@ struct MultiProviderDemo: View {
 
             case .calculation:
                 let response: ChatResponse<ProductOutput> = try await client.chat(
-                    prompt: testCase.input,
+                    input: LLMInput(testCase.input),
                     model: model,
                     systemPrompt: testCase.systemPrompt,
                     temperature: settings.temperature,

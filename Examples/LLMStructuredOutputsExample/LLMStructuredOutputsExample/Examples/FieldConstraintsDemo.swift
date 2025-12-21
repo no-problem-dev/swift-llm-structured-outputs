@@ -88,7 +88,7 @@ struct FieldConstraintsDemo: View {
                 case .anthropic:
                     guard let client = settings.createAnthropicClient() else { return }
                     let response: ChatResponse<ProductReview> = try await client.chat(
-                        prompt: inputText,
+                        input: LLMInput(inputText),
                         model: settings.claudeModelOption.model,
                         systemPrompt: "商品レビューを解析し、評価情報を抽出してください。",
                         temperature: settings.temperature,
@@ -100,7 +100,7 @@ struct FieldConstraintsDemo: View {
                 case .openai:
                     guard let client = settings.createOpenAIClient() else { return }
                     let response: ChatResponse<ProductReview> = try await client.chat(
-                        prompt: inputText,
+                        input: LLMInput(inputText),
                         model: settings.gptModelOption.model,
                         systemPrompt: "商品レビューを解析し、評価情報を抽出してください。",
                         temperature: settings.temperature,
@@ -112,7 +112,7 @@ struct FieldConstraintsDemo: View {
                 case .gemini:
                     guard let client = settings.createGeminiClient() else { return }
                     let response: ChatResponse<ProductReview> = try await client.chat(
-                        prompt: inputText,
+                        input: LLMInput(inputText),
                         model: settings.geminiModelOption.model,
                         systemPrompt: "商品レビューを解析し、評価情報を抽出してください。",
                         temperature: settings.temperature,

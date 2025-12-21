@@ -26,11 +26,17 @@ import FoundationNetworking
 ///
 /// // 戻り値の型から自動的にスキーマが推論される
 /// let result: UserInfo = try await client.generate(
-///     prompt: "山田太郎さんは35歳です。",
+///     input: "山田太郎さんは35歳です。",
 ///     model: .gpt4o
 /// )
 /// print(result.name)  // "山田太郎"
 /// print(result.age)   // 35
+///
+/// // マルチモーダル入力
+/// let result: ImageAnalysis = try await client.generate(
+///     input: LLMInput("この画像を分析してください", images: [imageContent]),
+///     model: .gpt4o
+/// )
 /// ```
 ///
 /// ## 対応モデル
@@ -116,14 +122,14 @@ public struct OpenAIClient: StructuredLLMClient {
     // MARK: - StructuredLLMClient
 
     public func generate<T: StructuredProtocol>(
-        prompt: String,
+        input: LLMInput,
         model: GPTModel,
         systemPrompt: String?,
         temperature: Double?,
         maxTokens: Int?
     ) async throws -> T {
         try await generate(
-            messages: [.user(prompt)],
+            messages: [input.toLLMMessage()],
             model: model,
             systemPrompt: systemPrompt,
             temperature: temperature,

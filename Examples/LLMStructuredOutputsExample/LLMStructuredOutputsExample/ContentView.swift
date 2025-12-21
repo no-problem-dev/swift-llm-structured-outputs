@@ -129,6 +129,17 @@ struct ContentView: View {
                     }
 
                     NavigationLink {
+                        VideoVisionDemo()
+                    } label: {
+                        DemoRow(
+                            icon: "video.fill",
+                            color: .blue,
+                            title: "動画入力",
+                            description: "動画を分析して構造化データを抽出（Geminiのみ）"
+                        )
+                    }
+
+                    NavigationLink {
                         ImageGenerationDemo()
                     } label: {
                         DemoRow(

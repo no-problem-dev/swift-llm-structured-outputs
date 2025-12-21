@@ -6,9 +6,8 @@
 //
 
 import SwiftUI
-import AVKit
-import Photos
 import LLMStructuredOutputs
+import DesignSystem
 
 /// 動画生成デモ
 ///
@@ -270,7 +269,7 @@ struct VideoGenerationDemo: View {
 
         // ジョブを開始
         var job = try await client.startVideoGeneration(
-            prompt: promptText,
+            input: LLMInput(promptText),
             model: selectedOpenAIModel,
             duration: selectedDuration,
             aspectRatio: selectedAspectRatio,
@@ -305,7 +304,7 @@ struct VideoGenerationDemo: View {
 
         // ジョブを開始
         var job = try await client.startVideoGeneration(
-            prompt: promptText,
+            input: LLMInput(promptText),
             model: selectedGeminiModel,
             duration: selectedDuration,
             aspectRatio: selectedAspectRatio,
@@ -654,166 +653,16 @@ private struct ResultSection: View {
 
 private struct GeneratedVideoView: View {
     let video: GeneratedVideo
-    @State private var player: AVPlayer?
-    @State private var showingShareSheet = false
-    @State private var tempFileURL: URL?
-    @State private var saveMessage: String?
-    @State private var showingSaveAlert = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // 動画プレイヤー
-            Group {
-                if let player = player {
-                    VideoPlayer(player: player)
-                        .frame(height: 300)
-                } else {
-                    ProgressView("動画を読み込み中...")
-                        .frame(maxWidth: .infinity, minHeight: 200)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            // メタデータ
-            VStack(alignment: .leading, spacing: 4) {
-                Text("動画情報")
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 16) {
-                    if let duration = video.duration {
-                        Label("\(Int(duration))秒", systemImage: "clock")
-                    }
-                    if let resolution = video.resolution {
-                        Label(resolution.rawValue, systemImage: "rectangle")
-                    }
-                    Label("\(video.data.count / 1024)KB", systemImage: "doc")
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-            .padding(8)
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-
-            // アクションボタン
-            if player != nil {
-                HStack {
-                    Button {
-                        player?.seek(to: .zero)
-                        player?.play()
-                    } label: {
-                        Label("再生", systemImage: "play.fill")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button {
-                        showingShareSheet = true
-                    } label: {
-                        Label("共有", systemImage: "square.and.arrow.up")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button {
-                        saveToPhotos()
-                    } label: {
-                        Label("保存", systemImage: "square.and.arrow.down")
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-        }
-        .onAppear {
-            setupAudioSession()
-            loadVideo()
-        }
-        .onDisappear {
-            cleanupTempFile()
-        }
-        .sheet(isPresented: $showingShareSheet) {
-            if let url = tempFileURL {
-                ShareSheet(items: [url])
-            }
-        }
-        .alert("保存", isPresented: $showingSaveAlert) {
-            Button("OK") {}
-        } message: {
-            Text(saveMessage ?? "")
+            // VideoPlayerViewを使用
+            VideoPlayerView(data: video.data)
+                .showMetadata(true)
+                .showActions([.play, .share, .saveToPhotos])
+                .frame(minHeight: 300)
         }
     }
-
-    private func setupAudioSession() {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("Failed to setup audio session: \(error)")
-        }
-    }
-
-    private func loadVideo() {
-        Task {
-            // 一時ファイルに保存
-            let tempDir = FileManager.default.temporaryDirectory
-            let fileURL = tempDir.appendingPathComponent("\(UUID().uuidString).mp4")
-
-            do {
-                try video.data.write(to: fileURL)
-                tempFileURL = fileURL
-                player = AVPlayer(url: fileURL)
-            } catch {
-                print("Error loading video: \(error)")
-            }
-        }
-    }
-
-    private func cleanupTempFile() {
-        if let url = tempFileURL {
-            try? FileManager.default.removeItem(at: url)
-        }
-    }
-
-    private func saveToPhotos() {
-        guard let url = tempFileURL else { return }
-
-        Task {
-            do {
-                // 権限を確認
-                let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
-
-                guard status == .authorized || status == .limited else {
-                    saveMessage = "写真ライブラリへのアクセスが許可されていません。設定アプリから許可してください。"
-                    showingSaveAlert = true
-                    return
-                }
-
-                // 動画を保存
-                try await PHPhotoLibrary.shared().performChanges {
-                    PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
-                }
-
-                saveMessage = "動画をカメラロールに保存しました"
-                showingSaveAlert = true
-            } catch {
-                saveMessage = "保存に失敗しました: \(error.localizedDescription)"
-                showingSaveAlert = true
-            }
-        }
-    }
-}
-
-// MARK: - Share Sheet
-
-private struct ShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Code Example Section
@@ -854,7 +703,7 @@ private struct CodeExampleSection: View {
 
         // 動画生成ジョブを開始
         var job = try await client.startVideoGeneration(
-            prompt: "A cat playing with a ball",
+            input: "A cat playing with a ball",
             model: .sora2,
             duration: 4,
             aspectRatio: .landscape16x9,
@@ -885,7 +734,7 @@ private struct CodeExampleSection: View {
 
         // 動画生成ジョブを開始（Veo）
         var job = try await client.startVideoGeneration(
-            prompt: "A serene Japanese garden",
+            input: "A serene Japanese garden",
             model: .veo30,
             duration: 4,
             aspectRatio: .landscape16x9,

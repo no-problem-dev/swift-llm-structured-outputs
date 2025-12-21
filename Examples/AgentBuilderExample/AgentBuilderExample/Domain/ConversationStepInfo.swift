@@ -153,6 +153,15 @@ extension Array where Element == LLMMessage {
 
             case .toolUse:
                 break
+
+            case .image:
+                steps.append(ConversationStepInfo(type: .userMessage, content: "[画像]"))
+
+            case .audio:
+                steps.append(ConversationStepInfo(type: .userMessage, content: "[音声]"))
+
+            case .video:
+                steps.append(ConversationStepInfo(type: .userMessage, content: "[動画]"))
             }
         }
 
@@ -179,6 +188,15 @@ extension Array where Element == LLMMessage {
 
             case .toolResult:
                 break
+
+            case .image:
+                steps.append(ConversationStepInfo(type: .textResponse, content: "[画像]"))
+
+            case .audio:
+                steps.append(ConversationStepInfo(type: .textResponse, content: "[音声]"))
+
+            case .video:
+                steps.append(ConversationStepInfo(type: .textResponse, content: "[動画]"))
             }
         }
 

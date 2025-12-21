@@ -1,35 +1,35 @@
 //
-//  VisionDemo.swift
+//  VideoVisionDemo.swift
 //  LLMStructuredOutputsExample
 //
-//  画像入力（Vision）デモ
+//  動画入力（Vision）デモ
 //
 
 import SwiftUI
 import LLMStructuredOutputs
 import DesignSystem
 
-/// 画像入力（Vision）デモ
+/// 動画入力（Vision）デモ
 ///
-/// マルチモーダル入力を使って画像を分析するデモです。
-/// プロバイダーごとのメディア対応状況を確認できます。
-struct VisionDemo: View {
+/// マルチモーダル入力を使って動画を分析するデモです。
+/// 動画入力はGeminiのみでサポートされています。
+struct VideoVisionDemo: View {
     private var settings = AppSettings.shared
 
     // MARK: - State
 
     @State private var inputMode: InputMode = .url
-    @State private var imageURLString = ImageAnalysisResult.sampleImageURLs[0]
+    @State private var videoURLString = VideoAnalysisResult.sampleVideoURLs[0]
     @State private var selectedSampleIndex = 0
-    @State private var showImagePicker = false
-    @State private var selectedImageData: Data?
-    @State private var state: LoadingState<ImageAnalysisResult> = .idle
+    @State private var showVideoPicker = false
+    @State private var selectedVideoData: Data?
+    @State private var state: LoadingState<VideoAnalysisResult> = .idle
     @State private var tokenUsage: TokenUsage?
     @State private var errorDetails: String?
 
     enum InputMode: String, CaseIterable {
         case url = "URL"
-        case photo = "フォト"
+        case video = "ビデオ"
     }
 
     var body: some View {
@@ -41,7 +41,7 @@ struct VisionDemo: View {
                 Divider()
 
                 // MARK: - プロバイダー対応状況
-                MediaSupportSection(provider: settings.selectedProvider)
+                ProviderSupportSection(provider: settings.selectedProvider)
 
                 Divider()
 
@@ -62,38 +62,38 @@ struct VisionDemo: View {
                 switch inputMode {
                 case .url:
                     URLInputSection(
-                        urlString: $imageURLString,
+                        urlString: $videoURLString,
                         selectedIndex: $selectedSampleIndex,
-                        sampleURLs: ImageAnalysisResult.sampleImageURLs,
-                        sampleDescriptions: ImageAnalysisResult.sampleDescriptions
+                        sampleURLs: VideoAnalysisResult.sampleVideoURLs,
+                        sampleDescriptions: VideoAnalysisResult.sampleDescriptions
                     )
 
-                case .photo:
-                    PhotoInputSection(
-                        showImagePicker: $showImagePicker,
-                        selectedData: $selectedImageData
+                case .video:
+                    VideoInputSection(
+                        showVideoPicker: $showVideoPicker,
+                        selectedVideoData: $selectedVideoData
                     )
                 }
 
                 // MARK: - プレビュー
-                ImagePreviewSection(
+                VideoPreviewSection(
                     inputMode: inputMode,
-                    urlString: imageURLString,
-                    imageData: selectedImageData
+                    urlString: videoURLString,
+                    videoData: selectedVideoData
                 )
 
                 // MARK: - 実行
                 if settings.isCurrentProviderAvailable {
-                    if isImageInputSupported {
+                    if isVideoInputSupported {
                         ExecuteButton(
                             isLoading: state.isLoading,
                             isEnabled: hasValidInput
                         ) {
-                            analyzeImage()
+                            analyzeVideo()
                         }
                     } else {
                         UnsupportedFeatureView(
-                            feature: "画像入力",
+                            feature: "動画入力",
                             provider: settings.selectedProvider.shortName
                         )
                     }
@@ -115,78 +115,62 @@ struct VisionDemo: View {
             .padding()
         }
         .scrollDismissesKeyboard(.interactively)
-        .navigationTitle("画像入力（Vision）")
+        .navigationTitle("動画入力（Vision）")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: selectedSampleIndex) { _, newValue in
-            imageURLString = ImageAnalysisResult.sampleImageURLs[newValue]
+            videoURLString = VideoAnalysisResult.sampleVideoURLs[newValue]
         }
     }
 
     // MARK: - Computed Properties
 
-    private var isImageInputSupported: Bool {
-        // 現在のプロバイダーが画像入力をサポートしているか
-        // Chat/Conversation API経由ではメディアはサポートされていないため、
-        // 基本のProvider APIを使用する必要がある
-        switch settings.selectedProvider {
-        case .anthropic:
-            return true  // Base Provider APIで画像対応
-        case .openai:
-            return true  // Base Provider APIで画像対応
-        case .gemini:
-            return true  // Base Provider APIで全メディア対応
-        }
+    private var isVideoInputSupported: Bool {
+        // 動画入力はGeminiのみ対応
+        settings.selectedProvider == .gemini
     }
 
     private var hasValidInput: Bool {
         switch inputMode {
         case .url:
-            return !imageURLString.isEmpty && URL(string: imageURLString) != nil
-        case .photo:
-            return selectedImageData != nil
+            return !videoURLString.isEmpty && URL(string: videoURLString) != nil
+        case .video:
+            return selectedVideoData != nil
         }
     }
 
     // MARK: - Actions
 
-    private func analyzeImage() {
+    private func analyzeVideo() {
         state = .loading
         tokenUsage = nil
         errorDetails = nil
 
         Task {
             do {
-                // 画像コンテンツを作成
-                let imageContent: ImageContent
+                // 動画コンテンツを作成
+                let videoContent: VideoContent
                 switch inputMode {
                 case .url:
-                    guard let url = URL(string: imageURLString) else {
+                    guard let url = URL(string: videoURLString) else {
                         throw LLMError.invalidRequest("Invalid URL")
                     }
-                    imageContent = ImageContent.url(url, mediaType: .png)
+                    videoContent = VideoContent.url(url, mediaType: .mp4)
 
-                case .photo:
-                    guard let data = selectedImageData else {
-                        throw LLMError.invalidRequest("No image selected")
+                case .video:
+                    guard let data = selectedVideoData else {
+                        throw LLMError.invalidRequest("No video selected")
                     }
-                    imageContent = ImageContent.base64(data, mediaType: .jpeg)
+                    videoContent = VideoContent.base64(data, mediaType: .mp4)
                 }
 
                 // メッセージを作成
                 let message = LLMMessage.user(
-                    "この画像を詳しく分析してください。",
-                    image: imageContent
+                    "この動画を詳しく分析してください。",
+                    video: videoContent
                 )
 
-                // プロバイダー別に実行
-                switch settings.selectedProvider {
-                case .anthropic:
-                    try await analyzeWithAnthropic(message: message)
-                case .openai:
-                    try await analyzeWithOpenAI(message: message)
-                case .gemini:
-                    try await analyzeWithGemini(message: message)
-                }
+                // Geminiで実行
+                try await analyzeWithGemini(message: message)
             } catch let error as LLMError {
                 state = .error(error)
                 errorDetails = formatLLMError(error)
@@ -197,51 +181,18 @@ struct VisionDemo: View {
         }
     }
 
-    private func analyzeWithAnthropic(message: LLMMessage) async throws {
-        guard let client = settings.createAnthropicClient() else { return }
-
-        // generate() を使用（chat() はメディアコンテンツ非対応）
-        let result: ImageAnalysisResult = try await client.generate(
-            messages: [message],
-            model: settings.claudeModelOption.model,
-            systemPrompt: "画像を分析し、指定されたJSON形式で結果を返してください。",
-            temperature: settings.temperature,
-            maxTokens: settings.maxTokens
-        )
-        state = .success(result)
-        // generate() はトークン使用量を返さない
-        tokenUsage = nil
-    }
-
-    private func analyzeWithOpenAI(message: LLMMessage) async throws {
-        guard let client = settings.createOpenAIClient() else { return }
-
-        // generate() を使用（chat() はメディアコンテンツ非対応）
-        let result: ImageAnalysisResult = try await client.generate(
-            messages: [message],
-            model: settings.gptModelOption.model,
-            systemPrompt: "画像を分析し、指定されたJSON形式で結果を返してください。",
-            temperature: settings.temperature,
-            maxTokens: settings.maxTokens
-        )
-        state = .success(result)
-        // generate() はトークン使用量を返さない
-        tokenUsage = nil
-    }
-
     private func analyzeWithGemini(message: LLMMessage) async throws {
         guard let client = settings.createGeminiClient() else { return }
 
         // generate() を使用（chat() はメディアコンテンツ非対応）
-        let result: ImageAnalysisResult = try await client.generate(
+        let result: VideoAnalysisResult = try await client.generate(
             messages: [message],
             model: settings.geminiModelOption.model,
-            systemPrompt: "画像を分析し、指定されたJSON形式で結果を返してください。",
+            systemPrompt: "動画を分析し、指定されたJSON形式で結果を返してください。",
             temperature: settings.temperature,
             maxTokens: settings.maxTokens
         )
         state = .success(result)
-        // generate() はトークン使用量を返さない
         tokenUsage = nil
     }
 
@@ -277,12 +228,15 @@ private struct DescriptionSection: View {
                 .font(.headline)
 
             Text("""
-            マルチモーダル入力を使って画像を分析します。
+            マルチモーダル入力を使って動画を分析します。
 
-            画像をLLMに送信し、構造化された分析結果を取得します：
-            • 画像の説明と主要オブジェクト
-            • 色彩・雰囲気・シーンタイプ
-            • テキスト検出（OCR）
+            動画をLLMに送信し、構造化された分析結果を取得します：
+            • 動画の説明と主要な対象
+            • アクション・イベントの検出
+            • 雰囲気・シーンタイプ
+            • 音声・テキストの検出
+
+            ⚠️ 動画入力はGeminiのみ対応しています。
             """)
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -290,9 +244,9 @@ private struct DescriptionSection: View {
     }
 }
 
-// MARK: - Media Support Section
+// MARK: - Provider Support Section
 
-private struct MediaSupportSection: View {
+private struct ProviderSupportSection: View {
     let provider: AppSettings.Provider
 
     var body: some View {
@@ -395,7 +349,7 @@ private struct URLInputSection: View {
             )
 
             InputTextEditor(
-                title: "画像URL",
+                title: "動画URL",
                 text: $urlString,
                 minHeight: 60
             )
@@ -403,38 +357,39 @@ private struct URLInputSection: View {
     }
 }
 
-// MARK: - Photo Input Section
+// MARK: - Video Input Section
 
-private struct PhotoInputSection: View {
-    @Binding var showImagePicker: Bool
-    @Binding var selectedData: Data?
+private struct VideoInputSection: View {
+    @Binding var showVideoPicker: Bool
+    @Binding var selectedVideoData: Data?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("写真を選択")
+            Text("動画を選択")
                 .font(.subheadline.bold())
 
             Button {
-                showImagePicker = true
+                showVideoPicker = true
             } label: {
                 Label(
-                    selectedData == nil ? "カメラ/ライブラリから選択" : "画像を変更",
-                    systemImage: "photo.on.rectangle"
+                    selectedVideoData == nil ? "動画を選択" : "動画を変更",
+                    systemImage: "video.badge.plus"
                 )
                 .frame(maxWidth: .infinity)
                 .padding()
                 .background(Color(.systemGray6))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            .imagePicker(
-                isPresented: $showImagePicker,
-                selectedImageData: $selectedData,
-                maxSize: 5.mb
+            .videoPicker(
+                isPresented: $showVideoPicker,
+                selectedVideoData: $selectedVideoData,
+                maxSize: 50.mb,
+                maxDuration: 60
             )
 
-            if selectedData != nil {
+            if selectedVideoData != nil {
                 Button {
-                    selectedData = nil
+                    selectedVideoData = nil
                 } label: {
                     Label("クリア", systemImage: "trash")
                         .foregroundStyle(.red)
@@ -445,12 +400,18 @@ private struct PhotoInputSection: View {
     }
 }
 
-// MARK: - Image Preview Section
+// MARK: - Video Preview Section
 
-private struct ImagePreviewSection: View {
-    let inputMode: VisionDemo.InputMode
+private struct VideoPreviewSection: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    let inputMode: VideoVisionDemo.InputMode
     let urlString: String
-    let imageData: Data?
+    let videoData: Data?
+
+    private var previewHeight: CGFloat {
+        horizontalSizeClass == .regular ? 400 : 240
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -461,26 +422,10 @@ private struct ImagePreviewSection: View {
                 switch inputMode {
                 case .url:
                     if let url = URL(string: urlString) {
-                        AsyncImage(url: url) { phase in
-                            switch phase {
-                            case .empty:
-                                ProgressView()
-                                    .frame(maxWidth: .infinity, minHeight: 150)
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(maxWidth: .infinity, maxHeight: 200)
-                            case .failure:
-                                ContentUnavailableView(
-                                    "画像を読み込めません",
-                                    systemImage: "photo.badge.exclamationmark",
-                                    description: Text("URLを確認してください")
-                                )
-                            @unknown default:
-                                EmptyView()
-                            }
-                        }
+                        VideoPlayerView(url: url)
+                            .showMetadata(true)
+                            .showActions([.play, .share, .saveToPhotos])
+                            .id(urlString)
                     } else {
                         ContentUnavailableView(
                             "URLが無効です",
@@ -489,23 +434,21 @@ private struct ImagePreviewSection: View {
                         )
                     }
 
-                case .photo:
-                    if let data = imageData,
-                       let uiImage = UIImage(data: data) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxWidth: .infinity, maxHeight: 200)
+                case .video:
+                    if let data = videoData {
+                        VideoPlayerView(data: data)
+                            .showMetadata(true)
+                            .showActions([.play, .share, .saveToPhotos])
                     } else {
                         ContentUnavailableView(
-                            "画像を選択してください",
-                            systemImage: "photo.badge.plus",
-                            description: Text("フォトライブラリから選択")
+                            "動画を選択してください",
+                            systemImage: "video.badge.plus",
+                            description: Text("カメラまたはライブラリから選択")
                         )
                     }
                 }
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, minHeight: previewHeight)
             .background(Color(.systemGray6))
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
@@ -579,33 +522,33 @@ private struct CodeExampleSection: View {
         import LLMStructuredOutputs
 
         // 構造化出力の型を定義
-        @Structured("画像の分析結果")
-        struct ImageAnalysisResult {
-            @StructuredField("画像の説明")
+        @Structured("動画の分析結果")
+        struct VideoAnalysisResult {
+            @StructuredField("動画の説明")
             var summary: String
 
             @StructuredField("検出されたオブジェクト")
-            var objects: [String]
+            var subjects: [String]
         }
 
-        // 画像コンテンツを作成
-        let image = ImageContent.url(
-            URL(string: "https://example.com/image.jpg")!,
-            mediaType: .jpeg
+        // 動画コンテンツを作成
+        let video = VideoContent.url(
+            URL(string: "https://example.com/video.mp4")!,
+            mediaType: .mp4
         )
 
         // メッセージを作成
         let message = LLMMessage.user(
-            "この画像を分析してください",
-            image: image
+            "この動画を分析してください",
+            video: video
         )
 
-        // クライアントで実行
+        // Geminiクライアントで実行（動画入力はGeminiのみ対応）
         let client = GeminiClient(apiKey: "...")
         let response = try await client.generate(
             messages: [message],
             model: .flash,
-            type: ImageAnalysisResult.self
+            type: VideoAnalysisResult.self
         )
 
         print(response.result.summary)
@@ -617,6 +560,6 @@ private struct CodeExampleSection: View {
 
 #Preview {
     NavigationStack {
-        VisionDemo()
+        VideoVisionDemo()
     }
 }

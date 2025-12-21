@@ -83,7 +83,7 @@ struct BasicStructuredOutputDemo: View {
                 case .anthropic:
                     guard let client = settings.createAnthropicClient() else { return }
                     let response: ChatResponse<BusinessCardInfo> = try await client.chat(
-                        prompt: inputText,
+                        input: LLMInput(inputText),
                         model: settings.claudeModelOption.model,
                         systemPrompt: "名刺のテキストから情報を抽出してください。",
                         temperature: settings.temperature,
@@ -95,7 +95,7 @@ struct BasicStructuredOutputDemo: View {
                 case .openai:
                     guard let client = settings.createOpenAIClient() else { return }
                     let response: ChatResponse<BusinessCardInfo> = try await client.chat(
-                        prompt: inputText,
+                        input: LLMInput(inputText),
                         model: settings.gptModelOption.model,
                         systemPrompt: "名刺のテキストから情報を抽出してください。",
                         temperature: settings.temperature,
@@ -107,7 +107,7 @@ struct BasicStructuredOutputDemo: View {
                 case .gemini:
                     guard let client = settings.createGeminiClient() else { return }
                     let response: ChatResponse<BusinessCardInfo> = try await client.chat(
-                        prompt: inputText,
+                        input: LLMInput(inputText),
                         model: settings.geminiModelOption.model,
                         systemPrompt: "名刺のテキストから情報を抽出してください。",
                         temperature: settings.temperature,

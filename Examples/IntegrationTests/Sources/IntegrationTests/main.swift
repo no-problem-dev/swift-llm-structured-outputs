@@ -87,7 +87,7 @@ func runImageGenerationTests(runner: TestRunner) async {
     printTestStart("DALL-E 3 Basic Generation")
     do {
         let image = try await client.generateImage(
-            prompt: "A simple red circle on white background",
+            input: "A simple red circle on white background",
             model: .dalle3,
             size: .square1024,
             quality: .standard,
@@ -112,7 +112,7 @@ func runImageGenerationTests(runner: TestRunner) async {
     printTestStart("DALL-E 3 HD Quality")
     do {
         let image = try await client.generateImage(
-            prompt: "A minimalist blue square",
+            input: "A minimalist blue square",
             model: .dalle3,
             size: .square1024,
             quality: .hd,
@@ -133,7 +133,7 @@ func runImageGenerationTests(runner: TestRunner) async {
     printTestStart("DALL-E 3 Portrait Size (1024x1792)")
     do {
         let image = try await client.generateImage(
-            prompt: "A vertical green line",
+            input: "A vertical green line",
             model: .dalle3,
             size: .portrait1024x1792,
             quality: .standard,
@@ -153,7 +153,7 @@ func runImageGenerationTests(runner: TestRunner) async {
     printTestStart("DALL-E 3 Landscape Size (1792x1024)")
     do {
         let image = try await client.generateImage(
-            prompt: "A horizontal purple line",
+            input: "A horizontal purple line",
             model: .dalle3,
             size: .landscape1792x1024,
             quality: .standard,
@@ -173,7 +173,7 @@ func runImageGenerationTests(runner: TestRunner) async {
     printTestStart("DALL-E 2 Multiple Images (n=2)")
     do {
         let images = try await client.generateImages(
-            prompt: "A simple yellow triangle",
+            input: "A simple yellow triangle",
             model: .dalle2,
             size: .square1024,
             quality: nil,
@@ -211,7 +211,7 @@ func runGeminiImageGenerationTests(runner: TestRunner) async {
     printTestStart("Gemini 2.0 Flash Image Generation")
     do {
         let image = try await client.generateImage(
-            prompt: "A simple red circle on white background",
+            input: "A simple red circle on white background",
             model: .gemini20FlashImage,
             size: .square1024,
             quality: nil,
@@ -233,7 +233,7 @@ func runGeminiImageGenerationTests(runner: TestRunner) async {
     printTestStart("Imagen 4 Basic Generation")
     do {
         let image = try await client.generateImage(
-            prompt: "A simple blue square",
+            input: "A simple blue square",
             model: .imagen4,
             size: .square1024,
             quality: nil,
@@ -254,7 +254,7 @@ func runGeminiImageGenerationTests(runner: TestRunner) async {
     printTestStart("Imagen 4 Fast Generation")
     do {
         let image = try await client.generateImage(
-            prompt: "A horizontal green line",
+            input: "A horizontal green line",
             model: .imagen4Fast,
             size: .square1024,
             quality: nil,
@@ -274,7 +274,7 @@ func runGeminiImageGenerationTests(runner: TestRunner) async {
     printTestStart("Imagen 4 Ultra Generation")
     do {
         let image = try await client.generateImage(
-            prompt: "A vertical purple line",
+            input: "A vertical purple line",
             model: .imagen4Ultra,
             size: .square1024,
             quality: nil,
@@ -309,7 +309,7 @@ func runSpeechGenerationTests(runner: TestRunner) async {
     printTestStart("TTS-1 Basic Generation (MP3)")
     do {
         let audio = try await client.generateSpeech(
-            text: "Hello, this is a test.",
+            input: "Hello, this is a test.",
             model: .tts1,
             voice: .alloy,
             speed: 1.0,
@@ -333,7 +333,7 @@ func runSpeechGenerationTests(runner: TestRunner) async {
     printTestStart("TTS-1 HD Generation (MP3)")
     do {
         let audio = try await client.generateSpeech(
-            text: "This is high quality audio.",
+            input: "This is high quality audio.",
             model: .tts1HD,
             voice: .nova,
             speed: 1.0,
@@ -356,7 +356,7 @@ func runSpeechGenerationTests(runner: TestRunner) async {
     for voice in voices {
         do {
             let audio = try await client.generateSpeech(
-                text: "Test",
+                input: "Test",
                 model: .tts1,
                 voice: voice,
                 speed: 1.0,
@@ -377,7 +377,7 @@ func runSpeechGenerationTests(runner: TestRunner) async {
     for speed in speeds {
         do {
             let audio = try await client.generateSpeech(
-                text: "Speed test",
+                input: "Speed test",
                 model: .tts1,
                 voice: .alloy,
                 speed: speed,
@@ -398,7 +398,7 @@ func runSpeechGenerationTests(runner: TestRunner) async {
     for format in formats {
         do {
             let audio = try await client.generateSpeech(
-                text: "Format test",
+                input: "Format test",
                 model: .tts1,
                 voice: .alloy,
                 speed: 1.0,
@@ -416,7 +416,7 @@ func runSpeechGenerationTests(runner: TestRunner) async {
     printTestStart("Japanese Text TTS")
     do {
         let audio = try await client.generateSpeech(
-            text: "こんにちは、世界！これはテストです。",
+            input: "こんにちは、世界！これはテストです。",
             model: .tts1HD,
             voice: .nova,
             speed: 1.0,
@@ -441,7 +441,7 @@ func runSpeechGenerationTests(runner: TestRunner) async {
     """
     do {
         let audio = try await client.generateSpeech(
-            text: longText,
+            input: LLMInput(longText),
             model: .tts1,
             voice: .echo,
             speed: 1.0,
@@ -464,7 +464,7 @@ func runSpeechGenerationTests(runner: TestRunner) async {
     printTestStart("Error Handling - Empty Text")
     do {
         _ = try await client.generateSpeech(
-            text: "",
+            input: "",
             model: .tts1,
             voice: .alloy,
             speed: 1.0,
@@ -486,7 +486,7 @@ func runSpeechGenerationTests(runner: TestRunner) async {
     printTestStart("Error Handling - Invalid Speed")
     do {
         _ = try await client.generateSpeech(
-            text: "Test",
+            input: "Test",
             model: .tts1,
             voice: .alloy,
             speed: 10.0,  // Invalid: max is 4.0
@@ -597,7 +597,7 @@ func runVideoGenerationTests(runner: TestRunner) async {
     printTestStart("Sora 2 - Start Video Generation Job")
     do {
         let job = try await client.startVideoGeneration(
-            prompt: "A simple animation of a red ball bouncing on a white floor",
+            input: "A simple animation of a red ball bouncing on a white floor",
             model: .sora2,
             duration: 4,
             aspectRatio: .landscape16x9,
@@ -668,7 +668,7 @@ func runGeminiVideoGenerationTests(runner: TestRunner) async {
     printTestStart("Veo 3.1 Fast - Start Video Generation Job")
     do {
         let job = try await client.startVideoGeneration(
-            prompt: "A simple animation of a blue sphere floating in space",
+            input: "A simple animation of a blue sphere floating in space",
             model: .veo31Fast,
             duration: 4,
             aspectRatio: .landscape16x9,
@@ -810,7 +810,7 @@ func runVisionTests(runner: TestRunner) async {
         // まず簡単な画像を生成
         print("   Generating test image...")
         let generatedImage = try await client.generateImage(
-            prompt: "A solid blue square on white background, simple geometric shape",
+            input: "A solid blue square on white background, simple geometric shape",
             model: .dalle3,
             size: .square1024,
             quality: .standard,

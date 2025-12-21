@@ -16,8 +16,8 @@ import Foundation
 /// ```swift
 /// // 動画生成ジョブを開始
 /// let job = try await client.startVideoGeneration(
-///     prompt: "A cat playing with a ball in slow motion",
-///     model: .sora
+///     input: "A cat playing with a ball in slow motion",
+///     model: .sora2
 /// )
 ///
 /// // ステータスをポーリング
@@ -40,14 +40,14 @@ public protocol VideoGenerationCapable<VideoModel>: Sendable {
     /// 動画生成ジョブを開始
     ///
     /// - Parameters:
-    ///   - prompt: 動画を説明するプロンプト
+    ///   - input: LLM 入力（プロンプトテキスト）
     ///   - model: 使用する動画生成モデル
     ///   - duration: 動画の長さ（秒）
     ///   - aspectRatio: アスペクト比
     ///   - resolution: 解像度
     /// - Returns: 生成ジョブ
     func startVideoGeneration(
-        prompt: String,
+        input: LLMInput,
         model: VideoModel,
         duration: Int?,
         aspectRatio: VideoAspectRatio?,
@@ -74,14 +74,14 @@ public protocol VideoGenerationCapable<VideoModel>: Sendable {
 extension VideoGenerationCapable {
     /// 動画生成ジョブを開始（デフォルト引数付き）
     public func startVideoGeneration(
-        prompt: String,
+        input: LLMInput,
         model: VideoModel,
         duration: Int? = nil,
         aspectRatio: VideoAspectRatio? = nil,
         resolution: VideoResolution? = nil
     ) async throws -> VideoGenerationJob {
         try await startVideoGeneration(
-            prompt: prompt,
+            input: input,
             model: model,
             duration: duration,
             aspectRatio: aspectRatio,
@@ -92,7 +92,7 @@ extension VideoGenerationCapable {
     /// 動画生成を実行し完了まで待機
     ///
     /// - Parameters:
-    ///   - prompt: 動画を説明するプロンプト
+    ///   - input: LLM 入力（プロンプトテキスト）
     ///   - model: 使用する動画生成モデル
     ///   - duration: 動画の長さ（秒）
     ///   - aspectRatio: アスペクト比
@@ -101,7 +101,7 @@ extension VideoGenerationCapable {
     ///   - timeout: タイムアウト（秒、デフォルト: 600）
     /// - Returns: 生成された動画
     public func generateVideo(
-        prompt: String,
+        input: LLMInput,
         model: VideoModel,
         duration: Int? = nil,
         aspectRatio: VideoAspectRatio? = nil,
@@ -110,7 +110,7 @@ extension VideoGenerationCapable {
         timeout: TimeInterval = 600
     ) async throws -> GeneratedVideo {
         var job = try await startVideoGeneration(
-            prompt: prompt,
+            input: input,
             model: model,
             duration: duration,
             aspectRatio: aspectRatio,

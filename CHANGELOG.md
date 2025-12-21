@@ -7,6 +7,47 @@
 
 ## [未リリース]
 
+## [1.0.22] - 2025-12-21
+
+### 追加
+
+- **統一入力型 LLMInput**: すべてのLLM操作で使用する統一入力型を導入
+  - テキスト、画像、音声、動画を統一的に扱える入力型
+  - `LLMInput("text")`, `LLMInput("text", images: [...])` などのシンプルなAPI
+  - 既存の`generate()`/`chat()`メソッドとの互換性維持
+
+- **デモアプリ: 動画プレビュー機能**: VideoVisionDemoでURL動画のプレビューを追加
+  - `VideoPlayerView(url:)` による動画再生
+  - メタデータ表示（長さ、解像度、サイズ）
+  - 共有・保存アクション
+
+- **デモアプリ: 画像保存フィードバック**: ImageGenerationDemoにSnackbar通知を追加
+  - DesignSystemのSnackbarコンポーネントを統合
+  - 保存成功/失敗/権限エラーのフィードバック表示
+
+### 変更
+
+- **デモアプリ: Info.plist権限設定**: 動画機能に必要な権限を追加
+  - `NSCameraUsageDescription`: カメラアクセス
+  - `NSMicrophoneUsageDescription`: マイクアクセス
+  - `NSPhotoLibraryUsageDescription`: 写真ライブラリ読み取り
+  - `NSPhotoLibraryAddUsageDescription`: 写真ライブラリ書き込み
+
+- **デモアプリ: iPad対応**: VideoVisionDemoの動画プレビュー高さを適応的に調整
+  - `horizontalSizeClass`に基づく高さ調整（iPad: 400px, iPhone: 240px）
+
+### 修正
+
+- **Gemini動画入力レスポンスデコード**: マークダウンコードブロックでラップされたJSONを処理
+  - `extractJSON(from:)` メソッドを追加
+  - ` ```json ... ``` ` 形式のレスポンスを正しくパース
+
+- **動画プレビューURL切り替え**: サンプルURL選択時にプレビューが更新されない問題を修正
+  - `.id(urlString)` でビュー再生成を強制
+
+- **画像保存クラッシュ**: `PHPhotoLibrary.performChanges`のスレッド問題を修正
+  - `@Sendable`クロージャでUIImageを適切にキャプチャ
+
 ## [1.0.21] - 2025-12-21
 
 ### 追加
@@ -539,7 +580,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.21...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.22...HEAD
+[1.0.22]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.21...v1.0.22
 [1.0.21]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.20...v1.0.21
 [1.0.20]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.19...v1.0.20
 [1.0.19]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.18...v1.0.19
@@ -591,3 +633,5 @@
 <!-- Auto-generated on 2025-12-20T01:24:37Z by release workflow -->
 
 <!-- Auto-generated on 2025-12-20T08:39:56Z by release workflow -->
+
+<!-- Auto-generated on 2025-12-21T00:33:16Z by release workflow -->

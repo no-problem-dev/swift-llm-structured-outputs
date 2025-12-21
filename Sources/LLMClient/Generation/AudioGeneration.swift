@@ -16,7 +16,7 @@ import Foundation
 /// // OpenAI クライアントで音声生成
 /// let client = OpenAIClient(apiKey: "sk-...")
 /// let audio = try await client.generateSpeech(
-///     text: "こんにちは、世界！",
+///     input: "こんにちは、世界！",
 ///     model: .tts1,
 ///     voice: .alloy
 /// )
@@ -29,10 +29,10 @@ public protocol SpeechGenerationCapable<SpeechModel>: Sendable {
     /// 音声で使用可能な声の型
     associatedtype Voice: Sendable
 
-    /// テキストから音声を生成
+    /// 入力から音声を生成
     ///
     /// - Parameters:
-    ///   - text: 音声化するテキスト
+    ///   - input: LLM 入力（音声化するテキスト）
     ///   - model: 使用する音声生成モデル
     ///   - voice: 使用する声
     ///   - speed: 再生速度（0.25〜4.0、デフォルト: 1.0）
@@ -40,7 +40,7 @@ public protocol SpeechGenerationCapable<SpeechModel>: Sendable {
     /// - Returns: 生成された音声
     /// - Throws: `LLMError` または `SpeechGenerationError`
     func generateSpeech(
-        text: String,
+        input: LLMInput,
         model: SpeechModel,
         voice: Voice,
         speed: Double?,
@@ -51,16 +51,16 @@ public protocol SpeechGenerationCapable<SpeechModel>: Sendable {
 // MARK: - Default Implementations
 
 extension SpeechGenerationCapable {
-    /// テキストから音声を生成（デフォルト引数付き）
+    /// 入力から音声を生成（デフォルト引数付き）
     public func generateSpeech(
-        text: String,
+        input: LLMInput,
         model: SpeechModel,
         voice: Voice,
         speed: Double? = nil,
         format: AudioOutputFormat? = nil
     ) async throws -> GeneratedAudio {
         try await generateSpeech(
-            text: text,
+            input: input,
             model: model,
             voice: voice,
             speed: speed,
