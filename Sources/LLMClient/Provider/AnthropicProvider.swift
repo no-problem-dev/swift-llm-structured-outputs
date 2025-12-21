@@ -97,8 +97,8 @@ internal struct AnthropicProvider: LLMProvider, RetryableProviderProtocol {
     /// リクエストボディを構築
     private func buildRequestBody(from request: LLMRequest) throws -> AnthropicRequestBody {
         // メッセージを変換
-        let messages = request.messages.map { message in
-            convertToAnthropicMessage(message)
+        let messages = try request.messages.map { message in
+            try convertToAnthropicMessage(message)
         }
 
         // 構造化出力の設定と制約プロンプトの生成
@@ -161,7 +161,9 @@ internal struct AnthropicProvider: LLMProvider, RetryableProviderProtocol {
     }
 
     /// LLMMessage を Anthropic メッセージ形式に変換
-    private func convertToAnthropicMessage(_ message: LLMMessage) -> AnthropicMessage {
+    ///
+    /// - Throws: `LLMError.mediaNotSupported` 音声・動画が含まれている場合
+    private func convertToAnthropicMessage(_ message: LLMMessage) throws -> AnthropicMessage {
         let role = message.role == .user ? "user" : "assistant"
 
         // コンテンツブロックを変換
@@ -178,6 +180,18 @@ internal struct AnthropicProvider: LLMProvider, RetryableProviderProtocol {
             case .toolResult(let toolCallId, _, let resultContent, let isError):
                 // Anthropic APIではnameは不要（toolUseIdで関連付け）
                 contentBlocks.append(.toolResult(toolUseId: toolCallId, content: resultContent, isError: isError))
+
+            case .image(let imageContent):
+                // Anthropic supports images
+                contentBlocks.append(.image(imageContent))
+
+            case .audio:
+                // Anthropic does not support audio input
+                throw LLMError.mediaNotSupported(mediaType: "audio", provider: "Anthropic")
+
+            case .video:
+                // Anthropic does not support video input
+                throw LLMError.mediaNotSupported(mediaType: "video", provider: "Anthropic")
             }
         }
 
@@ -399,6 +413,9 @@ private enum AnthropicMessageContent: Encodable {
     /// ツール結果（ユーザー）
     case toolResult(toolUseId: String, content: String, isError: Bool)
 
+    /// 画像コンテンツ
+    case image(ImageContent)
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
 
@@ -435,6 +452,34 @@ private enum AnthropicMessageContent: Encodable {
             if isError {
                 dict["is_error"] = .bool(true)
             }
+            try container.encode(dict)
+
+        case .image(let imageContent):
+            // Anthropic image format:
+            // { "type": "image", "source": { "type": "base64"|"url", "media_type": "...", "data"|"url": "..." } }
+            var source: [String: JSONValue] = [:]
+
+            switch imageContent.source {
+            case .base64(let data):
+                source["type"] = .string("base64")
+                source["media_type"] = .string(imageContent.mediaType.rawValue)
+                source["data"] = .string(data.base64EncodedString())
+            case .url(let url):
+                // Anthropic URL source doesn't include media_type
+                source["type"] = .string("url")
+                source["url"] = .string(url.absoluteString)
+            case .fileReference:
+                // Anthropic does not support file references
+                // This should be caught at validation time, but encode as empty for safety
+                source["type"] = .string("base64")
+                source["media_type"] = .string(imageContent.mediaType.rawValue)
+                source["data"] = .string("")
+            }
+
+            let dict: [String: JSONValue] = [
+                "type": .string("image"),
+                "source": .object(source)
+            ]
             try container.encode(dict)
         }
     }

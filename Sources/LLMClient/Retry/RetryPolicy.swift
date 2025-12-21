@@ -197,7 +197,8 @@ extension LLMError {
         case .unauthorized, .invalidRequest, .modelNotFound,
              .emptyResponse, .invalidEncoding, .decodingFailed,
              .modelNotSupported, .structuredOutputNotSupported,
-             .contentBlocked, .maxTokensReached, .unknown:
+             .contentBlocked, .maxTokensReached, .mediaNotSupported,
+             .unknown:
             return false
         }
     }

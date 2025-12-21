@@ -135,6 +135,10 @@ public actor AgentContext {
                 }
             case .toolUse(let id, let name, let input):
                 contents.append(.toolUse(id: id, name: name, input: input))
+            case .image, .audio:
+                // 生成されたメディアは会話履歴には含めない
+                // （必要に応じて別途処理可能）
+                break
             }
         }
 

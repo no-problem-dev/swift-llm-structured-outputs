@@ -34,7 +34,7 @@ extension AnthropicClient: AgentCapableClient {
         }
 
         // リクエストボディを構築
-        let body = buildAgentRequestBody(
+        let body = try buildAgentRequestBody(
             model: model,
             messages: messages,
             systemPrompt: systemPrompt,
@@ -76,6 +76,8 @@ extension AnthropicClient: AgentCapableClient {
     // MARK: - Private Helpers
 
     /// エージェントリクエストボディを構築
+    ///
+    /// - Throws: `LLMError.mediaNotSupported` メディアコンテンツが含まれている場合
     private func buildAgentRequestBody(
         model: ClaudeModel,
         messages: [LLMMessage],
@@ -83,8 +85,8 @@ extension AnthropicClient: AgentCapableClient {
         tools: ToolSet,
         toolChoice: ToolChoice?,
         responseSchema: JSONSchema?
-    ) -> AnthropicAgentRequestBody {
-        let anthropicMessages = messages.map { convertToAnthropicMessage($0) }
+    ) throws -> AnthropicAgentRequestBody {
+        let anthropicMessages = try messages.map { try convertToAnthropicMessage($0) }
 
         // ツール設定（空の場合は nil）
         let anthropicTools: [[String: Any]]? = tools.isEmpty ? nil : tools.toAnthropicFormat()
@@ -112,7 +114,9 @@ extension AnthropicClient: AgentCapableClient {
     }
 
     /// LLMMessage を Anthropic メッセージ形式に変換
-    private func convertToAnthropicMessage(_ message: LLMMessage) -> AnthropicAgentMessage {
+    ///
+    /// - Throws: `LLMError.mediaNotSupported` メディアコンテンツが含まれている場合
+    private func convertToAnthropicMessage(_ message: LLMMessage) throws -> AnthropicAgentMessage {
         let role = message.role == .user ? "user" : "assistant"
         var contentBlocks: [AnthropicAgentMessageContent] = []
 
@@ -124,6 +128,13 @@ extension AnthropicClient: AgentCapableClient {
                 contentBlocks.append(.toolUse(id: id, name: name, input: input))
             case .toolResult(let toolCallId, _, let resultContent, let isError):
                 contentBlocks.append(.toolResult(toolUseId: toolCallId, content: resultContent, isError: isError))
+            case .image:
+                // Agent APIではメディアコンテンツは現在サポートされていません
+                throw LLMError.mediaNotSupported(mediaType: "image", provider: "Anthropic Agent API")
+            case .audio:
+                throw LLMError.mediaNotSupported(mediaType: "audio", provider: "Anthropic Agent API")
+            case .video:
+                throw LLMError.mediaNotSupported(mediaType: "video", provider: "Anthropic Agent API")
             }
         }
 

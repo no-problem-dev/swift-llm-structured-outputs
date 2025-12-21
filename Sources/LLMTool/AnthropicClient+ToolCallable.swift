@@ -27,7 +27,7 @@ extension AnthropicClient: ToolCallableClient {
         urlRequest.setValue(Self.apiVersion, forHTTPHeaderField: "anthropic-version")
 
         // リクエストボディを構築
-        let body = buildToolRequestBody(
+        let body = try buildToolRequestBody(
             model: model,
             messages: messages,
             tools: tools,
@@ -60,6 +60,8 @@ extension AnthropicClient: ToolCallableClient {
     // MARK: - Private Helpers
 
     /// ツールリクエストボディを構築
+    ///
+    /// - Throws: `LLMError.mediaNotSupported` メディアコンテンツが含まれている場合
     private func buildToolRequestBody(
         model: ClaudeModel,
         messages: [LLMMessage],
@@ -68,8 +70,8 @@ extension AnthropicClient: ToolCallableClient {
         systemPrompt: String?,
         temperature: Double?,
         maxTokens: Int?
-    ) -> AnthropicToolRequestBody {
-        let anthropicMessages = messages.map { convertToAnthropicMessage($0) }
+    ) throws -> AnthropicToolRequestBody {
+        let anthropicMessages = try messages.map { try convertToAnthropicMessage($0) }
         let anthropicTools = tools.toAnthropicFormat()
         let anthropicToolChoice = toolChoice.map { mapToolChoice($0) }
 
@@ -85,7 +87,9 @@ extension AnthropicClient: ToolCallableClient {
     }
 
     /// LLMMessage を Anthropic メッセージ形式に変換
-    private func convertToAnthropicMessage(_ message: LLMMessage) -> AnthropicToolMessage {
+    ///
+    /// - Throws: `LLMError.mediaNotSupported` メディアコンテンツが含まれている場合
+    private func convertToAnthropicMessage(_ message: LLMMessage) throws -> AnthropicToolMessage {
         let role = message.role == .user ? "user" : "assistant"
         var contentBlocks: [AnthropicToolMessageContent] = []
 
@@ -97,6 +101,13 @@ extension AnthropicClient: ToolCallableClient {
                 contentBlocks.append(.toolUse(id: id, name: name, input: input))
             case .toolResult(let toolCallId, _, let resultContent, let isError):
                 contentBlocks.append(.toolResult(toolUseId: toolCallId, content: resultContent, isError: isError))
+            case .image:
+                // Tool APIではメディアコンテンツは現在サポートされていません
+                throw LLMError.mediaNotSupported(mediaType: "image", provider: "Anthropic Tool API")
+            case .audio:
+                throw LLMError.mediaNotSupported(mediaType: "audio", provider: "Anthropic Tool API")
+            case .video:
+                throw LLMError.mediaNotSupported(mediaType: "video", provider: "Anthropic Tool API")
             }
         }
 
