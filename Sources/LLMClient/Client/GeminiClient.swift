@@ -179,7 +179,10 @@ public struct GeminiClient: StructuredLLMClient {
             throw LLMError.emptyResponse
         }
 
-        guard let data = text.data(using: .utf8) else {
+        // マークダウンコードブロックからJSONを抽出
+        let jsonText = extractJSON(from: text)
+
+        guard let data = jsonText.data(using: .utf8) else {
             throw LLMError.invalidEncoding
         }
 
@@ -191,6 +194,42 @@ public struct GeminiClient: StructuredLLMClient {
         } catch {
             throw LLMError.decodingFailed(error)
         }
+    }
+
+    /// テキストからJSONを抽出
+    ///
+    /// マークダウンコードブロック（```json ... ``` または ``` ... ```）で
+    /// ラップされている場合は中身を抽出し、そうでなければそのまま返す。
+    private func extractJSON(from text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // ```json で始まる場合
+        if trimmed.hasPrefix("```json") {
+            let content = trimmed.dropFirst(7) // "```json" を除去
+            if let endIndex = content.range(of: "```", options: .backwards) {
+                return String(content[content.startIndex..<endIndex.lowerBound])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+
+        // ``` で始まる場合（言語指定なし）
+        if trimmed.hasPrefix("```") {
+            let content = trimmed.dropFirst(3) // "```" を除去
+            // 最初の改行まで（言語名の可能性）をスキップ
+            let afterLang: Substring
+            if let newlineIndex = content.firstIndex(of: "\n") {
+                afterLang = content[content.index(after: newlineIndex)...]
+            } else {
+                afterLang = content
+            }
+            if let endIndex = afterLang.range(of: "```", options: .backwards) {
+                return String(afterLang[afterLang.startIndex..<endIndex.lowerBound])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+
+        // コードブロックなし、そのまま返す
+        return trimmed
     }
 
 }
