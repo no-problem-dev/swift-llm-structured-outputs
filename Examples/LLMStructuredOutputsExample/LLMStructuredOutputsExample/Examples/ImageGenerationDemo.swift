@@ -705,8 +705,9 @@ private struct GeneratedImageView: View {
                     return
                 }
 
-                try await PHPhotoLibrary.shared().performChanges {
-                    PHAssetChangeRequest.creationRequestForAsset(from: uiImage)
+                let imageToSave = uiImage
+                try await PHPhotoLibrary.shared().performChanges { @Sendable in
+                    PHAssetChangeRequest.creationRequestForAsset(from: imageToSave)
                 }
 
                 snackbarState.show(message: "カメラロールに保存しました ✓", duration: 3.0)
