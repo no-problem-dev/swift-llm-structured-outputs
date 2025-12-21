@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AVKit
+import Photos
 import LLMStructuredOutputs
 
 /// 動画生成デモ
@@ -655,7 +656,10 @@ private struct GeneratedVideoView: View {
     let video: GeneratedVideo
     @State private var player: AVPlayer?
     @State private var showingShareSheet = false
+    @State private var showingFullScreen = false
     @State private var tempFileURL: URL?
+    @State private var saveMessage: String?
+    @State private var showingSaveAlert = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -664,7 +668,9 @@ private struct GeneratedVideoView: View {
                 if let player = player {
                     VideoPlayer(player: player)
                         .frame(height: 300)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .onTapGesture(count: 2) {
+                            showingFullScreen = true
+                        }
                 } else {
                     ProgressView("動画を読み込み中...")
                         .frame(maxWidth: .infinity, minHeight: 200)
@@ -708,6 +714,13 @@ private struct GeneratedVideoView: View {
                     .buttonStyle(.bordered)
 
                     Button {
+                        showingFullScreen = true
+                    } label: {
+                        Label("全画面", systemImage: "arrow.up.left.and.arrow.down.right")
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
                         showingShareSheet = true
                     } label: {
                         Label("共有", systemImage: "square.and.arrow.up")
@@ -724,6 +737,7 @@ private struct GeneratedVideoView: View {
             }
         }
         .onAppear {
+            setupAudioSession()
             loadVideo()
         }
         .onDisappear {
@@ -733,6 +747,25 @@ private struct GeneratedVideoView: View {
             if let url = tempFileURL {
                 ShareSheet(items: [url])
             }
+        }
+        .fullScreenCover(isPresented: $showingFullScreen) {
+            if let player = player {
+                FullScreenVideoPlayer(player: player)
+            }
+        }
+        .alert("保存", isPresented: $showingSaveAlert) {
+            Button("OK") {}
+        } message: {
+            Text(saveMessage ?? "")
+        }
+    }
+
+    private func setupAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("Failed to setup audio session: \(error)")
         }
     }
 
@@ -745,10 +778,7 @@ private struct GeneratedVideoView: View {
             do {
                 try video.data.write(to: fileURL)
                 tempFileURL = fileURL
-
-                await MainActor.run {
-                    player = AVPlayer(url: fileURL)
-                }
+                player = AVPlayer(url: fileURL)
             } catch {
                 print("Error loading video: \(error)")
             }
@@ -763,7 +793,47 @@ private struct GeneratedVideoView: View {
 
     private func saveToPhotos() {
         guard let url = tempFileURL else { return }
-        UISaveVideoAtPathToSavedPhotosAlbum(url.path, nil, nil, nil)
+
+        Task {
+            do {
+                // 権限を確認
+                let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+
+                guard status == .authorized || status == .limited else {
+                    saveMessage = "写真ライブラリへのアクセスが許可されていません。設定アプリから許可してください。"
+                    showingSaveAlert = true
+                    return
+                }
+
+                // 動画を保存
+                try await PHPhotoLibrary.shared().performChanges {
+                    PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
+                }
+
+                saveMessage = "動画をカメラロールに保存しました"
+                showingSaveAlert = true
+            } catch {
+                saveMessage = "保存に失敗しました: \(error.localizedDescription)"
+                showingSaveAlert = true
+            }
+        }
+    }
+}
+
+// MARK: - Full Screen Video Player
+
+private struct FullScreenVideoPlayer: UIViewControllerRepresentable {
+    let player: AVPlayer
+
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.player = player
+        controller.allowsVideoFrameAnalysis = false
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
+        uiViewController.player = player
     }
 }
 

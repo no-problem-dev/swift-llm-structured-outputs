@@ -237,7 +237,12 @@ public enum GeminiVideoModel: String, Sendable, Codable, CaseIterable, Equatable
 
     /// サポートされる動画長オプション
     public var supportedDurations: [Int] {
-        [4, 6, 8]
+        switch self {
+        case .veo31, .veo31Fast, .veo30, .veo30Fast:
+            return [4, 6, 8]
+        case .veo20:
+            return [5, 6, 8]  // Veo 2.0 は 5-8 秒のみサポート
+        }
     }
 
     /// サポートされるアスペクト比
