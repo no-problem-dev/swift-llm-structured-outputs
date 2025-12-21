@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1903D48F2EF7A09E00BF0AED /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 1903D48E2EF7A09E00BF0AED /* DesignSystem */; };
+		1903D4922EF7A0B000BF0AED /* LLMDynamicStructured in Frameworks */ = {isa = PBXBuildFile; productRef = 1903D4912EF7A0B000BF0AED /* LLMDynamicStructured */; };
+		1903D4942EF7A0B000BF0AED /* LLMMCP in Frameworks */ = {isa = PBXBuildFile; productRef = 1903D4932EF7A0B000BF0AED /* LLMMCP */; };
+		1903D4962EF7A0B000BF0AED /* LLMToolkits in Frameworks */ = {isa = PBXBuildFile; productRef = 1903D4952EF7A0B000BF0AED /* LLMToolkits */; };
 		1906AAA32EF78F3F00A547E3 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 1906AAA22EF78F3F00A547E3 /* DesignSystem */; };
 		19A2715D2EEE43DE0005EE20 /* LLMStructuredOutputs in Frameworks */ = {isa = PBXBuildFile; productRef = 19A2715C2EEE43DE0005EE20 /* LLMStructuredOutputs */; };
 /* End PBXBuildFile section */
@@ -28,18 +32,30 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1903D4942EF7A0B000BF0AED /* LLMMCP in Frameworks */,
+				1903D4962EF7A0B000BF0AED /* LLMToolkits in Frameworks */,
+				1903D48F2EF7A09E00BF0AED /* DesignSystem in Frameworks */,
 				19A2715D2EEE43DE0005EE20 /* LLMStructuredOutputs in Frameworks */,
 				1906AAA32EF78F3F00A547E3 /* DesignSystem in Frameworks */,
+				1903D4922EF7A0B000BF0AED /* LLMDynamicStructured in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1903D4902EF7A0B000BF0AED /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		19A271442EEE427B0005EE20 = {
 			isa = PBXGroup;
 			children = (
 				19A2714F2EEE427B0005EE20 /* LLMStructuredOutputsExample */,
+				1903D4902EF7A0B000BF0AED /* Frameworks */,
 				19A2714E2EEE427B0005EE20 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -74,6 +90,10 @@
 			packageProductDependencies = (
 				19A2715C2EEE43DE0005EE20 /* LLMStructuredOutputs */,
 				1906AAA22EF78F3F00A547E3 /* DesignSystem */,
+				1903D48E2EF7A09E00BF0AED /* DesignSystem */,
+				1903D4912EF7A0B000BF0AED /* LLMDynamicStructured */,
+				1903D4932EF7A0B000BF0AED /* LLMMCP */,
+				1903D4952EF7A0B000BF0AED /* LLMToolkits */,
 			);
 			productName = LLMStructuredOutputsExample;
 			productReference = 19A2714D2EEE427B0005EE20 /* LLMStructuredOutputsExample.app */;
@@ -104,8 +124,8 @@
 			mainGroup = 19A271442EEE427B0005EE20;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				19A2715B2EEE43DE0005EE20 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */,
-				1906AAA12EF78F3F00A547E3 /* XCLocalSwiftPackageReference "../../../swift-design-system" */,
+				1903D48C2EF7A08600BF0AED /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */,
+				1903D48D2EF7A09E00BF0AED /* XCRemoteSwiftPackageReference "swift-design-system" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 19A2714E2EEE427B0005EE20 /* Products */;
@@ -349,17 +369,44 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		1906AAA12EF78F3F00A547E3 /* XCLocalSwiftPackageReference "../../../swift-design-system" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "../../../swift-design-system";
-		};
-		19A2715B2EEE43DE0005EE20 /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */ = {
+		1903D48C2EF7A08600BF0AED /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../../../swift-llm-structured-outputs";
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		1903D48D2EF7A09E00BF0AED /* XCRemoteSwiftPackageReference "swift-design-system" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/no-problem-dev/swift-design-system.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		1903D48E2EF7A09E00BF0AED /* DesignSystem */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1903D48D2EF7A09E00BF0AED /* XCRemoteSwiftPackageReference "swift-design-system" */;
+			productName = DesignSystem;
+		};
+		1903D4912EF7A0B000BF0AED /* LLMDynamicStructured */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1903D48C2EF7A08600BF0AED /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */;
+			productName = LLMDynamicStructured;
+		};
+		1903D4932EF7A0B000BF0AED /* LLMMCP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1903D48C2EF7A08600BF0AED /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */;
+			productName = LLMMCP;
+		};
+		1903D4952EF7A0B000BF0AED /* LLMToolkits */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1903D48C2EF7A08600BF0AED /* XCLocalSwiftPackageReference "../../../swift-llm-structured-outputs" */;
+			productName = LLMToolkits;
+		};
 		1906AAA22EF78F3F00A547E3 /* DesignSystem */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DesignSystem;
