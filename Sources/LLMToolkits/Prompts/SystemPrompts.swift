@@ -17,7 +17,7 @@ import LLMClient
 ///
 /// // 構成済みシステムプロンプトを使用
 /// for try await step in client.runAgent(
-///     prompt: "Research the latest AI trends",
+///     input: "Research the latest AI trends",
 ///     model: .sonnet,
 ///     tools: tools,
 ///     systemPrompt: SystemPrompts.researcher

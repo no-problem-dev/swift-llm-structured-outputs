@@ -51,8 +51,8 @@ import LLMAgent
 ///     client: AnthropicClient(apiKey: "..."),
 ///     systemPrompt: Prompt { "あなたはリサーチアシスタントです。" },
 ///     tools: ToolSet {
-///         WebSearchTool.self
-///         ReadDocumentTool.self
+///         WebSearchTool()
+///         ReadDocumentTool()
 ///     }
 /// )
 ///

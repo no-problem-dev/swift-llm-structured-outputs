@@ -83,7 +83,7 @@ let tools = ToolSet {
 let client = AnthropicClient(apiKey: "sk-ant-...")
 
 for try await step in client.runAgent(
-    prompt: "ドキュメントフォルダ内のファイル一覧を見せて",
+    input: "ドキュメントフォルダ内のファイル一覧を見せて",
     model: .sonnet,
     tools: tools
 ) {

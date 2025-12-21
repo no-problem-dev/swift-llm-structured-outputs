@@ -33,7 +33,7 @@ let client = AnthropicClient(apiKey: "sk-ant-...")
 
 // リサーチャープリセットを使用
 let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
-    prompt: "市場トレンドを分析してください",
+    input: "市場トレンドを分析してください",
     model: .sonnet,
     tools: ResearcherPreset.defaultTools,
     systemPrompt: ResearcherPreset.systemPrompt,
@@ -62,7 +62,7 @@ let tools = ToolSet {
 }
 
 let stream: some AgentStepStream<TaskPlan> = client.runAgent(
-    prompt: "プロジェクトのスケジュールを計算して計画を立てて",
+    input: "プロジェクトのスケジュールを計算して計画を立てて",
     model: .sonnet,
     tools: tools
 )
@@ -73,7 +73,7 @@ let stream: some AgentStepStream<TaskPlan> = client.runAgent(
 ```swift
 // 事前定義された構造体を使用
 let analysis: AnalysisResult = try await client.generate(
-    prompt: "このレポートを分析してください: \(reportText)",
+    input: "このレポートを分析してください: \(reportText)",
     model: .sonnet
 )
 

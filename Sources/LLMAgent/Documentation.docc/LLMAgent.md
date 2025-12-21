@@ -24,7 +24,7 @@ LLMAgent は、LLM がツールを選択・実行し、最終的な構造化出�
     @Column {
         ```swift
         for try await step in client.runAgent(
-            prompt: "調査してレポートを作成",
+            input: "調査してレポートを作成",
             model: .sonnet,
             tools: tools
         ) {
@@ -68,7 +68,7 @@ struct ResearchReport {
 
 // エージェントを実行
 for try await step in client.runAgent(
-    prompt: "2024年のAI市場動向を調査してレポートを作成して",
+    input: "2024年のAI市場動向を調査してレポートを作成して",
     model: .sonnet,
     tools: tools
 ) as AgentStepSequence<ResearchReport> {
@@ -101,7 +101,7 @@ let systemPrompt = Prompt {
 }
 
 for try await step in client.runAgent(
-    prompt: "市場分析を行って",
+    input: "市場分析を行って",
     model: .sonnet,
     tools: tools,
     systemPrompt: systemPrompt
@@ -123,7 +123,7 @@ let config = AgentConfiguration(
 )
 
 for try await step in client.runAgent(
-    prompt: "複雑なタスク",
+    input: "複雑なタスク",
     model: .sonnet,
     tools: tools,
     configuration: config

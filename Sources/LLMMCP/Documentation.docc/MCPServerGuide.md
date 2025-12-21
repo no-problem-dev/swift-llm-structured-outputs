@@ -182,7 +182,7 @@ let tools = ToolSet {
 }
 
 for try await step in client.runAgent(
-    prompt: "プロジェクトフォルダ内のREADME.mdを読んで要約して",
+    input: "プロジェクトフォルダ内のREADME.mdを読んで要約して",
     model: .sonnet,
     tools: tools
 ) {
@@ -211,7 +211,7 @@ let tools = ToolSet {
 }
 
 for try await step in client.runAgent(
-    prompt: "最新のSwift 6の機能について検索して",
+    input: "最新のSwift 6の機能について検索して",
     model: .sonnet,
     tools: tools
 ) {
@@ -232,7 +232,7 @@ let tools = ToolSet {
 }
 
 for try await step in client.runAgent(
-    prompt: "タスクを実行して",
+    input: "タスクを実行して",
     model: .sonnet,
     tools: tools
 ) {

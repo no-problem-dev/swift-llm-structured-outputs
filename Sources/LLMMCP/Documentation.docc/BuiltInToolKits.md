@@ -60,7 +60,7 @@ let tools = ToolSet {
 let client = AnthropicClient(apiKey: "sk-ant-...")
 
 for try await step in client.runAgent(
-    prompt: "田中さんは営業部で働いていて、鈴木さんの上司です。これを覚えてください。",
+    input: "田中さんは営業部で働いていて、鈴木さんの上司です。これを覚えてください。",
     model: .sonnet,
     tools: tools,
     systemPrompt: "ユーザーの情報をメモリに保存し、必要に応じて参照してください。"
@@ -122,7 +122,7 @@ let tools = ToolSet {
 }
 
 for try await step in client.runAgent(
-    prompt: "Documentsフォルダ内の.txtファイルを一覧して内容を要約して",
+    input: "Documentsフォルダ内の.txtファイルを一覧して内容を要約して",
     model: .sonnet,
     tools: tools
 ) {
@@ -175,7 +175,7 @@ let tools = ToolSet {
 }
 
 for try await step in client.runAgent(
-    prompt: "GitHub APIでoctocat/Hello-Worldリポジトリの情報を取得して",
+    input: "GitHub APIでoctocat/Hello-Worldリポジトリの情報を取得して",
     model: .sonnet,
     tools: tools
 ) {
@@ -221,7 +221,7 @@ let tools = ToolSet {
 }
 
 for try await step in client.runAgent(
-    prompt: "現在のUTC時刻を取得してメモリに保存して",
+    input: "現在のUTC時刻を取得してメモリに保存して",
     model: .sonnet,
     tools: tools
 ) {

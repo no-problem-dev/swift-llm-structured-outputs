@@ -30,7 +30,7 @@ let tools = ToolSet {
 
 // エージェントループで使用
 let stream: some AgentStepStream<TaskPlan> = client.runAgent(
-    prompt: "売上が100万円で、月間成長率が5%の場合、1年後の売上を計算して",
+    input: "売上が100万円で、月間成長率が5%の場合、1年後の売上を計算して",
     model: .sonnet,
     tools: tools
 )
@@ -69,7 +69,7 @@ let tools = ToolSet {
 
 // エージェントループで使用
 let stream: some AgentStepStream<TaskPlan> = client.runAgent(
-    prompt: "今日から30日後の日付を計算して、プロジェクトの締め切りを設定して",
+    input: "今日から30日後の日付を計算して、プロジェクトの締め切りを設定して",
     model: .sonnet,
     tools: tools
 )
@@ -117,7 +117,7 @@ let tools = ToolSet {
 
 // エージェントループで使用
 let stream: some AgentStepStream<KeyPointExtraction> = client.runAgent(
-    prompt: "このテキストからメールアドレスを抽出して分析して: \(text)",
+    input: "このテキストからメールアドレスを抽出して分析して: \(text)",
     model: .sonnet,
     tools: tools
 )
@@ -162,7 +162,7 @@ let tools = ToolSet {
 
 // すべてのツールを使用可能なエージェント
 let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
-    prompt: """
+    input: """
     以下のタスクを実行してください：
     1. 今日の日付を取得
     2. 売上データから数値を抽出

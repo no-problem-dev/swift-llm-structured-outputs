@@ -16,7 +16,7 @@ import LLMStructuredOutputs
 /// ```swift
 /// let client = AnthropicClient(apiKey: "...")
 /// let info: BusinessCardInfo = try await client.generate(
-///     prompt: "株式会社テック 営業部 山田太郎 yamada@tech.co.jp 03-1234-5678",
+///     input: "株式会社テック 営業部 山田太郎 yamada@tech.co.jp 03-1234-5678",
 ///     model: .sonnet
 /// )
 /// ```

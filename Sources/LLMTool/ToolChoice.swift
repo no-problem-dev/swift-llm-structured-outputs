@@ -11,7 +11,7 @@ import Foundation
 /// ```swift
 /// // 自動選択（デフォルト）
 /// let result = try await client.generate(
-///     prompt: "東京の天気は？",
+///     input: "東京の天気は？",
 ///     model: .sonnet,
 ///     tools: tools,
 ///     toolChoice: .auto
@@ -19,7 +19,7 @@ import Foundation
 ///
 /// // ツール使用を強制
 /// let result = try await client.generate(
-///     prompt: "天気を調べて",
+///     input: "天気を調べて",
 ///     model: .sonnet,
 ///     tools: tools,
 ///     toolChoice: .required
@@ -27,7 +27,7 @@ import Foundation
 ///
 /// // 特定のツールを強制
 /// let result = try await client.generate(
-///     prompt: "天気を調べて",
+///     input: "天気を調べて",
 ///     model: .sonnet,
 ///     tools: tools,
 ///     toolChoice: .tool("get_weather")

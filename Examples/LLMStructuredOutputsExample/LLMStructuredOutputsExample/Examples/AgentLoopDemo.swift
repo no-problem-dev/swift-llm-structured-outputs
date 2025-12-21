@@ -684,7 +684,7 @@ private struct CodeExampleSection: View {
         let client = AnthropicClient(apiKey: "...")
 
         let agentStream: some AgentStepStream<WeatherReport> = client.runAgent(
-            prompt: "東京の天気を調べて、気温を華氏に変換してレポートを作成して",
+            input: "東京の天気を調べて、気温を華氏に変換してレポートを作成して",
             model: .sonnet,
             tools: tools
         )

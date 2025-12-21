@@ -53,7 +53,7 @@ extension AgentPreset {
 ///
 /// ```swift
 /// let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
-///     prompt: "Analyze the market trends for AI products in 2024",
+///     input: "Analyze the market trends for AI products in 2024",
 ///     model: .sonnet,
 ///     tools: ResearcherPreset.defaultTools,
 ///     systemPrompt: ResearcherPreset.systemPrompt,
@@ -93,7 +93,7 @@ public enum ResearcherPreset: AgentPreset {
 ///
 /// ```swift
 /// let stream: some AgentStepStream<AnalysisResult> = client.runAgent(
-///     prompt: "Calculate the growth rate from these figures: Q1: 100, Q2: 120, Q3: 150",
+///     input: "Calculate the growth rate from these figures: Q1: 100, Q2: 120, Q3: 150",
 ///     model: .sonnet,
 ///     tools: DataAnalystPreset.defaultTools,
 ///     systemPrompt: DataAnalystPreset.systemPrompt
@@ -132,7 +132,7 @@ public enum DataAnalystPreset: AgentPreset {
 ///
 /// ```swift
 /// let stream: some AgentStepStream<CodeReview> = client.runAgent(
-///     prompt: "Review this Swift code and identify potential issues",
+///     input: "Review this Swift code and identify potential issues",
 ///     model: .sonnet,
 ///     tools: CodingAssistantPreset.defaultTools,
 ///     systemPrompt: CodingAssistantPreset.systemPrompt
@@ -170,7 +170,7 @@ public enum CodingAssistantPreset: AgentPreset {
 ///
 /// ```swift
 /// let stream: some AgentStepStream<Summary> = client.runAgent(
-///     prompt: "Summarize this article and highlight the key points",
+///     input: "Summarize this article and highlight the key points",
 ///     model: .sonnet,
 ///     tools: WriterPreset.defaultTools,
 ///     systemPrompt: WriterPreset.systemPrompt
@@ -207,7 +207,7 @@ public enum WriterPreset: AgentPreset {
 ///
 /// ```swift
 /// let stream: some AgentStepStream<TaskPlan> = client.runAgent(
-///     prompt: "Create a plan to launch a new mobile app",
+///     input: "Create a plan to launch a new mobile app",
 ///     model: .sonnet,
 ///     tools: PlannerPreset.defaultTools,
 ///     systemPrompt: PlannerPreset.systemPrompt
@@ -245,7 +245,7 @@ public enum PlannerPreset: AgentPreset {
 ///
 /// ```swift
 /// let stream: some AgentStepStream<Summary> = client.runAgent(
-///     prompt: "Explain the concept of machine learning",
+///     input: "Explain the concept of machine learning",
 ///     model: .sonnet,
 ///     tools: MinimalPreset.defaultTools,
 ///     systemPrompt: MinimalPreset.systemPrompt

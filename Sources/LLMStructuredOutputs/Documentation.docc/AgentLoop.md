@@ -40,7 +40,7 @@ let client = AnthropicClient(apiKey: "...")
 let tools = ToolSet { GetWeather() }
 
 let stream: some AgentStepStream<WeatherReport> = client.runAgent(
-    prompt: "東京の天気を調べてレポートを作成して",
+    input: "東京の天気を調べてレポートを作成して",
     model: .sonnet,
     tools: tools
 )

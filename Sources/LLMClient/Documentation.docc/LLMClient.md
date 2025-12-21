@@ -28,7 +28,7 @@ LLMClient は、主要な LLM プロバイダーへの統一されたインタ�
         )
 
         let result: UserInfo = try await client.generate(
-            prompt: "山田太郎さん、35歳",
+            input: "山田太郎さん、35歳",
             model: .sonnet
         )
         ```
@@ -52,7 +52,7 @@ let client = AnthropicClient(apiKey: "sk-ant-...")
 
 // モデル選択
 let result: Analysis = try await client.generate(
-    prompt: "この文章を分析して",
+    input: "この文章を分析して",
     model: .sonnet  // .opus, .haiku も選択可能
 )
 ```
@@ -65,7 +65,7 @@ GPT モデル（GPT-4o、o1、o3-mini 等）を使用します。Structured Outp
 let client = OpenAIClient(apiKey: "sk-...")
 
 let result: Summary = try await client.generate(
-    prompt: "要約してください",
+    input: "要約してください",
     model: .gpt4o  // .o1, .o3Mini も選択可能
 )
 ```
@@ -78,7 +78,7 @@ Gemini モデル（Pro、Flash、Flash-Lite）を使用します。高速な推�
 let client = GeminiClient(apiKey: "...")
 
 let result: Report = try await client.generate(
-    prompt: "レポートを生成",
+    input: "レポートを生成",
     model: .flash  // .pro, .flashLite も選択可能
 )
 ```
@@ -104,7 +104,7 @@ let prompt = Prompt {
 }
 
 let result: Analysis = try await client.generate(
-    prompt: prompt,
+    input: prompt,
     model: .sonnet
 )
 ```

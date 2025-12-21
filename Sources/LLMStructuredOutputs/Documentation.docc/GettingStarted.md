@@ -112,7 +112,7 @@ dependencies: [
 
 ```swift
 let book: BookInfo = try await client.generate(
-    prompt: "ジョージ・オーウェルの1984年について教えて",
+    input: "ジョージ・オーウェルの1984年について教えて",
     model: .sonnet
 )
 
@@ -203,7 +203,7 @@ struct Analysis {
 ```swift
 do {
     let result: BookInfo = try await client.generate(
-        prompt: "...",
+        input: "...",
         model: .sonnet
     )
     // 成功

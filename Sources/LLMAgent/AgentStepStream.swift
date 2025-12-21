@@ -45,10 +45,10 @@ import LLMTool
 ///     var weather: String
 /// }
 ///
-/// let tools = ToolSet { GetWeather.self }
+/// let tools = ToolSet { GetWeather() }
 ///
 /// for try await step in client.runAgent(
-///     prompt: "東京の天気を教えて",
+///     input: "東京の天気を教えて",
 ///     model: .sonnet,
 ///     tools: tools
 /// ) as some AgentStepStream<WeatherReport> {

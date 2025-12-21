@@ -50,7 +50,7 @@ import LLMClient
 /// }
 ///
 /// let result = try await client.generate(
-///     prompt: "東京の天気は？",
+///     input: "東京の天気は？",
 ///     model: .sonnet,
 ///     tools: tools
 /// )

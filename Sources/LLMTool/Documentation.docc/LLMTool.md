@@ -161,7 +161,7 @@ let tools = ToolSet {
 }
 
 for try await step in client.runAgent(
-    prompt: "東京の明日の気温を調べて、華氏に変換して",
+    input: "東京の明日の気温を調べて、華氏に変換して",
     model: .sonnet,
     tools: tools
 ) {
