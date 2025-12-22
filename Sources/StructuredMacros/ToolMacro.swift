@@ -359,7 +359,7 @@ public struct ToolMacro: MemberMacro, ExtensionMacro {
             return "[]"
         }
         // 基本型のデフォルト値
-        let baseType = typeName.replacingOccurrences(of: "?", with: "")
+        let baseType = typeName.replacing("?", with: "")
         switch baseType {
         case "String":
             return "\"\""
