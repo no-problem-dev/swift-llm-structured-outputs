@@ -102,7 +102,6 @@ extension OpenAIClient: VideoGenerationCapable {
         }
 
         let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
         let statusResponse = try decoder.decode(SoraVideoResponse.self, from: data)
 
         let status = mapStatus(statusResponse.status)
@@ -171,26 +170,17 @@ extension OpenAIClient: VideoGenerationCapable {
         var urlRequest = URLRequest(url: endpoint)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        // multipart/form-data を構築
-        let boundary = UUID().uuidString
-        urlRequest.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        // JSON リクエストボディを構築
+        let requestBody: [String: Any] = [
+            "model": model.id,
+            "prompt": prompt,
+            "seconds": String(seconds),
+            "size": size
+        ]
 
-        var body = Data()
-
-        // model
-        body.appendMultipartField(name: "model", value: model.id, boundary: boundary)
-        // prompt
-        body.appendMultipartField(name: "prompt", value: prompt, boundary: boundary)
-        // seconds
-        body.appendMultipartField(name: "seconds", value: String(seconds), boundary: boundary)
-        // size
-        body.appendMultipartField(name: "size", value: size, boundary: boundary)
-
-        // 終端
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-
-        urlRequest.httpBody = body
+        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
         let (data, response) = try await session.data(for: urlRequest)
 
@@ -203,7 +193,6 @@ extension OpenAIClient: VideoGenerationCapable {
         }
 
         let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(SoraVideoResponse.self, from: data)
     }
 
@@ -318,11 +307,18 @@ private struct SoraVideoResponse: Decodable {
     let progress: Int?
     let seconds: String?
     let size: String?
+    let prompt: String?
     let error: SoraError?
+    let completedAt: Int?
+    let expiresAt: Int?
+    let remixedFromVideoId: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, object, status, model, progress, seconds, size, error
+        case id, object, status, model, progress, seconds, size, prompt, error
         case createdAt = "created_at"
+        case completedAt = "completed_at"
+        case expiresAt = "expires_at"
+        case remixedFromVideoId = "remixed_from_video_id"
     }
 }
 
