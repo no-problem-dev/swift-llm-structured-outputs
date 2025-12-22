@@ -4,6 +4,9 @@
 // 生成された動画コンテンツおよびジョブの定義
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 // MARK: - VideoGenerationStatus
 
