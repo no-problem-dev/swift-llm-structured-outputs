@@ -111,26 +111,73 @@ let package = Package(
             ]
         ),
 
-        // MARK: - Tests
+        // MARK: - Unit Tests (モジュール別テストターゲット)
+
+        // LLMClient テスト（Prompt, Provider, Retry, Schema, Media）
         .testTarget(
-            name: "LLMStructuredOutputsTests",
-            dependencies: ["LLMStructuredOutputs"]
+            name: "LLMClientTests",
+            dependencies: ["LLMClient"],
+            path: "Tests/LLMClientTests"
         ),
+
+        // LLMTool テスト（ToolSet, ToolResult）
+        .testTarget(
+            name: "LLMToolTests",
+            dependencies: ["LLMTool", "LLMClient"],
+            path: "Tests/LLMToolTests"
+        ),
+
+        // LLMAgent テスト
+        .testTarget(
+            name: "LLMAgentTests",
+            dependencies: ["LLMAgent", "LLMTool", "LLMClient"],
+            path: "Tests/LLMAgentTests"
+        ),
+
+        // LLMConversation テスト
+        .testTarget(
+            name: "LLMConversationTests",
+            dependencies: ["LLMConversation", "LLMClient"],
+            path: "Tests/LLMConversationTests"
+        ),
+
+        // LLMConversationalAgent テスト
+        .testTarget(
+            name: "LLMConversationalAgentTests",
+            dependencies: ["LLMConversationalAgent", "LLMAgent", "LLMTool", "LLMClient"],
+            path: "Tests/LLMConversationalAgentTests"
+        ),
+
+        // LLMDynamicStructured テスト
         .testTarget(
             name: "LLMDynamicStructuredTests",
-            dependencies: ["LLMDynamicStructured", "LLMStructuredOutputs"]
+            dependencies: ["LLMDynamicStructured", "LLMClient"],
+            path: "Tests/LLMDynamicStructuredTests"
         ),
+
+        // LLMMCP テスト
         .testTarget(
             name: "LLMMCPTests",
-            dependencies: ["LLMMCP", "LLMStructuredOutputs"]
+            dependencies: ["LLMMCP", "LLMTool", "LLMClient"],
+            path: "Tests/LLMMCPTests"
         ),
+
+        // StructuredMacros テスト
         .testTarget(
             name: "StructuredMacrosTests",
             dependencies: [
                 "StructuredMacros",
-                "LLMStructuredOutputs",
+                "LLMClient",
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
-            ]
+            ],
+            path: "Tests/StructuredMacrosTests"
+        ),
+
+        // MARK: - Integration Tests
+        .testTarget(
+            name: "IntegrationTests",
+            dependencies: ["LLMStructuredOutputs"],
+            path: "Tests/IntegrationTests"
         ),
     ]
 )

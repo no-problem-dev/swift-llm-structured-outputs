@@ -1,0 +1,85 @@
+{
+  "configurations" : [
+    {
+      "id" : "D5F8E4C1-9A2B-4C3D-8E5F-6A7B8C9D0E1F",
+      "name" : "All Tests",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:",
+      "identifier" : "LLMStructuredOutputs",
+      "name" : "LLMStructuredOutputs"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "LLMClientTests",
+        "name" : "LLMClientTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "LLMToolTests",
+        "name" : "LLMToolTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "LLMAgentTests",
+        "name" : "LLMAgentTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "LLMConversationTests",
+        "name" : "LLMConversationTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "LLMConversationalAgentTests",
+        "name" : "LLMConversationalAgentTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "LLMDynamicStructuredTests",
+        "name" : "LLMDynamicStructuredTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "LLMMCPTests",
+        "name" : "LLMMCPTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "StructuredMacrosTests",
+        "name" : "StructuredMacrosTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "IntegrationTests",
+        "name" : "IntegrationTests"
+      }
+    }
+  ],
+  "version" : 1
+}
