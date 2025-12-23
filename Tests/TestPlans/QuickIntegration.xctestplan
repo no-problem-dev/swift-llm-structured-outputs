@@ -1,0 +1,50 @@
+{
+  "configurations" : [
+    {
+      "id" : "C3D4E5F6-A789-0123-CDEF-123456789012",
+      "name" : "Quick Integration (Vision Only)",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "OPENAI_API_KEY",
+            "value" : "$(OPENAI_API_KEY)"
+          },
+          {
+            "key" : "ANTHROPIC_API_KEY",
+            "value" : "$(ANTHROPIC_API_KEY)"
+          },
+          {
+            "key" : "GEMINI_API_KEY",
+            "value" : "$(GEMINI_API_KEY)"
+          }
+        ]
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:",
+      "identifier" : "LLMStructuredOutputs",
+      "name" : "LLMStructuredOutputs"
+    },
+    "testExecutionOrdering" : "random"
+  },
+  "testTargets" : [
+    {
+      "skippedTests" : [
+        "GeminiImageGenerationTests",
+        "GeminiVideoGenerationTests",
+        "OpenAIImageGenerationTests",
+        "OpenAISpeechGenerationTests",
+        "OpenAIVideoGenerationTests"
+      ],
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "IntegrationTests",
+        "name" : "IntegrationTests"
+      }
+    }
+  ],
+  "version" : 1
+}
