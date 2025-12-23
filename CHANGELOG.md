@@ -7,6 +7,39 @@
 
 ## [未リリース]
 
+## [1.0.23] - 2025-12-23
+
+### 修正
+
+- **Sora動画生成API**: リクエスト形式とレスポンスパースを修正
+  - テキストプロンプト用に Content-Type を multipart/form-data から application/json に変更
+  - 手動 CodingKeys と競合していた keyDecodingStrategy を削除
+  - 不足していたレスポンスフィールドを追加（prompt, completedAt, expiresAt, remixedFromVideoId）
+
+- **Linux互換性**: 複数のファイルで Linux ビルドをサポート
+  - URLSession/HTTPURLResponse を使用するファイルに FoundationNetworking インポートを追加
+  - Swift 標準ライブラリの `String.replacing` を使用（Foundation 依存を削減）
+  - MCP テストに `#if os(macOS)` ガードを追加（stdio ベースのテストは Linux で使用不可）
+  - `ToolResultConvertible` から Sendable 制約を削除（Linux での配列/辞書の条件付き適合問題を修正）
+
+### 変更
+
+- **テスト構造のリファクタリング**: モジュール別テストターゲットに再編成
+  - LLMClientTests, LLMToolTests, LLMAgentTests, LLMConversationTests, LLMConversationalAgentTests
+  - IntegrationTests をプロバイダー別に整理（OpenAI, Anthropic, Gemini）
+  - テストプラン追加（AllTests, UnitTests, IntegrationTests, QuickIntegration）
+
+- **CIワークフロー**: マルチプラットフォームテストを追加
+  - macOS と Linux でのテスト実行
+  - Swift 6.0 対応
+  - SPM キャッシングによるビルド高速化
+
+### ドキュメント
+
+- **APIシグネチャの修正**: ドキュメントとコード例のパラメータ名を修正
+  - `prompt:` を `input:` に更新（generate/chat/runAgent メソッド）
+  - `ToolName.self` を `ToolName()` に更新（ToolSet ビルダー）
+
 ## [1.0.22] - 2025-12-21
 
 ### 追加
@@ -580,7 +613,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.22...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.23...HEAD
+[1.0.23]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.22...v1.0.23
 [1.0.22]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.21...v1.0.22
 [1.0.21]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.20...v1.0.21
 [1.0.20]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.19...v1.0.20
