@@ -1,4 +1,8 @@
 import XCTest
+import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 @testable import LLMMCP
 import LLMClient
 import LLMTool
@@ -7,6 +11,7 @@ final class MCPTests: XCTestCase {
 
     // MARK: - MCPServer Initialization Tests
 
+    #if os(macOS)
     func testMCPServerStdioInitialization() {
         let server = MCPServer(
             command: "/usr/bin/echo",
@@ -33,6 +38,7 @@ final class MCPTests: XCTestCase {
 
         XCTAssertEqual(server.serverName, "echo")
     }
+    #endif
 
     func testMCPServerHTTPInitialization() {
         let url = URL(string: "http://localhost:8080")!
@@ -133,6 +139,7 @@ final class MCPTests: XCTestCase {
 
     // MARK: - Fluent API Tests
 
+    #if os(macOS)
     func testMCPServerFluentReadOnly() {
         let server = MCPServer(command: "/usr/bin/echo").readOnly
 
@@ -172,6 +179,7 @@ final class MCPTests: XCTestCase {
             XCTFail("Expected excluding selection")
         }
     }
+    #endif
 
     // MARK: - MCPTool Tests
 
@@ -248,6 +256,7 @@ final class MCPTests: XCTestCase {
 
     // MARK: - ToolSet Extension Tests
 
+    #if os(macOS)
     func testToolSetContainsMCPPlaceholders() {
         // 実際のToolSetにプレースホルダーを追加するテスト
         let server = MCPServer(command: "/usr/bin/echo")
@@ -259,6 +268,7 @@ final class MCPTests: XCTestCase {
         XCTAssertTrue(toolSet.containsMCPPlaceholders)
         XCTAssertEqual(toolSet.mcpPlaceholders.count, 1)
     }
+    #endif
 
     func testToolSetWithoutMCPPlaceholders() {
         let toolSet = ToolSet(tools: [])
@@ -358,6 +368,7 @@ final class MCPTests: XCTestCase {
 
     // MARK: - Configuration Tests
 
+    #if os(macOS)
     func testMCPConfigurationDefaults() {
         let config = MCPConfiguration(
             transport: .stdio(command: "test", arguments: [])
@@ -382,6 +393,7 @@ final class MCPTests: XCTestCase {
             XCTFail("Expected stdio transport")
         }
     }
+    #endif
 
     func testMCPTransportHTTP() {
         let url = URL(string: "https://api.example.com")!
