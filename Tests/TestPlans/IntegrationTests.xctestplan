@@ -1,0 +1,42 @@
+{
+  "configurations" : [
+    {
+      "id" : "B2C3D4E5-F6A7-8901-BCDE-F12345678901",
+      "name" : "Integration Tests",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "OPENAI_API_KEY",
+            "value" : "$(OPENAI_API_KEY)"
+          },
+          {
+            "key" : "ANTHROPIC_API_KEY",
+            "value" : "$(ANTHROPIC_API_KEY)"
+          },
+          {
+            "key" : "GEMINI_API_KEY",
+            "value" : "$(GEMINI_API_KEY)"
+          }
+        ]
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:",
+      "identifier" : "LLMStructuredOutputs",
+      "name" : "LLMStructuredOutputs"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "IntegrationTests",
+        "name" : "IntegrationTests"
+      }
+    }
+  ],
+  "version" : 1
+}

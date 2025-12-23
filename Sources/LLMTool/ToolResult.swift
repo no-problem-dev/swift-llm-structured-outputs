@@ -98,7 +98,7 @@ public enum ToolResult: Sendable, Equatable {
 ///     }
 /// }
 /// ```
-public protocol ToolResultConvertible: Sendable {
+public protocol ToolResultConvertible {
     /// ToolResult に変換
     ///
     /// - Returns: 変換された ToolResult
