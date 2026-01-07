@@ -7,6 +7,15 @@
 
 ## [未リリース]
 
+## [1.0.24] - 2026-01-08
+
+### 変更
+
+- **Swift 6.2 対応**: Swift tools version を 6.0 から 6.2 にアップグレード
+  - swift-syntax を 602.0.0 に更新（`.upToNextMajor` 指定）
+  - swift-docc-plugin を swiftlang org に移行（`.upToNextMajor` 指定）
+  - MCP swift-sdk を 0.10.0 に更新（`.upToNextMajor` 指定）
+
 ## [1.0.23] - 2025-12-23
 
 ### 修正
@@ -613,7 +622,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.23...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.24...HEAD
+[1.0.24]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.23...v1.0.24
 [1.0.23]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.22...v1.0.23
 [1.0.22]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.21...v1.0.22
 [1.0.21]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.20...v1.0.21
