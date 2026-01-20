@@ -32,6 +32,14 @@ import FoundationNetworking
 /// print(result.name)  // "山田太郎"
 /// print(result.age)   // 35
 ///
+/// // トークン使用量を取得
+/// let resultWithUsage: GenerationResult<UserInfo> = try await client.generateWithUsage(
+///     input: "山田太郎さんは35歳です。",
+///     model: .gpt4o
+/// )
+/// print("Input tokens: \(resultWithUsage.usage.inputTokens)")
+/// print("Output tokens: \(resultWithUsage.usage.outputTokens)")
+///
 /// // マルチモーダル入力
 /// let result: ImageAnalysis = try await client.generate(
 ///     input: LLMInput("この画像を分析してください", images: [imageContent]),
@@ -45,7 +53,7 @@ import FoundationNetworking
 /// - `.gpt4Turbo` - GPT-4 Turbo
 /// - `.gpt4` - GPT-4
 /// - `.o1` - o1（推論特化）
-/// - `.o1Mini` - o1 mini
+/// - `.o3Mini` - o3 mini
 public struct OpenAIClient: StructuredLLMClient {
     public typealias Model = GPTModel
 
@@ -121,14 +129,14 @@ public struct OpenAIClient: StructuredLLMClient {
 
     // MARK: - StructuredLLMClient
 
-    public func generate<T: StructuredProtocol>(
+    public func generateWithUsage<T: StructuredProtocol>(
         input: LLMInput,
         model: GPTModel,
         systemPrompt: String?,
         temperature: Double?,
         maxTokens: Int?
-    ) async throws -> T {
-        try await generate(
+    ) async throws -> GenerationResult<T> {
+        try await generateWithUsage(
             messages: [input.toLLMMessage()],
             model: model,
             systemPrompt: systemPrompt,
@@ -137,13 +145,13 @@ public struct OpenAIClient: StructuredLLMClient {
         )
     }
 
-    public func generate<T: StructuredProtocol>(
+    public func generateWithUsage<T: StructuredProtocol>(
         messages: [LLMMessage],
         model: GPTModel,
         systemPrompt: String?,
         temperature: Double?,
         maxTokens: Int?
-    ) async throws -> T {
+    ) async throws -> GenerationResult<T> {
         // スキーマ情報を含むシステムプロンプトを構築
         let enhancedSystemPrompt = buildSystemPrompt(
             base: systemPrompt,
@@ -160,7 +168,7 @@ public struct OpenAIClient: StructuredLLMClient {
         )
 
         let response = try await provider.send(request)
-        return try decodeResponse(response)
+        return try decodeResponse(response, model: model.id)
     }
 
     // MARK: - Private Helpers
@@ -182,7 +190,7 @@ public struct OpenAIClient: StructuredLLMClient {
     }
 
     /// レスポンスをデコード
-    private func decodeResponse<T: StructuredProtocol>(_ response: LLMResponse) throws -> T {
+    private func decodeResponse<T: StructuredProtocol>(_ response: LLMResponse, model: String) throws -> GenerationResult<T> {
         guard let text = response.content.first?.text else {
             throw LLMError.emptyResponse
         }
@@ -195,7 +203,14 @@ public struct OpenAIClient: StructuredLLMClient {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
 
         do {
-            return try decoder.decode(T.self, from: data)
+            let result = try decoder.decode(T.self, from: data)
+            return GenerationResult(
+                result: result,
+                usage: response.usage,
+                model: model,
+                rawText: text,
+                stopReason: response.stopReason
+            )
         } catch {
             throw LLMError.decodingFailed(error)
         }
