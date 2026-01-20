@@ -32,6 +32,14 @@ import FoundationNetworking
 /// print(result.name)  // "山田太郎"
 /// print(result.age)   // 35
 ///
+/// // トークン使用量を取得
+/// let resultWithUsage: GenerationResult<UserInfo> = try await client.generateWithUsage(
+///     input: "山田太郎さんは35歳です。",
+///     model: .sonnet
+/// )
+/// print("Input tokens: \(resultWithUsage.usage.inputTokens)")
+/// print("Output tokens: \(resultWithUsage.usage.outputTokens)")
+///
 /// // マルチモーダル入力
 /// let result: ImageAnalysis = try await client.generate(
 ///     input: LLMInput("この画像を分析してください", images: [imageContent]),
@@ -112,14 +120,14 @@ public struct AnthropicClient: StructuredLLMClient {
 
     // MARK: - StructuredLLMClient
 
-    public func generate<T: StructuredProtocol>(
+    public func generateWithUsage<T: StructuredProtocol>(
         input: LLMInput,
         model: ClaudeModel,
         systemPrompt: String?,
         temperature: Double?,
         maxTokens: Int?
-    ) async throws -> T {
-        try await generate(
+    ) async throws -> GenerationResult<T> {
+        try await generateWithUsage(
             messages: [input.toLLMMessage()],
             model: model,
             systemPrompt: systemPrompt,
@@ -128,13 +136,13 @@ public struct AnthropicClient: StructuredLLMClient {
         )
     }
 
-    public func generate<T: StructuredProtocol>(
+    public func generateWithUsage<T: StructuredProtocol>(
         messages: [LLMMessage],
         model: ClaudeModel,
         systemPrompt: String?,
         temperature: Double?,
         maxTokens: Int?
-    ) async throws -> T {
+    ) async throws -> GenerationResult<T> {
         // スキーマ情報を含むシステムプロンプトを構築
         let enhancedSystemPrompt = buildSystemPrompt(
             base: systemPrompt,
@@ -151,7 +159,7 @@ public struct AnthropicClient: StructuredLLMClient {
         )
 
         let response = try await provider.send(request)
-        return try decodeResponse(response)
+        return try decodeResponse(response, model: model.id)
     }
 
     // MARK: - Private Helpers
@@ -173,7 +181,7 @@ public struct AnthropicClient: StructuredLLMClient {
     }
 
     /// レスポンスをデコード
-    private func decodeResponse<T: StructuredProtocol>(_ response: LLMResponse) throws -> T {
+    private func decodeResponse<T: StructuredProtocol>(_ response: LLMResponse, model: String) throws -> GenerationResult<T> {
         guard let text = response.content.first?.text else {
             throw LLMError.emptyResponse
         }
@@ -186,7 +194,14 @@ public struct AnthropicClient: StructuredLLMClient {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
 
         do {
-            return try decoder.decode(T.self, from: data)
+            let result = try decoder.decode(T.self, from: data)
+            return GenerationResult(
+                result: result,
+                usage: response.usage,
+                model: model,
+                rawText: text,
+                stopReason: response.stopReason
+            )
         } catch {
             throw LLMError.decodingFailed(error)
         }
