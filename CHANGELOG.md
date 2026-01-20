@@ -7,6 +7,16 @@
 
 ## [未リリース]
 
+## [1.0.26] - 2026-01-20
+
+### 追加
+
+- **generateWithUsage API**: 構造化出力とトークン使用量を同時に取得する新API
+  - `GenerationResult<T>`: 構造化出力結果とトークン使用量をまとめた型
+  - `generateWithUsage(input:model:)`: 全クライアント（Anthropic/OpenAI/Gemini）で利用可能
+  - `TokenUsage`: 入力/出力トークン数を含む使用量情報
+  - コスト計算やモニタリングに便利
+
 ## [1.0.24] - 2026-01-08
 
 ### 変更
@@ -622,7 +632,8 @@
 - DocC ドキュメント
 - 自動リリースとドキュメント生成用 GitHub Actions
 
-[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.24...HEAD
+[未リリース]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.26...HEAD
+[1.0.26]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.24...v1.0.26
 [1.0.24]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.23...v1.0.24
 [1.0.23]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.22...v1.0.23
 [1.0.22]: https://github.com/no-problem-dev/swift-llm-structured-outputs/compare/v1.0.21...v1.0.22
