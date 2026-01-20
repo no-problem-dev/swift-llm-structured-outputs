@@ -32,6 +32,14 @@ import FoundationNetworking
 /// print(result.name)  // "山田太郎"
 /// print(result.age)   // 35
 ///
+/// // トークン使用量を取得
+/// let resultWithUsage: GenerationResult<UserInfo> = try await client.generateWithUsage(
+///     input: "山田太郎さんは35歳です。",
+///     model: .flash3
+/// )
+/// print("Input tokens: \(resultWithUsage.usage.inputTokens)")
+/// print("Output tokens: \(resultWithUsage.usage.outputTokens)")
+///
 /// // マルチモーダル入力
 /// let result: ImageAnalysis = try await client.generate(
 ///     input: LLMInput("この画像を分析してください", images: [imageContent]),
@@ -40,6 +48,7 @@ import FoundationNetworking
 /// ```
 ///
 /// ## 対応モデル
+/// - `.flash3` - Gemini 3 Flash（最新・最高性能）
 /// - `.pro25` - Gemini 2.5 Pro
 /// - `.flash25` - Gemini 2.5 Flash
 /// - `.flash20` - Gemini 2.0 Flash
@@ -113,14 +122,14 @@ public struct GeminiClient: StructuredLLMClient {
 
     // MARK: - StructuredLLMClient
 
-    public func generate<T: StructuredProtocol>(
+    public func generateWithUsage<T: StructuredProtocol>(
         input: LLMInput,
         model: GeminiModel,
         systemPrompt: String?,
         temperature: Double?,
         maxTokens: Int?
-    ) async throws -> T {
-        try await generate(
+    ) async throws -> GenerationResult<T> {
+        try await generateWithUsage(
             messages: [input.toLLMMessage()],
             model: model,
             systemPrompt: systemPrompt,
@@ -129,13 +138,13 @@ public struct GeminiClient: StructuredLLMClient {
         )
     }
 
-    public func generate<T: StructuredProtocol>(
+    public func generateWithUsage<T: StructuredProtocol>(
         messages: [LLMMessage],
         model: GeminiModel,
         systemPrompt: String?,
         temperature: Double?,
         maxTokens: Int?
-    ) async throws -> T {
+    ) async throws -> GenerationResult<T> {
         // スキーマ情報を含むシステムプロンプトを構築
         let enhancedSystemPrompt = buildSystemPrompt(
             base: systemPrompt,
@@ -152,7 +161,7 @@ public struct GeminiClient: StructuredLLMClient {
         )
 
         let response = try await provider.send(request)
-        return try decodeResponse(response)
+        return try decodeResponse(response, model: model.id)
     }
 
     // MARK: - Private Helpers
@@ -174,7 +183,7 @@ public struct GeminiClient: StructuredLLMClient {
     }
 
     /// レスポンスをデコード
-    private func decodeResponse<T: StructuredProtocol>(_ response: LLMResponse) throws -> T {
+    private func decodeResponse<T: StructuredProtocol>(_ response: LLMResponse, model: String) throws -> GenerationResult<T> {
         guard let text = response.content.first?.text else {
             throw LLMError.emptyResponse
         }
@@ -190,7 +199,14 @@ public struct GeminiClient: StructuredLLMClient {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
 
         do {
-            return try decoder.decode(T.self, from: data)
+            let result = try decoder.decode(T.self, from: data)
+            return GenerationResult(
+                result: result,
+                usage: response.usage,
+                model: model,
+                rawText: jsonText,
+                stopReason: response.stopReason
+            )
         } catch {
             throw LLMError.decodingFailed(error)
         }
