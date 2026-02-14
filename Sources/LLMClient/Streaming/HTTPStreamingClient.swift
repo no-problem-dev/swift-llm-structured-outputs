@@ -161,7 +161,7 @@ internal enum HTTPStreamingClient {
             } else {
                 continuation.finish()
             }
-            (task.session ?? session).invalidateAndCancel()
+            session.invalidateAndCancel()
         }
     }
     #endif
